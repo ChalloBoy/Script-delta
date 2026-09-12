@@ -1,583 +1,582 @@
---==================================================
--- RGB AIM ASSIST + FOV + ESP MARKER + ELECTRIC UI
--- Untuk game Roblox milik sendiri
--- Letakkan sebagai LocalScript di:
--- StarterPlayer > StarterPlayerScripts
---==================================================
+--[[
+    ⚡ ELECTRIC AIM UI
+    Created by: CHALLO_BOY
+
+    Untuk Roblox Studio - game milik sendiri.
+    Fitur:
+    • Aim Assist target yang terlihat
+    • Tidak mengunci target di balik tembok
+    • FOV Circle RGB
+    • Player Marker
+    • UI Electric/RGB
+    • Minimize / Restore
+    • Credit CHALLO_BOY
+]]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
---==================================================
+-- =========================
 -- SETTINGS
---==================================================
+-- =========================
 
-local Settings = {
-	AimEnabled = true,
+local AimEnabled = true
+local MarkerEnabled = true
 
-	-- Ukuran FOV dalam pixel
-	FOVSize = 180,
-	MinFOV = 60,
-	MaxFOV = 400,
+local FOVSize = 180
+local MinFOV = 60
+local MaxFOV = 400
 
-	-- Kecepatan kamera mengikuti target
-	AimSmoothness = 0.16,
+local AimSmoothness = 0.16
+local MaxDistance = 500
+local RequireLineOfSight = true
 
-	-- Jarak maksimum target
-	MaxDistance = 500,
+local RGBSpeed = 0.12
 
-	-- ESP marker
-	ESPEnabled = true,
-
-	-- Hanya target yang terlihat kamera
-	RequireLineOfSight = true,
-
-	-- RGB
-	RGBSpeed = 0.12,
-
-	-- Ketebalan lingkaran
-	FOVThickness = 1,
-}
-
---==================================================
+-- =========================
 -- GUI
---==================================================
+-- =========================
 
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "ElectricAimUI"
 Gui.ResetOnSpawn = false
-Gui.IgnoreGuiInset = true
 Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
---==================================================
+-- =========================
 -- FOV CIRCLE
---==================================================
+-- =========================
 
-local FOV = Instance.new("Frame")
-FOV.Name = "FOVCircle"
-FOV.AnchorPoint = Vector2.new(0.5, 0.5)
-FOV.Position = UDim2.fromScale(0.5, 0.5)
-FOV.Size = UDim2.fromOffset(Settings.FOVSize, Settings.FOVSize)
-FOV.BackgroundTransparency = 1
-FOV.BorderSizePixel = 0
-FOV.Parent = Gui
+local FOVCircle = Instance.new("Frame")
+FOVCircle.Name = "FOVCircle"
+FOVCircle.Size = UDim2.fromOffset(FOVSize, FOVSize)
+FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVCircle.Position = UDim2.fromScale(0.5, 0.5)
+FOVCircle.BackgroundTransparency = 1
+FOVCircle.Parent = Gui
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(1, 0)
-Corner.Parent = FOV
+local FOVCorner = Instance.new("UICorner")
+FOVCorner.CornerRadius = UDim.new(1, 0)
+FOVCorner.Parent = FOVCircle
 
-local Stroke = Instance.new("UIStroke")
-Stroke.Thickness = Settings.FOVThickness
-Stroke.Transparency = 0.15
-Stroke.Parent = FOV
+local FOVStroke = Instance.new("UIStroke")
+FOVStroke.Thickness = 1
+FOVStroke.Transparency = 0.15
+FOVStroke.Parent = FOVCircle
 
---==================================================
--- MAIN UI
---==================================================
+-- =========================
+-- MAIN PANEL
+-- =========================
 
 local Main = Instance.new("Frame")
-Main.Name = "MainPanel"
-Main.Size = UDim2.fromOffset(230, 250)
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(235, 270)
 Main.Position = UDim2.fromOffset(20, 180)
-Main.BackgroundColor3 = Color3.fromRGB(12, 14, 22)
-Main.BackgroundTransparency = 0.08
-Main.BorderSizePixel = 0
+Main.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
+Main.BackgroundTransparency = 0.05
 Main.Parent = Gui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = Main
 
 local MainStroke = Instance.new("UIStroke")
-MainStroke.Thickness = 1.5
-MainStroke.Transparency = 0.15
+MainStroke.Thickness = 1
 MainStroke.Parent = Main
 
---==================================================
+-- =========================
 -- TITLE
---==================================================
+-- =========================
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -50, 0, 42)
-Title.Position = UDim2.fromOffset(15, 5)
+Title.Size = UDim2.new(1, -50, 0, 35)
+Title.Position = UDim2.fromOffset(12, 8)
 Title.BackgroundTransparency = 1
 Title.Text = "⚡ ELECTRIC AIM"
+Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 18
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Parent = Main
 
-local SubTitle = Instance.new("TextLabel")
-SubTitle.Size = UDim2.new(1, -30, 0, 20)
-SubTitle.Position = UDim2.fromOffset(15, 42)
-SubTitle.BackgroundTransparency = 1
-SubTitle.Text = "Aim • FOV • Player Marker"
-SubTitle.TextSize = 10
-SubTitle.Font = Enum.Font.Gotham
-SubTitle.TextColor3 = Color3.fromRGB(170, 175, 190)
-SubTitle.TextXAlignment = Enum.TextXAlignment.Left
-SubTitle.Parent = Main
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Size = UDim2.new(1, -24, 0, 22)
+Subtitle.Position = UDim2.fromOffset(12, 40)
+Subtitle.BackgroundTransparency = 1
+Subtitle.Text = "Aim • FOV • Player Marker"
+Subtitle.TextColor3 = Color3.fromRGB(170, 170, 180)
+Subtitle.TextSize = 11
+Subtitle.Font = Enum.Font.Gotham
+Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+Subtitle.Parent = Main
 
---==================================================
--- MINIMIZE BUTTON
---==================================================
+-- =========================
+-- MINIMIZE
+-- =========================
 
-local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(34, 30)
-Minimize.Position = UDim2.new(1, -42, 0, 10)
-Minimize.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
-Minimize.Text = "−"
-Minimize.TextSize = 20
-Minimize.Font = Enum.Font.GothamBold
-Minimize.TextColor3 = Color3.new(1, 1, 1)
-Minimize.BorderSizePixel = 0
-Minimize.Parent = Main
+local MinButton = Instance.new("TextButton")
+MinButton.Size = UDim2.fromOffset(30, 30)
+MinButton.Position = UDim2.new(1, -38, 0, 8)
+MinButton.BackgroundColor3 = Color3.fromRGB(25, 27, 35)
+MinButton.Text = "−"
+MinButton.TextColor3 = Color3.new(1, 1, 1)
+MinButton.TextSize = 20
+MinButton.Font = Enum.Font.GothamBold
+MinButton.Parent = Main
 
 local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0, 8)
-MinCorner.Parent = Minimize
+MinCorner.Parent = MinButton
 
-local MiniButton = Instance.new("TextButton")
-MiniButton.Name = "OpenButton"
-MiniButton.Size = UDim2.fromOffset(48, 48)
-MiniButton.Position = UDim2.fromOffset(20, 180)
-MiniButton.BackgroundColor3 = Color3.fromRGB(15, 18, 28)
-MiniButton.Text = "⚡"
-MiniButton.TextSize = 24
-MiniButton.Font = Enum.Font.GothamBold
-MiniButton.TextColor3 = Color3.new(1, 1, 1)
-MiniButton.Visible = false
-MiniButton.BorderSizePixel = 0
-MiniButton.Parent = Gui
+-- =========================
+-- RESTORE BUTTON
+-- =========================
 
-local MiniCorner = Instance.new("UICorner")
-MiniCorner.CornerRadius = UDim.new(1, 0)
-MiniCorner.Parent = MiniButton
+local Restore = Instance.new("TextButton")
+Restore.Size = UDim2.fromOffset(55, 32)
+Restore.Position = UDim2.fromOffset(20, 180)
+Restore.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
+Restore.Text = "⚡"
+Restore.TextColor3 = Color3.new(1, 1, 1)
+Restore.TextSize = 18
+Restore.Font = Enum.Font.GothamBold
+Restore.Visible = false
+Restore.Parent = Gui
 
-local minimized = false
+local RestoreCorner = Instance.new("UICorner")
+RestoreCorner.CornerRadius = UDim.new(0, 9)
+RestoreCorner.Parent = Restore
 
-Minimize.MouseButton1Click:Connect(function()
-	minimized = true
-	Main.Visible = false
-	MiniButton.Visible = true
-end)
+local RestoreStroke = Instance.new("UIStroke")
+RestoreStroke.Thickness = 1
+RestoreStroke.Parent = Restore
 
-MiniButton.MouseButton1Click:Connect(function()
-	minimized = false
-	Main.Visible = true
-	MiniButton.Visible = false
-end)
+-- =========================
+-- CREDIT
+-- =========================
 
---==================================================
--- AIM TOGGLE
---==================================================
+local Credit = Instance.new("TextLabel")
+Credit.Size = UDim2.new(1, -24, 0, 40)
+Credit.Position = UDim2.new(0, 12, 1, -48)
+Credit.BackgroundTransparency = 1
+Credit.Text = "⚡ CHALLO_BOY ⚡\nCreated by Challo_Boy"
+Credit.TextColor3 = Color3.new(1, 1, 1)
+Credit.TextSize = 10
+Credit.Font = Enum.Font.GothamBold
+Credit.TextXAlignment = Enum.TextXAlignment.Center
+Credit.Parent = Main
 
-local AimButton = Instance.new("TextButton")
-AimButton.Size = UDim2.new(1, -30, 0, 38)
-AimButton.Position = UDim2.fromOffset(15, 72)
-AimButton.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
-AimButton.Text = "🎯 AIM ASSIST : ON"
-AimButton.TextSize = 13
-AimButton.Font = Enum.Font.GothamBold
-AimButton.TextColor3 = Color3.new(1, 1, 1)
-AimButton.BorderSizePixel = 0
-AimButton.Parent = Main
+local MiniCredit = Instance.new("TextLabel")
+MiniCredit.Size = UDim2.new(1, 0, 0, 12)
+MiniCredit.Position = UDim2.new(0, 0, 1, 2)
+MiniCredit.BackgroundTransparency = 1
+MiniCredit.Text = "CHALLO_BOY"
+MiniCredit.TextColor3 = Color3.new(1, 1, 1)
+MiniCredit.TextSize = 8
+MiniCredit.Font = Enum.Font.GothamBold
+MiniCredit.Parent = Restore
 
-local AimCorner = Instance.new("UICorner")
-AimCorner.CornerRadius = UDim.new(0, 9)
-AimCorner.Parent = AimButton
+-- =========================
+-- BUTTON FUNCTION
+-- =========================
+
+local function CreateButton(text, y)
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(1, -24, 0, 38)
+    Button.Position = UDim2.fromOffset(12, y)
+    Button.BackgroundColor3 = Color3.fromRGB(22, 24, 32)
+    Button.TextColor3 = Color3.new(1, 1, 1)
+    Button.TextSize = 13
+    Button.Font = Enum.Font.GothamBold
+    Button.Text = text
+    Button.AutoButtonColor = true
+    Button.Parent = Main
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Button
+
+    return Button
+end
+
+-- =========================
+-- AIM BUTTON
+-- =========================
+
+local AimButton = CreateButton("🎯 AIM ASSIST : ON", 72)
 
 AimButton.MouseButton1Click:Connect(function()
-	Settings.AimEnabled = not Settings.AimEnabled
+    AimEnabled = not AimEnabled
 
-	if Settings.AimEnabled then
-		AimButton.Text = "🎯 AIM ASSIST : ON"
-	else
-		AimButton.Text = "🎯 AIM ASSIST : OFF"
-	end
+    if AimEnabled then
+        AimButton.Text = "🎯 AIM ASSIST : ON"
+    else
+        AimButton.Text = "🎯 AIM ASSIST : OFF"
+    end
 end)
 
---==================================================
--- ESP TOGGLE
---==================================================
+-- =========================
+-- MARKER BUTTON
+-- =========================
 
-local ESPButton = Instance.new("TextButton")
-ESPButton.Size = UDim2.new(1, -30, 0, 38)
-ESPButton.Position = UDim2.fromOffset(15, 118)
-ESPButton.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
-ESPButton.Text = "👤 MARKER : ON"
-ESPButton.TextSize = 13
-ESPButton.Font = Enum.Font.GothamBold
-ESPButton.TextColor3 = Color3.new(1, 1, 1)
-ESPButton.BorderSizePixel = 0
-ESPButton.Parent = Main
+local MarkerButton = CreateButton("● PLAYER MARKER : ON", 118)
 
-local ESPCorner = Instance.new("UICorner")
-ESPCorner.CornerRadius = UDim.new(0, 9)
-ESPCorner.Parent = ESPButton
+MarkerButton.MouseButton1Click:Connect(function()
+    MarkerEnabled = not MarkerEnabled
 
-ESPButton.MouseButton1Click:Connect(function()
-	Settings.ESPEnabled = not Settings.ESPEnabled
-
-	if Settings.ESPEnabled then
-		ESPButton.Text = "👤 MARKER : ON"
-	else
-		ESPButton.Text = "👤 MARKER : OFF"
-	end
+    if MarkerEnabled then
+        MarkerButton.Text = "● PLAYER MARKER : ON"
+    else
+        MarkerButton.Text = "● PLAYER MARKER : OFF"
+    end
 end)
 
---==================================================
+-- =========================
 -- FOV LABEL
---==================================================
+-- =========================
 
 local FOVLabel = Instance.new("TextLabel")
-FOVLabel.Size = UDim2.new(1, -30, 0, 20)
-FOVLabel.Position = UDim2.fromOffset(15, 165)
+FOVLabel.Size = UDim2.new(1, -24, 0, 25)
+FOVLabel.Position = UDim2.fromOffset(12, 164)
 FOVLabel.BackgroundTransparency = 1
-FOVLabel.Text = "FOV SIZE : " .. Settings.FOVSize
+FOVLabel.Text = "FOV : " .. FOVSize
+FOVLabel.TextColor3 = Color3.new(1, 1, 1)
 FOVLabel.TextSize = 12
 FOVLabel.Font = Enum.Font.GothamBold
-FOVLabel.TextColor3 = Color3.new(1, 1, 1)
 FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
 FOVLabel.Parent = Main
 
---==================================================
+-- =========================
 -- FOV SLIDER
---==================================================
+-- =========================
 
-local SliderBack = Instance.new("Frame")
-SliderBack.Size = UDim2.new(1, -30, 0, 8)
-SliderBack.Position = UDim2.fromOffset(15, 194)
-SliderBack.BackgroundColor3 = Color3.fromRGB(35, 38, 50)
-SliderBack.BorderSizePixel = 0
-SliderBack.Parent = Main
+local Slider = Instance.new("TextButton")
+Slider.Size = UDim2.new(1, -24, 0, 12)
+Slider.Position = UDim2.fromOffset(12, 194)
+Slider.BackgroundColor3 = Color3.fromRGB(40, 42, 50)
+Slider.Text = ""
+Slider.AutoButtonColor = false
+Slider.Parent = Main
 
 local SliderCorner = Instance.new("UICorner")
 SliderCorner.CornerRadius = UDim.new(1, 0)
-SliderCorner.Parent = SliderBack
+SliderCorner.Parent = Slider
 
-local SliderFill = Instance.new("Frame")
-SliderFill.Size = UDim2.fromScale(
-	(Settings.FOVSize - Settings.MinFOV) /
-	(Settings.MaxFOV - Settings.MinFOV),
-	1
+local Knob = Instance.new("Frame")
+Knob.Size = UDim2.fromOffset(14, 14)
+Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+Knob.Position = UDim2.fromScale(
+    (FOVSize - MinFOV) / (MaxFOV - MinFOV),
+    0.5
 )
-SliderFill.BackgroundColor3 = Color3.new(1, 1, 1)
-SliderFill.BorderSizePixel = 0
-SliderFill.Parent = SliderBack
+Knob.BackgroundColor3 = Color3.new(1, 1, 1)
+Knob.Parent = Slider
 
-local FillCorner = Instance.new("UICorner")
-FillCorner.CornerRadius = UDim.new(1, 0)
-FillCorner.Parent = SliderFill
+local KnobCorner = Instance.new("UICorner")
+KnobCorner.CornerRadius = UDim.new(1, 0)
+KnobCorner.Parent = Knob
 
 local dragging = false
 
-local function UpdateFOV(inputX)
-	local relative = math.clamp(
-		(inputX - SliderBack.AbsolutePosition.X) /
-		SliderBack.AbsoluteSize.X,
-		0,
-		1
-	)
+local function UpdateSlider(x)
+    local relative = math.clamp(
+        (x - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X,
+        0,
+        1
+    )
 
-	local newSize = math.floor(
-		Settings.MinFOV +
-		(Settings.MaxFOV - Settings.MinFOV) * relative
-	)
+    FOVSize = math.floor(
+        MinFOV + ((MaxFOV - MinFOV) * relative)
+    )
 
-	Settings.FOVSize = newSize
+    FOVLabel.Text = "FOV : " .. FOVSize
 
-	FOV.Size = UDim2.fromOffset(newSize, newSize)
+    Knob.Position = UDim2.fromScale(relative, 0.5)
 
-	SliderFill.Size = UDim2.fromScale(relative, 1)
-
-	FOVLabel.Text = "FOV SIZE : " .. newSize
+    FOVCircle.Size = UDim2.fromOffset(FOVSize, FOVSize)
 end
 
-SliderBack.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+Slider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
 
-		dragging = true
-		UpdateFOV(input.Position.X)
-	end
+        dragging = true
+        UpdateSlider(input.Position.X)
+    end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (
-		input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch
-	) then
-		UpdateFOV(input.Position.X)
-	end
+Slider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        dragging = false
+    end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging then
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
 
-		dragging = false
-	end
+            UpdateSlider(input.Position.X)
+        end
+    end
 end)
 
---==================================================
--- ESP MARKER SYSTEM
---==================================================
+-- =========================
+-- MINIMIZE
+-- =========================
+
+MinButton.MouseButton1Click:Connect(function()
+    Main.Visible = false
+    Restore.Visible = true
+end)
+
+Restore.MouseButton1Click:Connect(function()
+    Main.Visible = true
+    Restore.Visible = false
+end)
+
+-- =========================
+-- LINE OF SIGHT
+-- =========================
+
+local function IsVisible(character, targetRoot)
+    if not RequireLineOfSight then
+        return true
+    end
+
+    local origin = Camera.CFrame.Position
+    local direction = targetRoot.Position - origin
+
+    local Params = RaycastParams.new()
+    Params.FilterType = Enum.RaycastFilterType.Exclude
+    Params.FilterDescendantsInstances = {
+        LocalPlayer.Character,
+        character
+    }
+
+    local Result = workspace:Raycast(
+        origin,
+        direction,
+        Params
+    )
+
+    return Result == nil
+end
+
+-- =========================
+-- FIND TARGET
+-- =========================
+
+local function GetTarget()
+    local closestPlayer = nil
+    local closestDistance = math.huge
+
+    local screenCenter = Vector2.new(
+        Camera.ViewportSize.X / 2,
+        Camera.ViewportSize.Y / 2
+    )
+
+    for _, player in ipairs(Players:GetPlayers()) do
+
+        if player ~= LocalPlayer then
+
+            local character = player.Character
+            if character then
+
+                local humanoid =
+                    character:FindFirstChildOfClass("Humanoid")
+
+                local root =
+                    character:FindFirstChild("HumanoidRootPart")
+
+                if humanoid and root and humanoid.Health > 0 then
+
+                    local distance =
+                        (Camera.CFrame.Position - root.Position).Magnitude
+
+                    if distance <= MaxDistance then
+
+                        local screenPosition, onScreen =
+                            Camera:WorldToViewportPoint(root.Position)
+
+                        if onScreen and screenPosition.Z > 0 then
+
+                            local screenDistance =
+                                (Vector2.new(
+                                    screenPosition.X,
+                                    screenPosition.Y
+                                ) - screenCenter).Magnitude
+
+                            if screenDistance <= FOVSize / 2 then
+
+                                if IsVisible(character, root) then
+
+                                    if screenDistance < closestDistance then
+                                        closestDistance = screenDistance
+                                        closestPlayer = player
+                                    end
+
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+-- =========================
+-- PLAYER MARKERS
+-- =========================
 
 local Markers = {}
 
-local function RemoveMarker(player)
-	if Markers[player] then
-		Markers[player]:Destroy()
-		Markers[player] = nil
-	end
+local function CreateMarker(player)
+    if player == LocalPlayer then
+        return
+    end
+
+    if Markers[player] then
+        return
+    end
+
+    local character = player.Character
+    if not character then
+        return
+    end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then
+        return
+    end
+
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Name = "PlayerMarker"
+    Billboard.Size = UDim2.fromOffset(12, 12)
+    Billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    Billboard.AlwaysOnTop = false
+    Billboard.Enabled = MarkerEnabled
+    Billboard.Parent = root
+
+    local Dot = Instance.new("Frame")
+    Dot.Size = UDim2.fromScale(1, 1)
+    Dot.BackgroundColor3 = Color3.new(1, 1, 1)
+    Dot.BorderSizePixel = 0
+    Dot.Parent = Billboard
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(1, 0)
+    Corner.Parent = Dot
+
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Thickness = 1
+    Stroke.Parent = Dot
+
+    Markers[player] = Billboard
 end
 
-local function CreateMarker(player)
-	if player == LocalPlayer then
-		return
-	end
-
-	if Markers[player] then
-		return
-	end
-
-	local marker = Instance.new("BillboardGui")
-	marker.Name = "PlayerMarker"
-	marker.Size = UDim2.fromOffset(18, 18)
-	marker.StudsOffset = Vector3.new(0, 2.5, 0)
-	marker.AlwaysOnTop = true
-	marker.Enabled = Settings.ESPEnabled
-	marker.Parent = Gui
-
-	local dot = Instance.new("Frame")
-	dot.Size = UDim2.fromScale(1, 1)
-	dot.BackgroundColor3 = Color3.new(1, 1, 1)
-	dot.BorderSizePixel = 0
-	dot.Parent = marker
-
-	local dotCorner = Instance.new("UICorner")
-	dotCorner.CornerRadius = UDim.new(1, 0)
-	dotCorner.Parent = dot
-
-	Markers[player] = marker
-
-	local function UpdateMarker()
-		if not player.Character then
-			marker.Enabled = false
-			return
-		end
-
-		local root = player.Character:FindFirstChild("HumanoidRootPart")
-
-		if not root then
-			marker.Enabled = false
-			return
-		end
-
-		marker.Adornee = root
-		marker.Enabled = Settings.ESPEnabled
-	end
-
-	RunService.RenderStepped:Connect(UpdateMarker)
+local function RemoveMarker(player)
+    if Markers[player] then
+        Markers[player]:Destroy()
+        Markers[player] = nil
+    end
 end
 
 for _, player in ipairs(Players:GetPlayers()) do
-	CreateMarker(player)
+    if player ~= LocalPlayer then
+
+        player.CharacterAdded:Connect(function()
+            task.wait(1)
+            RemoveMarker(player)
+            CreateMarker(player)
+        end)
+
+        CreateMarker(player)
+    end
 end
 
-Players.PlayerAdded:Connect(CreateMarker)
+Players.PlayerAdded:Connect(function(player)
+
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        RemoveMarker(player)
+        CreateMarker(player)
+    end)
+
+end)
 
 Players.PlayerRemoving:Connect(function(player)
-	RemoveMarker(player)
+    RemoveMarker(player)
 end)
 
---==================================================
--- LINE OF SIGHT
---==================================================
+-- =========================
+-- RGB + AIM LOOP
+-- =========================
 
-local function IsVisible(targetCharacter)
-	if not targetCharacter then
-		return false
-	end
+local hue = 0
 
-	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+RunService.RenderStepped:Connect(function()
 
-	if not targetRoot then
-		return false
-	end
+    -- RGB
+    hue = (hue + RGBSpeed / 100) % 1
 
-	local origin = Camera.CFrame.Position
-	local direction = targetRoot.Position - origin
+    local RGB = Color3.fromHSV(
+        hue,
+        0.85,
+        1
+    )
 
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = {
-		LocalPlayer.Character,
-		targetCharacter
-	}
+    FOVStroke.Color = RGB
+    MainStroke.Color = RGB
+    RestoreStroke.Color = RGB
+    Knob.BackgroundColor3 = RGB
+    Credit.TextColor3 = RGB
+    MiniCredit.TextColor3 = RGB
 
-	local result = workspace:Raycast(
-		origin,
-		direction,
-		params
-	)
+    -- Electric pulse
+    local pulse =
+        0.12 + (math.sin(os.clock() * 4) + 1) * 0.04
 
-	-- Tidak ada objek yang menghalangi
-	return result == nil
-end
+    FOVStroke.Transparency = pulse
 
---==================================================
--- FIND TARGET
---==================================================
+    -- Marker visibility
+    for _, marker in pairs(Markers) do
+        if marker then
+            marker.Enabled = MarkerEnabled
+        end
+    end
 
-local function GetBestTarget()
-	local viewport = Camera.ViewportSize
+    -- Aim Assist
+    if AimEnabled then
 
-	local center = Vector2.new(
-		viewport.X / 2,
-		viewport.Y / 2
-	)
+        local target = GetTarget()
 
-	local bestTarget = nil
-	local bestDistance = math.huge
+        if target and target.Character then
 
-	for _, player in ipairs(Players:GetPlayers()) do
+            local root =
+                target.Character:FindFirstChild("HumanoidRootPart")
 
-		if player ~= LocalPlayer then
+            if root then
 
-			local character = player.Character
+                local targetCFrame =
+                    CFrame.lookAt(
+                        Camera.CFrame.Position,
+                        root.Position
+                    )
 
-			if character then
-
-				local humanoid = character:FindFirstChildOfClass("Humanoid")
-				local root = character:FindFirstChild("HumanoidRootPart")
-
-				if humanoid and root and humanoid.Health > 0 then
-
-					local worldDistance =
-						(root.Position - Camera.CFrame.Position).Magnitude
-
-					if worldDistance <= Settings.MaxDistance then
-
-						local screenPosition, onScreen =
-							Camera:WorldToViewportPoint(root.Position)
-
-						if onScreen and screenPosition.Z > 0 then
-
-							local screenDistance =
-								(Vector2.new(
-									screenPosition.X,
-									screenPosition.Y
-								) - center).Magnitude
-
-							if screenDistance <= Settings.FOVSize / 2 then
-
-								local visible = true
-
-								if Settings.RequireLineOfSight then
-									visible = IsVisible(character)
-								end
-
-								if visible and screenDistance < bestDistance then
-									bestDistance = screenDistance
-									bestTarget = root
-								end
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-
-	return bestTarget
-end
-
---==================================================
--- AIM ASSIST
---==================================================
-
-local function AimAt(target)
-	if not target then
-		return
-	end
-
-	local cameraPosition = Camera.CFrame.Position
-
-	local desired =
-		CFrame.lookAt(
-			cameraPosition,
-			target.Position
-		)
-
-	Camera.CFrame =
-		Camera.CFrame:Lerp(
-			desired,
-			Settings.AimSmoothness
-		)
-end
-
---==================================================
--- RGB EFFECT
---==================================================
-
-local rgbTime = 0
-
-RunService.RenderStepped:Connect(function(deltaTime)
-
-	-- RGB halus
-	rgbTime += deltaTime * Settings.RGBSpeed
-
-	local hue = (rgbTime % 1)
-
-	local rgbColor =
-		Color3.fromHSV(hue, 0.85, 1)
-
-	Stroke.Color = rgbColor
-	MainStroke.Color = rgbColor
-	MiniCorner.Parent = MiniButton
-
-	-- Marker juga mengikuti RGB
-	for _, marker in pairs(Markers) do
-		local dot = marker:FindFirstChildWhichIsA("Frame")
-
-		if dot then
-			dot.BackgroundColor3 = rgbColor
-		end
-	end
-
-	-- Aim
-	if Settings.AimEnabled then
-		local target = GetBestTarget()
-
-		if target then
-			AimAt(target)
-		end
-	end
-end)
-
---==================================================
--- ELECTRIC UI ANIMATION
---==================================================
-
-local pulse = 0
-
-RunService.RenderStepped:Connect(function(deltaTime)
-
-	pulse += deltaTime * 3
-
-	local wave =
-		(math.sin(pulse) + 1) / 2
-
-	MainStroke.Transparency =
-		0.15 + wave * 0.35
-
-	Stroke.Transparency =
-		0.08 + wave * 0.20
+                Camera.CFrame =
+                    Camera.CFrame:Lerp(
+                        targetCFrame,
+                        AimSmoothness
+                    )
+            end
+        end
+    end
 end)
