@@ -1,566 +1,331 @@
---[[
-    Training Aim + ESP UI
-    Pasang sebagai LocalScript di StarterPlayer > StarterPlayerScripts.
-    Hanya memproses NPC/target latihan bertag "AimTarget".
-]]
+
+-- LocalScript in StarterPlayer > StarterPlayerScripts
+-- UI demo for your own Roblox Studio experience.
+-- Does not implement player targeting, aimbot, or wall-penetrating ESP.
 
 local Players = game:GetService("Players")
-local CollectionService = game:GetService("CollectionService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local gui = Instance.new("ScreenGui")
+gui.Name = "AimESP_Demo"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Hapus UI lama jika script dijalankan ulang
-local oldGui = playerGui:FindFirstChild("TrainingAimESP")
-if oldGui then oldGui:Destroy() end
-
-local settings = {
-    aim = false,
-    aimStrength = 50, -- 0–100%
-    aimFov = 150,      -- radius lingkaran di layar
-    pov = 70,          -- Camera.FieldOfView
-    povTransparency = 0.35,
-
+local state = {
+    aimEnabled = false,
+    aimStrength = 50,
+    targetPart = "Head",
+    povSize = 180,
+    povTransparency = 0.45,
+    colorMode = "RGB",
+    customColor = Color3.fromRGB(56, 189, 248),
     esp = {
-        Box = false,
-        Name = false,
-        Health = false,
-        Distance = false,
-        Tracer = false,
-        Highlight = false,
+        Box = false, Tracer = false, Name = false,
+        Distance = false, ["Health Bar"] = false,
+        Skeleton = false, Highlight = false,
     },
-
-    colors = {
-        Box = Color3.fromRGB(255, 80, 80),
-        Name = Color3.fromRGB(255, 255, 255),
-        Health = Color3.fromRGB(80, 255, 100),
-        Distance = Color3.fromRGB(255, 220, 80),
-        Tracer = Color3.fromRGB(80, 200, 255),
-        Highlight = Color3.fromRGB(255, 80, 220),
-        FOV = Color3.fromRGB(80, 200, 255),
-    },
-
-    rgb = false,
 }
 
-local camera = workspace.CurrentCamera
-local gui = Instance.new("ScreenGui")
-gui.Name = "TrainingAimESP"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.Parent = playerGui
-
--- Tampilan layar untuk lingkaran FOV dan ESP
-local overlay = Instance.new("Frame")
-overlay.Name = "Overlay"
-overlay.BackgroundTransparency = 1
-overlay.Size = UDim2.fromScale(1, 1)
-overlay.Parent = gui
-
-local fovCircle = Instance.new("Frame")
-fovCircle.Name = "FOVCircle"
-fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-fovCircle.Position = UDim2.fromScale(0.5, 0.5)
-fovCircle.Size = UDim2.fromOffset(settings.aimFov * 2, settings.aimFov * 2)
-fovCircle.BackgroundTransparency = 1
-fovCircle.BorderSizePixel = 0
-fovCircle.Parent = overlay
-
-local fovCorner = Instance.new("UICorner")
-fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.Parent = fovCircle
-
-local fovStroke = Instance.new("UIStroke")
-fovStroke.Thickness = 2
-fovStroke.Transparency = settings.povTransparency
-fovStroke.Color = settings.colors.FOV
-fovStroke.Parent = fovCircle
-
-local panel = Instance.new("Frame")
-panel.Name = "Panel"
-panel.Size = UDim2.fromOffset(290, 430)
-panel.Position = UDim2.fromOffset(20, 100)
-panel.BackgroundColor3 = Color3.fromRGB(25, 27, 35)
-panel.BorderSizePixel = 0
-panel.Parent = gui
-
-local panelCorner = Instance.new("UICorner")
-panelCorner.CornerRadius = UDim.new(0, 10)
-panelCorner.Parent = panel
-
-local header = Instance.new("TextButton")
-header.Size = UDim2.new(1, 0, 0, 36)
-header.BackgroundColor3 = Color3.fromRGB(42, 46, 60)
-header.Text = "Training Aim + ESP  •  geser di sini"
-header.TextColor3 = Color3.new(1, 1, 1)
-header.Font = Enum.Font.GothamBold
-header.TextSize = 12
-header.Parent = panel
-
-local list = Instance.new("ScrollingFrame")
-list.Position = UDim2.fromOffset(8, 44)
-list.Size = UDim2.new(1, -16, 1, -52)
-list.BackgroundTransparency = 1
-list.BorderSizePixel = 0
-list.ScrollBarThickness = 5
-list.CanvasSize = UDim2.fromOffset(0, 0)
-list.AutomaticCanvasSize = Enum.AutomaticSize.Y
-list.Parent = panel
-
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 5)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = list
-
-local function makeButton(text, callback)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -4, 0, 30)
-    button.BackgroundColor3 = Color3.fromRGB(48, 52, 66)
-    button.BorderSizePixel = 0
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.Font = Enum.Font.Gotham
-    button.TextSize = 12
-    button.Text = text
-    button.Parent = list
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = button
-
-    button.Activated:Connect(callback)
-    return button
+local function make(className, props, parent)
+    local obj = Instance.new(className)
+    for k, v in pairs(props or {}) do obj[k] = v end
+    obj.Parent = parent
+    return obj
 end
 
-local function refreshFov()
-    fovCircle.Size = UDim2.fromOffset(settings.aimFov * 2, settings.aimFov * 2)
-    fovStroke.Transparency = settings.povTransparency
-    fovStroke.Color = settings.rgb and Color3.fromHSV((os.clock() * 0.15) % 1, 1, 1)
-        or settings.colors.FOV
-end
+local panel = make("Frame", {
+    Name = "Panel",
+    Size = UDim2.fromOffset(310, 390),
+    Position = UDim2.new(0, 24, 0.25, 0),
+    BackgroundColor3 = Color3.fromRGB(18, 22, 32),
+    BorderSizePixel = 0,
+}, gui)
+make("UICorner", {CornerRadius = UDim.new(0, 12)}, panel)
+make("UIStroke", {Color = Color3.fromRGB(55, 65, 81), Thickness = 1}, panel)
 
-local function addToggle(name, key)
-    local button
-    local function update()
-        button.Text = name .. ": " .. (settings.esp[key] and "ON" or "OFF")
-        button.BackgroundColor3 = settings.esp[key]
-            and Color3.fromRGB(35, 105, 75)
-            or Color3.fromRGB(48, 52, 66)
-    end
-    button = makeButton("", function()
-        settings.esp[key] = not settings.esp[key]
-        update()
-    end)
-    update()
-end
+local top = make("Frame", {
+    Size = UDim2.new(1, 0, 0, 42),
+    BackgroundColor3 = Color3.fromRGB(28, 35, 49),
+    BorderSizePixel = 0,
+}, panel)
+make("UICorner", {CornerRadius = UDim.new(0, 12)}, top)
 
-makeButton("Buka / tutup panel", function()
-    panel.Visible = not panel.Visible
-end)
+make("TextLabel", {
+    Size = UDim2.new(1, -82, 1, 0),
+    Position = UDim2.fromOffset(12, 0),
+    BackgroundTransparency = 1,
+    Text = "AIM & ESP  •  DEMO",
+    TextColor3 = Color3.new(1, 1, 1),
+    TextSize = 15,
+    Font = Enum.Font.GothamBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, top)
 
-makeButton("Aim Assist: OFF", function()
-    settings.aim = not settings.aim
-    -- Tombol diperbarui di bawah melalui teks
-end).Name = "AimToggle"
+local minimize = make("TextButton", {
+    Size = UDim2.fromOffset(34, 30),
+    Position = UDim2.new(1, -72, 0, 6),
+    Text = "−",
+    TextSize = 22,
+    Font = Enum.Font.GothamBold,
+    TextColor3 = Color3.new(1, 1, 1),
+    BackgroundColor3 = Color3.fromRGB(55, 65, 81),
+    BorderSizePixel = 0,
+}, top)
+make("UICorner", {CornerRadius = UDim.new(0, 7)}, minimize)
 
-local aimButton = list:FindFirstChild("AimToggle")
-if aimButton then
-    aimButton.Text = "Aim Assist: OFF"
-    aimButton.Activated:Connect(function()
-        aimButton.Text = "Aim Assist: " .. (settings.aim and "ON" or "OFF")
-    end)
-end
+local close = make("TextButton", {
+    Size = UDim2.fromOffset(30, 30),
+    Position = UDim2.new(1, -36, 0, 6),
+    Text = "×",
+    TextSize = 20,
+    Font = Enum.Font.GothamBold,
+    TextColor3 = Color3.new(1, 1, 1),
+    BackgroundColor3 = Color3.fromRGB(127, 29, 29),
+    BorderSizePixel = 0,
+}, top)
+make("UICorner", {CornerRadius = UDim.new(0, 7)}, close)
 
-makeButton("Aim Strength: -5%", function()
-    settings.aimStrength = math.clamp(settings.aimStrength - 5, 0, 100)
-    -- Nilai ditampilkan di tombol kontrol berikutnya
-end)
+local reopen = make("TextButton", {
+    Size = UDim2.fromOffset(54, 42),
+    Position = UDim2.new(0, 18, 0.25, 0),
+    Text = "A&E",
+    TextSize = 14,
+    Font = Enum.Font.GothamBold,
+    TextColor3 = Color3.new(1, 1, 1),
+    BackgroundColor3 = Color3.fromRGB(28, 35, 49),
+    Visible = false,
+    BorderSizePixel = 0,
+}, gui)
+make("UICorner", {CornerRadius = UDim.new(0, 10)}, reopen)
 
-local strengthButton = makeButton("", function()
-    settings.aimStrength = math.clamp(settings.aimStrength + 5, 0, 100)
-    strengthButton.Text = "Aim Strength: " .. settings.aimStrength .. "%  (+5)"
-end)
-strengthButton.Text = "Aim Strength: " .. settings.aimStrength .. "%  (+5)"
-
-makeButton("Aim FOV: -10", function()
-    settings.aimFov = math.clamp(settings.aimFov - 10, 30, 500)
-    refreshFov()
-end)
-
-makeButton("Aim FOV: +10", function()
-    settings.aimFov = math.clamp(settings.aimFov + 10, 30, 500)
-    refreshFov()
-end)
-
-makeButton("POV / Camera FOV: -5", function()
-    settings.pov = math.clamp(settings.pov - 5, 50, 120)
-    if workspace.CurrentCamera then
-        workspace.CurrentCamera.FieldOfView = settings.pov
-    end
-end)
-
-makeButton("POV / Camera FOV: +5", function()
-    settings.pov = math.clamp(settings.pov + 5, 50, 120)
-    if workspace.CurrentCamera then
-        workspace.CurrentCamera.FieldOfView = settings.pov
-    end
-end)
-
-makeButton("Transparansi lingkaran FOV: -0.1", function()
-    settings.povTransparency = math.clamp(settings.povTransparency - 0.1, 0, 1)
-    refreshFov()
-end)
-
-makeButton("Transparansi lingkaran FOV: +0.1", function()
-    settings.povTransparency = math.clamp(settings.povTransparency + 0.1, 0, 1)
-    refreshFov()
-end)
-
-makeButton("RGB ESP + garis FOV: OFF", function()
-    settings.rgb = not settings.rgb
-end).Name = "RGBToggle"
-
-local rgbButton = list:FindFirstChild("RGBToggle")
-if rgbButton then
-    rgbButton.Activated:Connect(function()
-        rgbButton.Text = "RGB ESP + garis FOV: " .. (settings.rgb and "ON" or "OFF")
-    end)
-end
-
-addToggle("Box ESP", "Box")
-addToggle("Name ESP", "Name")
-addToggle("Health ESP", "Health")
-addToggle("Distance ESP", "Distance")
-addToggle("Tracer ESP", "Tracer")
-addToggle("Highlight ESP", "Highlight")
-
-local colorOrder = {"Box", "Name", "Health", "Distance", "Tracer", "Highlight", "FOV"}
-local selectedColor = 1
-
-makeButton("Pilih warna ESP berikutnya", function()
-    selectedColor = selectedColor % #colorOrder + 1
-end)
-
-makeButton("Ubah warna ESP terpilih", function()
-    local key = colorOrder[selectedColor]
-    local hue = math.random()
-    settings.colors[key] = Color3.fromHSV(hue, 0.85, 1)
-end)
-
--- UI dapat digeser dengan mouse maupun sentuhan
-do
-    local dragging = false
-    local dragStart
-    local startPos
-
-    header.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = panel.Position
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-            or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            panel.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-end
-
--- Tombol kecil untuk membuka panel saat panel disembunyikan
-local openButton = Instance.new("TextButton")
-openButton.Size = UDim2.fromOffset(110, 32)
-openButton.Position = UDim2.fromOffset(20, 55)
-openButton.Text = "Buka Aim/ESP"
-openButton.TextSize = 12
-openButton.Font = Enum.Font.GothamBold
-openButton.TextColor3 = Color3.new(1, 1, 1)
-openButton.BackgroundColor3 = Color3.fromRGB(42, 46, 60)
-openButton.Parent = gui
-Instance.new("UICorner", openButton).CornerRadius = UDim.new(0, 7)
-openButton.Activated:Connect(function()
-    panel.Visible = true
-    openButton.Visible = false
-end)
-
-header.Activated:Connect(function()
-    -- Ketuk judul untuk menyembunyikan panel; tombol kecil akan muncul.
+minimize.Activated:Connect(function()
     panel.Visible = false
-    openButton.Visible = true
+    reopen.Visible = true
+end)
+reopen.Activated:Connect(function()
+    panel.Visible = true
+    reopen.Visible = false
+end)
+close.Activated:Connect(function()
+    gui:Destroy()
 end)
 
--- Data visual per target
-local targetVisuals = {}
-
-local function makeLine(parent)
-    local line = Instance.new("Frame")
-    line.AnchorPoint = Vector2.new(0, 0.5)
-    line.BorderSizePixel = 0
-    line.Visible = false
-    line.Parent = parent
-    return line
-end
-
-local function makeTargetVisual(model)
-    local folder = Instance.new("Folder")
-    folder.Name = "TargetVisual"
-    folder.Parent = overlay
-
-    local boxLines = {}
-    for i = 1, 4 do
-        boxLines[i] = makeLine(folder)
+-- Drag panel using the title bar.
+local dragging, dragStart, startPos
+top.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = panel.Position
     end
-
-    local tracer = makeLine(folder)
-
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.fromOffset(180, 20)
-    label.AnchorPoint = Vector2.new(0.5, 1)
-    label.Font = Enum.Font.GothamBold
-    label.TextSize = 13
-    label.TextStrokeTransparency = 0.35
-    label.Visible = false
-    label.Parent = folder
-
-    local healthBack = Instance.new("Frame")
-    healthBack.BorderSizePixel = 0
-    healthBack.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    healthBack.Visible = false
-    healthBack.Parent = folder
-
-    local healthFill = Instance.new("Frame")
-    healthFill.BorderSizePixel = 0
-    healthFill.BackgroundColor3 = settings.colors.Health
-    healthFill.Size = UDim2.fromScale(1, 1)
-    healthFill.Parent = healthBack
-
-    local highlight = Instance.new("Highlight")
-    highlight.Enabled = false
-    highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-    highlight.Adornee = model
-    highlight.Parent = model
-
-    targetVisuals[model] = {
-        folder = folder,
-        box = boxLines,
-        tracer = tracer,
-        label = label,
-        healthBack = healthBack,
-        healthFill = healthFill,
-        highlight = highlight,
-    }
-end
-
-local function removeTargetVisual(model)
-    local visual = targetVisuals[model]
-    if not visual then return end
-    if visual.folder then visual.folder:Destroy() end
-    if visual.highlight then visual.highlight:Destroy() end
-    targetVisuals[model] = nil
-end
-
-local function getTargetPart(model)
-    return model:FindFirstChild("Head")
-        or model:FindFirstChild("HumanoidRootPart")
-        or model.PrimaryPart
-end
-
-local function hasLineOfSight(model, part)
-    if not camera then return false end
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {player.Character}
-
-    local origin = camera.CFrame.Position
-    local direction = part.Position - origin
-    local result = workspace:Raycast(origin, direction, params)
-
-    return result == nil or result.Instance:IsDescendantOf(model)
-end
-
-local function setLine(line, p1, p2, color, thickness)
-    local delta = p2 - p1
-    line.Position = UDim2.fromOffset(p1.X, p1.Y)
-    line.Size = UDim2.fromOffset(delta.Magnitude, thickness)
-    line.Rotation = math.deg(math.atan2(delta.Y, delta.X))
-    line.BackgroundColor3 = color
-    line.Visible = true
-end
-
-local function hideVisual(visual)
-    for _, line in ipairs(visual.box) do line.Visible = false end
-    visual.tracer.Visible = false
-    visual.label.Visible = false
-    visual.healthBack.Visible = false
-    visual.highlight.Enabled = false
-end
-
-local function updateTarget(model, visual, rgbColor)
-    if not model.Parent then
-        removeTargetVisual(model)
-        return
-    end
-
-    local part = getTargetPart(model)
-    if not part then
-        hideVisual(visual)
-        return
-    end
-
-    local screen, onScreen = camera:WorldToViewportPoint(part.Position)
-    local visible = onScreen and screen.Z > 0
-    local colorFor = function(key)
-        return settings.rgb and rgbColor or settings.colors[key]
-    end
-
-    if not visible then
-        hideVisual(visual)
-        return
-    end
-
-    local humanoid = model:FindFirstChildOfClass("Humanoid")
-    local distance = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        and (player.Character.HumanoidRootPart.Position - part.Position).Magnitude or 0
-
-    -- Box ESP
-    if settings.esp.Box then
-        local _, size = model:GetBoundingBox()
-        local top = camera:WorldToViewportPoint(part.Position + Vector3.new(0, size.Y / 2, 0))
-        local bottom = camera:WorldToViewportPoint(part.Position - Vector3.new(0, size.Y / 2, 0))
-        local height = math.abs(bottom.Y - top.Y)
-        local width = math.max(12, height * 0.55)
-        local x1, y1 = screen.X - width / 2, top.Y
-        local x2, y2 = screen.X + width / 2, bottom.Y
-        setLine(visual.box[1], Vector2.new(x1, y1), Vector2.new(x2, y1), colorFor("Box"), 2)
-        setLine(visual.box[2], Vector2.new(x2, y1), Vector2.new(x2, y2), colorFor("Box"), 2)
-        setLine(visual.box[3], Vector2.new(x2, y2), Vector2.new(x1, y2), colorFor("Box"), 2)
-        setLine(visual.box[4], Vector2.new(x1, y2), Vector2.new(x1, y1), colorFor("Box"), 2)
-    else
-        for _, line in ipairs(visual.box) do line.Visible = false end
-    end
-
-    -- Tracer ESP
-    if settings.esp.Tracer then
-        setLine(
-            visual.tracer,
-            Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y - 8),
-            Vector2.new(screen.X, screen.Y),
-            colorFor("Tracer"),
-            2
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        panel.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
         )
-    else
-        visual.tracer.Visible = false
     end
-
-    -- Name dan Distance ESP
-    local labelText = ""
-    if settings.esp.Name then
-        labelText = model.Name
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
     end
-    if settings.esp.Distance then
-        labelText = labelText .. (labelText ~= "" and "  •  " or "")
-            .. tostring(math.floor(distance)) .. " studs"
-    end
-
-    visual.label.Visible = labelText ~= ""
-    visual.label.Text = labelText
-    visual.label.TextColor3 = settings.esp.Distance and colorFor("Distance")
-        or colorFor("Name")
-    visual.label.Position = UDim2.fromOffset(screen.X, screen.Y - 24)
-
-    -- Health ESP
-    if settings.esp.Health and humanoid then
-        local percent = math.clamp(humanoid.Health / math.max(humanoid.MaxHealth, 1), 0, 1)
-        visual.healthBack.Visible = true
-        visual.healthBack.Position = UDim2.fromOffset(screen.X - 35, screen.Y + 12)
-        visual.healthBack.Size = UDim2.fromOffset(70, 6)
-        visual.healthFill.Size = UDim2.fromScale(percent, 1)
-        visual.healthFill.BackgroundColor3 = colorFor("Health")
-    else
-        visual.healthBack.Visible = false
-    end
-
-    -- Highlight ESP hanya saat target terlihat, tidak menembus tembok
-    visual.highlight.Enabled = settings.esp.Highlight and hasLineOfSight(model, part)
-    visual.highlight.FillColor = colorFor("Highlight")
-    visual.highlight.OutlineColor = colorFor("Highlight")
-    visual.highlight.FillTransparency = 0.65
-    visual.highlight.OutlineTransparency = 0
-end
-
--- Sinkronkan daftar target bertag AimTarget
-for _, model in ipairs(CollectionService:GetTagged("AimTarget")) do
-    if model:IsA("Model") then makeTargetVisual(model) end
-end
-
-CollectionService:GetInstanceAddedSignal("AimTarget"):Connect(function(model)
-    if model:IsA("Model") then makeTargetVisual(model) end
 end)
 
-CollectionService:GetInstanceRemovedSignal("AimTarget"):Connect(removeTargetVisual)
+local tabs = make("Frame", {
+    Position = UDim2.fromOffset(8, 50),
+    Size = UDim2.new(1, -16, 0, 34),
+    BackgroundTransparency = 1,
+}, panel)
+local tabLayout = make("UIListLayout", {
+    FillDirection = Enum.FillDirection.Horizontal,
+    Padding = UDim.new(0, 4),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+}, tabs)
 
--- Aim assist: target terdekat di dalam lingkaran dan tidak terhalang
-local function getBestTarget()
-    if not camera then return nil end
+local content = make("ScrollingFrame", {
+    Position = UDim2.fromOffset(8, 92),
+    Size = UDim2.new(1, -16, 1, -100),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ScrollBarThickness = 4,
+    CanvasSize = UDim2.new(),
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, panel)
+make("UIListLayout", {
+    Padding = UDim.new(0, 7),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+}, content)
+make("UIPadding", {
+    PaddingBottom = UDim.new(0, 8),
+    PaddingRight = UDim.new(0, 4),
+}, content)
 
-    local bestPart = nil
-    local bestDistance = settings.aimFov
+local pages = {}
+local activePage
 
-    for model in pairs(targetVisuals) do
-        local part = model.Parent and getTargetPart(model)
-        if part then
-            local point, onScreen = camera:WorldToViewportPoint(part.Position)
-            if onScreen and point.Z > 0 and hasLineOfSight(model, part) then
-                local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-                local screenPos = Vector2.new(point.X, point.Y)
-                local distance = (screenPos - center).Magnitude
-
-                if distance < bestDistance then
-                    bestDistance = distance
-                    bestPart = part
-                end
-            end
+local function clearContent()
+    for _, child in ipairs(content:GetChildren()) do
+        if child:IsA("GuiObject") and not child:IsA("UIListLayout")
+            and not child:IsA("UIPadding") then
+            child:Destroy()
         end
     end
-
-    return bestPart
 end
 
+local function section(text)
+    make("TextLabel", {
+        Size = UDim2.new(1, -4, 0, 24),
+        BackgroundTransparency = 1,
+        Text = text,
+        TextColor3 = Color3.fromRGB(125, 211, 252),
+        TextSize = 13,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, content)
+end
+
+local function rowButton(text, callback)
+    local b = make("TextButton", {
+        Size = UDim2.new(1, -4, 0, 34),
+        BackgroundColor3 = Color3.fromRGB(35, 43, 59),
+        Text = text,
+        TextColor3 = Color3.fromRGB(240, 244, 248),
+        TextSize = 13,
+        Font = Enum.Font.GothamMedium,
+        BorderSizePixel = 0,
+    }, content)
+    make("UICorner", {CornerRadius = UDim.new(0, 7)}, b)
+    b.Activated:Connect(callback)
+    return b
+end
+
+local function label(text)
+    make("TextLabel", {
+        Size = UDim2.new(1, -4, 0, 23),
+        BackgroundTransparency = 1,
+        Text = text,
+        TextColor3 = Color3.fromRGB(203, 213, 225),
+        TextSize = 12,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, content)
+end
+
+local function sliderRow(title, minVal, maxVal, initial, callback)
+    label(title .. ": " .. tostring(initial))
+    local slider = make("TextButton", {
+        Size = UDim2.new(1, -4, 0, 24),
+        BackgroundColor3 = Color3.fromRGB(51, 65, 85),
+        Text = "Tap to adjust",
+        TextColor3 = Color3.new(1, 1, 1),
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        BorderSizePixel = 0,
+    }, content)
+    make("UICorner", {CornerRadius = UDim.new(0, 6)}, slider)
+
+    local value = initial
+    slider.Activated:Connect(function()
+        value = value + math.max(1, math.floor((maxVal - minVal) / 10))
+        if value > maxVal then value = minVal end
+        slider.Text = title .. ": " .. tostring(value)
+        callback(value)
+    end)
+end
+
+local function showPage(name)
+    activePage = name
+    clearContent()
+
+    if name == "Aim Bot" then
+        section("AIM BOT  •  DEMO SETTINGS")
+        rowButton("Aim Bot: " .. (state.aimEnabled and "ON" or "OFF"), function()
+            state.aimEnabled = not state.aimEnabled
+            showPage(name)
+        end)
+        rowButton("Target Part: " .. state.targetPart, function()
+            state.targetPart = state.targetPart == "Head" and "Body" or "Head"
+            showPage(name)
+        end)
+        label("Aim settings are UI-only in this demo.")
+    elseif name == "Aim Power" then
+        section("AIM POWER")
+        sliderRow("Aim Strength (%)", 0, 100, state.aimStrength, function(v)
+            state.aimStrength = v
+        end)
+        sliderRow("POV Size", 60, 360, state.povSize, function(v)
+            state.povSize = v
+        end)
+        sliderRow("POV Transparency (%)", 0, 100,
+            math.floor(state.povTransparency * 100), function(v)
+                state.povTransparency = v / 100
+            end)
+    elseif name == "ESP" then
+        section("ESP OPTIONS  •  TOGGLE SEPARATELY")
+        for espName, enabled in pairs(state.esp) do
+            rowButton(espName .. " ESP: " .. (enabled and "ON" or "OFF"), function()
+                state.esp[espName] = not state.esp[espName]
+                showPage(name)
+            end)
+        end
+        section("ESP COLOR")
+        rowButton("Color Mode: " .. state.colorMode, function()
+            state.colorMode = state.colorMode == "RGB" and "Custom" or "RGB"
+            showPage(name)
+        end)
+        rowButton("Custom Color: Sky Blue", function()
+            state.customColor = state.customColor == Color3.fromRGB(56, 189, 248)
+                and Color3.fromRGB(244, 114, 182)
+                or Color3.fromRGB(56, 189, 248)
+        end)
+        label("Color settings are stored for your own-game implementation.")
+    else
+        section("SOCIAL MEDIA")
+        label("TikTok: @challo_boy")
+        label("YouTube: @challo_boy")
+        label("Thank you for using my script, enjoy 👍")
+    end
+end
+
+local tabNames = {"Aim Bot", "Aim Power", "ESP", "Social"}
+for i, name in ipairs(tabNames) do
+    local button = make("TextButton", {
+        Size = UDim2.fromOffset(name == "Aim Power" and 82 or 65, 32),
+        BackgroundColor3 = Color3.fromRGB(35, 43, 59),
+        Text = name,
+        TextColor3 = Color3.new(1, 1, 1),
+        TextSize = 11,
+        Font = Enum.Font.GothamMedium,
+        BorderSizePixel = 0,
+        LayoutOrder = i,
+    }, tabs)
+    make("UICorner", {CornerRadius = UDim.new(0, 7)}, button)
+    button.Activated:Connect(function()
+        showPage(name == "Social" and "Social Media" or name)
+    end)
+end
+
+-- RGB color preview cycle for the UI accent.
+local hue = 0
 RunService.RenderStepped:Connect(function(dt)
-    camera = workspace.CurrentCamera
-    if not camera then return end
-
-    local rgbColor = Color3.fromHSV((os.clock() * 0.15) % 1, 1, 1)
-    fovCircle.Visible = settings.aim
-    refreshFov()
-
-    for model, visual in pairs(targetVisuals) do
-        updateTarget(model, visual, rgbColor)
-    end
-
-    if settings.aim and settings.aimStrength > 0 then
-        local targetPart = getBestTarget()
-        if targetPart then
-            local origin = camera.CFrame.Position
-            local desired = CFrame.lookAt(origin, targetPart.Position)
-            local alpha = math.clamp((settings.aimStrength / 100) * dt * 12, 0, 1)
-            camera.CFrame = camera.CFrame:Lerp(desired, alpha)
-        end
+    if not gui.Parent then return end
+    if state.colorMode == "RGB" then
+        hue = (hue + dt * 0.12) % 1
+        local color = Color3.fromHSV(hue, 0.75, 1)
+        top.BackgroundColor3 = color
+        reopen.BackgroundColor3 = color
+    else
+        top.BackgroundColor3 = state.customColor
+        reopen.BackgroundColor3 = state.customColor
     end
 end)
+
+showPage("Aim Bot")
