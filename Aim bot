@@ -1,5 +1,6 @@
---// CHALLO_BOY - AIM ASSIST + ESP OUTLINE
---// Versi FIXED: FOV slider + FOV ON/OFF + Minimize + Touch
+--// CHALLO_BOY
+--// AIM ASSIST + ESP OUTLINE + DROPDOWN + UI LOCK
+--// Untuk game Roblox milik sendiri / testing di Studio
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -15,12 +16,11 @@ local Camera = workspace.CurrentCamera
 local AimEnabled = true
 local ESPEnabled = true
 local FOVEnabled = true
+local UILocked = false
 
 local AimStrength = 0.70
 local FOVSize = 180
 
-local MinFOV = 60
-local MaxFOV = 400
 local MaxDistance = 500
 
 --==================================================
@@ -33,41 +33,39 @@ Gui.ResetOnSpawn = false
 Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 --==================================================
--- FOV CIRCLE
+-- FOV
 --==================================================
 
 local FOV = Instance.new("Frame")
 FOV.Name = "FOVCircle"
-FOV.AnchorPoint = Vector2.new(0.5, 0.5)
-FOV.Position = UDim2.fromScale(0.5, 0.5)
-FOV.Size = UDim2.fromOffset(FOVSize, FOVSize)
+FOV.AnchorPoint = Vector2.new(0.5,0.5)
+FOV.Position = UDim2.fromScale(0.5,0.5)
+FOV.Size = UDim2.fromOffset(FOVSize,FOVSize)
 FOV.BackgroundTransparency = 1
-FOV.Visible = true
 FOV.Parent = Gui
 
 local FOVCorner = Instance.new("UICorner")
-FOVCorner.CornerRadius = UDim.new(1, 0)
+FOVCorner.CornerRadius = UDim.new(1,0)
 FOVCorner.Parent = FOV
 
 local FOVStroke = Instance.new("UIStroke")
 FOVStroke.Thickness = 1.5
-FOVStroke.Transparency = 0
 FOVStroke.Parent = FOV
 
 --==================================================
--- MAIN UI
+-- MAIN
 --==================================================
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.fromOffset(250, 365)
-Main.Position = UDim2.fromOffset(25, 100)
-Main.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+Main.Size = UDim2.fromOffset(260,390)
+Main.Position = UDim2.fromOffset(25,100)
+Main.BackgroundColor3 = Color3.fromRGB(18,18,23)
 Main.BorderSizePixel = 0
 Main.Parent = Gui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.CornerRadius = UDim.new(0,14)
 MainCorner.Parent = Main
 
 local MainStroke = Instance.new("UIStroke")
@@ -79,8 +77,8 @@ MainStroke.Parent = Main
 --==================================================
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -55, 0, 38)
-Title.Position = UDim2.fromOffset(15, 8)
+Title.Size = UDim2.new(1,-55,0,38)
+Title.Position = UDim2.fromOffset(15,8)
 Title.BackgroundTransparency = 1
 Title.Text = "⚡ AIM ASSIST"
 Title.TextColor3 = Color3.new(1,1,1)
@@ -90,10 +88,10 @@ Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Main
 
 local SubTitle = Instance.new("TextLabel")
-SubTitle.Size = UDim2.new(1, -30, 0, 20)
-SubTitle.Position = UDim2.fromOffset(15, 42)
+SubTitle.Size = UDim2.new(1,-30,0,20)
+SubTitle.Position = UDim2.fromOffset(15,42)
 SubTitle.BackgroundTransparency = 1
-SubTitle.Text = "AIM • FOV • ESP OUTLINE"
+SubTitle.Text = "AIM • FOV • ESP • LOCK"
 SubTitle.TextColor3 = Color3.fromRGB(170,170,170)
 SubTitle.TextSize = 11
 SubTitle.Font = Enum.Font.Gotham
@@ -105,8 +103,8 @@ SubTitle.Parent = Main
 --==================================================
 
 local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(35, 30)
-Minimize.Position = UDim2.new(1, -43, 0, 10)
+Minimize.Size = UDim2.fromOffset(35,30)
+Minimize.Position = UDim2.new(1,-43,0,10)
 Minimize.BackgroundColor3 = Color3.fromRGB(35,35,42)
 Minimize.Text = "—"
 Minimize.TextColor3 = Color3.new(1,1,1)
@@ -126,23 +124,11 @@ local dragging = false
 local dragStart
 local startPos
 
-local function updateDrag(input)
+Main.InputBegan:Connect(function(input)
 
-	if not dragging then
+	if UILocked then
 		return
 	end
-
-	local delta = input.Position - dragStart
-
-	Main.Position = UDim2.new(
-		startPos.X.Scale,
-		startPos.X.Offset + delta.X,
-		startPos.Y.Scale,
-		startPos.Y.Offset + delta.Y
-	)
-end
-
-Main.InputBegan:Connect(function(input)
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 	or input.UserInputType == Enum.UserInputType.Touch then
@@ -163,32 +149,43 @@ end)
 
 UIS.InputChanged:Connect(function(input)
 
+	if UILocked or not dragging then
+		return
+	end
+
 	if input.UserInputType == Enum.UserInputType.MouseMovement
 	or input.UserInputType == Enum.UserInputType.Touch then
 
-		updateDrag(input)
+		local delta = input.Position - dragStart
+
+		Main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
 	end
 end)
 
 --==================================================
--- CONTENT LIST
+-- CONTENT
 --==================================================
 
 local Content = {}
 
 local function addContent(obj)
-	table.insert(Content, obj)
+	table.insert(Content,obj)
 end
 
 --==================================================
--- TOGGLE CREATOR
+-- TOGGLE
 --==================================================
 
-local function createToggle(text, y, callback)
+local function createToggle(text,y)
 
 	local Button = Instance.new("TextButton")
-	Button.Size = UDim2.new(1, -30, 0, 38)
-	Button.Position = UDim2.fromOffset(15, y)
+	Button.Size = UDim2.new(1,-30,0,38)
+	Button.Position = UDim2.fromOffset(15,y)
 	Button.BackgroundColor3 = Color3.fromRGB(30,30,37)
 	Button.Text = text
 	Button.TextColor3 = Color3.new(1,1,1)
@@ -202,252 +199,252 @@ local function createToggle(text, y, callback)
 
 	addContent(Button)
 
-	Button.MouseButton1Click:Connect(function()
-		callback()
-	end)
-
 	return Button
 end
 
 --==================================================
--- AIM TOGGLE
+-- AIM
 --==================================================
 
-local AimButton
-
-AimButton = createToggle(
+local AimButton = createToggle(
 	"🎯 AIM ASSIST : ON",
-	75,
-	function()
-
-		AimEnabled = not AimEnabled
-
-		if AimEnabled then
-			AimButton.Text = "🎯 AIM ASSIST : ON"
-		else
-			AimButton.Text = "🎯 AIM ASSIST : OFF"
-		end
-	end
+	75
 )
 
---==================================================
--- ESP TOGGLE
---==================================================
+AimButton.MouseButton1Click:Connect(function()
 
-local ESPButton
+	AimEnabled = not AimEnabled
 
-ESPButton = createToggle(
-	"👁 ESP OUTLINE : ON",
-	120,
-	function()
-
-		ESPEnabled = not ESPEnabled
-
-		if ESPEnabled then
-			ESPButton.Text = "👁 ESP OUTLINE : ON"
-		else
-			ESPButton.Text = "👁 ESP OUTLINE : OFF"
-		end
-	end
-)
-
---==================================================
--- FOV TOGGLE
---==================================================
-
-local FOVButton
-
-FOVButton = createToggle(
-	"⭕ FOV : ON",
-	165,
-	function()
-
-		FOVEnabled = not FOVEnabled
-
-		-- TIDAK DIHAPUS.
-		-- Hanya dibuat invisible.
-		if FOVEnabled then
-
-			FOVStroke.Transparency = 0
-			FOVButton.Text = "⭕ FOV : ON"
-
-		else
-
-			FOVStroke.Transparency = 1
-			FOVButton.Text = "⭕ FOV : OFF"
-
-		end
-	end
-)
-
---==================================================
--- AIM STRENGTH LABEL
---==================================================
-
-local AimLabel = Instance.new("TextLabel")
-AimLabel.Size = UDim2.new(1,-30,0,20)
-AimLabel.Position = UDim2.fromOffset(15,215)
-AimLabel.BackgroundTransparency = 1
-AimLabel.Text = "Aim Strength : 70%"
-AimLabel.TextColor3 = Color3.new(1,1,1)
-AimLabel.TextSize = 13
-AimLabel.Font = Enum.Font.GothamBold
-AimLabel.TextXAlignment = Enum.TextXAlignment.Left
-AimLabel.Parent = Main
-
-addContent(AimLabel)
-
---==================================================
--- AIM SLIDER
---==================================================
-
-local AimSlider = Instance.new("Frame")
-AimSlider.Size = UDim2.new(1,-30,0,10)
-AimSlider.Position = UDim2.fromOffset(15,240)
-AimSlider.BackgroundColor3 = Color3.fromRGB(55,55,65)
-AimSlider.Parent = Main
-
-local AimSliderCorner = Instance.new("UICorner")
-AimSliderCorner.CornerRadius = UDim.new(1,0)
-AimSliderCorner.Parent = AimSlider
-
-addContent(AimSlider)
-
-local AimFill = Instance.new("Frame")
-AimFill.Size = UDim2.fromScale(AimStrength,1)
-AimFill.BackgroundColor3 = Color3.fromRGB(0,220,255)
-AimFill.BorderSizePixel = 0
-AimFill.Parent = AimSlider
-
-local AimFillCorner = Instance.new("UICorner")
-AimFillCorner.CornerRadius = UDim.new(1,0)
-AimFillCorner.Parent = AimFill
-
---==================================================
--- UNIVERSAL SLIDER FUNCTION
---==================================================
-
-local function getSliderValue(input, slider)
-
-	local x =
-		(input.Position.X - slider.AbsolutePosition.X)
-		/ slider.AbsoluteSize.X
-
-	return math.clamp(x,0,1)
-end
-
-local function setupSlider(slider, callback)
-
-	local active = false
-
-	slider.InputBegan:Connect(function(input)
-
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-			active = true
-			callback(getSliderValue(input,slider))
-		end
-	end)
-
-	UIS.InputChanged:Connect(function(input)
-
-		if not active then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-			callback(getSliderValue(input,slider))
-		end
-	end)
-
-	UIS.InputEnded:Connect(function(input)
-
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-			active = false
-		end
-	end)
-end
-
-setupSlider(AimSlider,function(value)
-
-	AimStrength = value
-
-	AimFill.Size =
-		UDim2.fromScale(value,1)
-
-	AimLabel.Text =
-		"Aim Strength : " ..
-		math.floor(value*100) ..
-		"%"
+	AimButton.Text =
+		AimEnabled
+		and "🎯 AIM ASSIST : ON"
+		or "🎯 AIM ASSIST : OFF"
 end)
 
 --==================================================
--- FOV LABEL
+-- ESP
 --==================================================
 
-local FOVLabel = Instance.new("TextLabel")
-FOVLabel.Size = UDim2.new(1,-30,0,20)
-FOVLabel.Position = UDim2.fromOffset(15,265)
-FOVLabel.BackgroundTransparency = 1
-FOVLabel.Text = "FOV Size : 180"
-FOVLabel.TextColor3 = Color3.new(1,1,1)
-FOVLabel.TextSize = 13
-FOVLabel.Font = Enum.Font.GothamBold
-FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-FOVLabel.Parent = Main
-
-addContent(FOVLabel)
-
---==================================================
--- FOV SLIDER
---==================================================
-
-local FOVSlider = Instance.new("Frame")
-FOVSlider.Size = UDim2.new(1,-30,0,10)
-FOVSlider.Position = UDim2.fromOffset(15,290)
-FOVSlider.BackgroundColor3 = Color3.fromRGB(55,55,65)
-FOVSlider.Parent = Main
-
-local FOVSliderCorner = Instance.new("UICorner")
-FOVSliderCorner.CornerRadius = UDim.new(1,0)
-FOVSliderCorner.Parent = FOVSlider
-
-addContent(FOVSlider)
-
-local FOVFill = Instance.new("Frame")
-FOVFill.Size = UDim2.fromScale(
-	(FOVSize-MinFOV)/(MaxFOV-MinFOV),
-	1
+local ESPButton = createToggle(
+	"👁 ESP OUTLINE : ON",
+	120
 )
-FOVFill.BackgroundColor3 = Color3.fromRGB(0,220,255)
-FOVFill.BorderSizePixel = 0
-FOVFill.Parent = FOVSlider
 
-local FOVFillCorner = Instance.new("UICorner")
-FOVFillCorner.CornerRadius = UDim.new(1,0)
-FOVFillCorner.Parent = FOVFill
+ESPButton.MouseButton1Click:Connect(function()
 
-setupSlider(FOVSlider,function(value)
+	ESPEnabled = not ESPEnabled
 
-	FOVSize =
-		MinFOV +
-		(MaxFOV-MinFOV)*value
+	ESPButton.Text =
+		ESPEnabled
+		and "👁 ESP OUTLINE : ON"
+		or "👁 ESP OUTLINE : OFF"
+end)
 
-	-- UKURAN LINGKARAN BENAR-BENAR BERUBAH
-	FOV.Size =
-		UDim2.fromOffset(FOVSize,FOVSize)
+--==================================================
+-- FOV ON/OFF
+--==================================================
 
-	FOVLabel.Text =
-		"FOV Size : " ..
-		math.floor(FOVSize)
+local FOVButton = createToggle(
+	"⭕ FOV : ON",
+	165
+)
 
-	FOVFill.Size =
-		UDim2.fromScale(value,1)
+FOVButton.MouseButton1Click:Connect(function()
+
+	FOVEnabled = not FOVEnabled
+
+	if FOVEnabled then
+
+		FOVStroke.Transparency = 0
+		FOVButton.Text = "⭕ FOV : ON"
+
+	else
+
+		-- Hanya invisible
+		FOVStroke.Transparency = 1
+		FOVButton.Text = "⭕ FOV : OFF"
+	end
+end)
+
+--==================================================
+-- DROPDOWN CREATOR
+--==================================================
+
+local function createDropdown(titleText,y,values,currentValue,callback)
+
+	local Button = Instance.new("TextButton")
+	Button.Size = UDim2.new(1,-30,0,38)
+	Button.Position = UDim2.fromOffset(15,y)
+	Button.BackgroundColor3 = Color3.fromRGB(30,30,37)
+	Button.Text = titleText .. " : " .. tostring(currentValue) .. " ▼"
+	Button.TextColor3 = Color3.new(1,1,1)
+	Button.TextSize = 13
+	Button.Font = Enum.Font.GothamBold
+	Button.Parent = Main
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0,9)
+	corner.Parent = Button
+
+	addContent(Button)
+
+	local List = Instance.new("Frame")
+	List.Size = UDim2.new(1,-30,0,0)
+	List.Position = UDim2.fromOffset(15,y+42)
+	List.BackgroundColor3 = Color3.fromRGB(25,25,32)
+	List.BorderSizePixel = 0
+	List.Visible = false
+	List.ZIndex = 20
+	List.Parent = Main
+
+	local listCorner = Instance.new("UICorner")
+	listCorner.CornerRadius = UDim.new(0,9)
+	listCorner.Parent = List
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0,2)
+	layout.Parent = List
+
+	local open = false
+
+	for _,value in ipairs(values) do
+
+		local Option = Instance.new("TextButton")
+		Option.Size = UDim2.new(1,0,0,30)
+		Option.BackgroundColor3 = Color3.fromRGB(35,35,43)
+		Option.Text = tostring(value)
+		Option.TextColor3 = Color3.new(1,1,1)
+		Option.TextSize = 12
+		Option.Font = Enum.Font.Gotham
+		Option.ZIndex = 21
+		Option.Parent = List
+
+		Option.MouseButton1Click:Connect(function()
+
+			currentValue = value
+
+			Button.Text =
+				titleText ..
+				" : " ..
+				tostring(value) ..
+				" ▼"
+
+			List.Visible = false
+			open = false
+
+			callback(value)
+		end)
+	end
+
+	local listHeight =
+		#values * 32
+
+	Button.MouseButton1Click:Connect(function()
+
+		open = not open
+
+		if open then
+			List.Size =
+				UDim2.new(1,-30,0,listHeight)
+
+			List.Visible = true
+		else
+			List.Visible = false
+		end
+	end)
+
+	return Button,List
+end
+
+--==================================================
+-- AIM STRENGTH DROPDOWN
+--==================================================
+
+local AimValues = {
+	"0%",
+	"10%",
+	"20%",
+	"30%",
+	"40%",
+	"50%",
+	"60%",
+	"70%",
+	"80%",
+	"90%",
+	"100%"
+}
+
+local AimDrop = createDropdown(
+	"🎯 Aim Strength",
+	210,
+	AimValues,
+	"70%",
+	function(value)
+
+		local number =
+			tonumber(string.gsub(value,"%%",""))
+
+		AimStrength =
+			number / 100
+	end
+)
+
+--==================================================
+-- FOV DROPDOWN
+--==================================================
+
+local FOVValues = {
+	60,
+	100,
+	140,
+	180,
+	220,
+	260,
+	300,
+	350,
+	400
+}
+
+local FOVDrop = createDropdown(
+	"⭕ FOV Size",
+	255,
+	FOVValues,
+	180,
+	function(value)
+
+		FOVSize = value
+
+		FOV.Size =
+			UDim2.fromOffset(
+				FOVSize,
+				FOVSize
+			)
+	end
+)
+
+--==================================================
+-- UI LOCK
+--==================================================
+
+local LockButton = createToggle(
+	"🔓 UI LOCK : OFF",
+	300
+)
+
+LockButton.MouseButton1Click:Connect(function()
+
+	UILocked = not UILocked
+
+	if UILocked then
+
+		LockButton.Text =
+			"🔒 UI LOCK : ON"
+
+	else
+
+		LockButton.Text =
+			"🔓 UI LOCK : OFF"
+	end
 end)
 
 --==================================================
@@ -455,8 +452,8 @@ end)
 --==================================================
 
 local Credit = Instance.new("TextLabel")
-Credit.Size = UDim2.new(1,-30,0,25)
-Credit.Position = UDim2.fromOffset(15,325)
+Credit.Size = UDim2.new(1,-30,0,30)
+Credit.Position = UDim2.fromOffset(15,350)
 Credit.BackgroundTransparency = 1
 Credit.Text = "⚡ BY CHALLO_BOY ⚡"
 Credit.TextColor3 = Color3.new(1,1,1)
@@ -467,7 +464,7 @@ Credit.Parent = Main
 addContent(Credit)
 
 --==================================================
--- MINIMIZE SYSTEM
+-- MINIMIZE
 --==================================================
 
 local minimized = false
@@ -478,20 +475,23 @@ Minimize.MouseButton1Click:Connect(function()
 
 	if minimized then
 
-		-- Sembunyikan isi, BUKAN menghancurkannya
 		for _,obj in ipairs(Content) do
 			obj.Visible = false
 		end
 
-		Main.Size = UDim2.fromOffset(165,50)
+		Main.Size =
+			UDim2.fromOffset(165,50)
 
-		Title.Text = "⚡ CHALLO_BOY"
-		Title.Size = UDim2.new(1,-50,1,0)
-		Title.Position = UDim2.fromOffset(12,0)
+		Title.Text =
+			"⚡ CHALLO_BOY"
+
+		Title.Position =
+			UDim2.fromOffset(10,0)
+
+		Title.Size =
+			UDim2.new(1,-50,1,0)
+
 		Title.TextSize = 14
-
-		Minimize.Position =
-			UDim2.new(1,-43,0,10)
 
 		Minimize.Text = "+"
 
@@ -501,11 +501,18 @@ Minimize.MouseButton1Click:Connect(function()
 			obj.Visible = true
 		end
 
-		Main.Size = UDim2.fromOffset(250,365)
+		Main.Size =
+			UDim2.fromOffset(260,390)
 
-		Title.Text = "⚡ AIM ASSIST"
-		Title.Size = UDim2.new(1,-55,0,38)
-		Title.Position = UDim2.fromOffset(15,8)
+		Title.Text =
+			"⚡ AIM ASSIST"
+
+		Title.Position =
+			UDim2.fromOffset(15,8)
+
+		Title.Size =
+			UDim2.new(1,-55,0,38)
+
 		Title.TextSize = 20
 
 		Minimize.Text = "—"
@@ -528,15 +535,11 @@ RunService.RenderStepped:Connect(function(dt)
 
 	FOVStroke.Color = rgb
 	MainStroke.Color = rgb
-
-	AimFill.BackgroundColor3 = rgb
-	FOVFill.BackgroundColor3 = rgb
-
 	Credit.TextColor3 = rgb
 end)
 
 --==================================================
--- ESP OUTLINE
+-- ESP
 --==================================================
 
 local highlights = {}
@@ -547,7 +550,6 @@ local function removeESP(player)
 
 		highlights[player]:Destroy()
 		highlights[player] = nil
-
 	end
 end
 
@@ -561,22 +563,25 @@ local function addESP(player)
 
 		removeESP(player)
 
-		local highlight = Instance.new("Highlight")
+		local highlight =
+			Instance.new("Highlight")
 
-		highlight.Name = "ChalloBoyESP"
-		highlight.Adornee = character
+		highlight.Name =
+			"ChalloBoyESP"
 
-		-- OUTLINE TETAP TERLIHAT MELALUI OBJEK
+		highlight.Adornee =
+			character
+
+		-- Tetap terlihat melalui objek
 		highlight.DepthMode =
 			Enum.HighlightDepthMode.AlwaysOnTop
 
 		highlight.FillTransparency = 1
 		highlight.OutlineTransparency = 0
-		highlight.Enabled = ESPEnabled
-
 		highlight.Parent = character
 
-		highlights[player] = highlight
+		highlights[player] =
+			highlight
 	end
 
 	if player.Character then
@@ -598,12 +603,11 @@ end
 Players.PlayerAdded:Connect(addESP)
 
 Players.PlayerRemoving:Connect(function(player)
-
 	removeESP(player)
 end)
 
 --==================================================
--- UPDATE ESP
+-- ESP UPDATE
 --==================================================
 
 RunService.RenderStepped:Connect(function()
@@ -625,13 +629,15 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --==================================================
--- LINE OF SIGHT
+-- VISIBILITY
 --==================================================
 
 local function IsVisible(character)
 
 	local root =
-		character:FindFirstChild("HumanoidRootPart")
+		character:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if not root then
 		return false
@@ -692,21 +698,26 @@ local function GetTarget()
 			if character then
 
 				local humanoid =
-					character:FindFirstChildOfClass("Humanoid")
+					character:FindFirstChildOfClass(
+						"Humanoid"
+					)
 
 				local root =
-					character:FindFirstChild("HumanoidRootPart")
+					character:FindFirstChild(
+						"HumanoidRootPart"
+					)
 
-				if humanoid and root
+				if humanoid
+				and root
 				and humanoid.Health > 0 then
 
-					local worldDistance =
+					local distance =
 						(
 							Camera.CFrame.Position
 							-root.Position
 						).Magnitude
 
-					if worldDistance <= MaxDistance then
+					if distance <= MaxDistance then
 
 						local screenPos,onScreen =
 							Camera:WorldToViewportPoint(
@@ -725,11 +736,16 @@ local function GetTarget()
 
 							if screenDistance <= FOVSize/2 then
 
+								-- Aim hanya target yang tidak
+								-- terhalang objek
 								if IsVisible(character) then
 
-									if screenDistance < bestDistance then
+									if screenDistance
+										< bestDistance then
 
-										bestTarget = root
+										bestTarget =
+											root
+
 										bestDistance =
 											screenDistance
 									end
