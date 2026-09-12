@@ -1,201 +1,1120 @@
---========================================================
--- CHALLO_BOY UI v9
--- Dashboard Style / Own Roblox Game
--- Aim Bot | POV/FOV | ESP | Setting
--- Save / Reset | Scrollable Dropdowns
--- UI Effects / Hover / Glow / Animation
---========================================================
+--// CHALLO_BOY v10
+--// Own-game Aim Assist / FOV / ESP Dashboard
+--// PC + Mobile | Compact Responsive UI
+--// Place as a LocalScript in StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
---========================================================
+--==================================================
 -- SETTINGS
---========================================================
+--==================================================
 
-local S = {
+local Defaults = {
 	Aim = false,
 	Strength = 50,
-
 	FOVEnabled = false,
 	FOV = 180,
-
 	ESP = false,
-	VisibilityCheck = true,
-
-	RGB = false,
+	WallCheck = true,
+	RGB = true,
 	UILock = false,
-	Theme = "Dark",
+	Theme = "Blue"
 }
 
-local DEFAULTS = table.clone(S)
-local SAVED = nil
+local S = {}
+for k, v in pairs(Defaults) do
+	S[k] = v
+end
 
---========================================================
--- COLORS
---========================================================
+local Saved = {}
+for k, v in pairs(S) do
+	Saved[k] = v
+end
 
-local BG = Color3.fromRGB(25,25,25)
-local PANEL = Color3.fromRGB(31,31,31)
-local ITEM = Color3.fromRGB(43,43,43)
-local HOVER = Color3.fromRGB(52,52,52)
-local WHITE = Color3.fromRGB(245,245,245)
-local GRAY = Color3.fromRGB(165,165,165)
-local BLUE = Color3.fromRGB(35,120,190)
-local BLUE2 = Color3.fromRGB(45,145,220)
-local GREEN = Color3.fromRGB(55,205,105)
-local RED = Color3.fromRGB(225,65,75)
+local Themes = {
+	Blue = Color3.fromRGB(35, 120, 255),
+	Purple = Color3.fromRGB(145, 75, 255),
+	Green = Color3.fromRGB(35, 210, 120),
+	Red = Color3.fromRGB(240, 65, 75)
+}
 
---========================================================
+local Accent = Themes.Blue
+
+--==================================================
+-- GUI
+--==================================================
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "CHALLO_BOY_V10"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Gui.Parent = LP:WaitForChild("PlayerGui")
+
+local DropGui = Instance.new("ScreenGui")
+DropGui.Name = "CHALLO_BOY_DROPDOWNS"
+DropGui.ResetOnSpawn = false
+DropGui.IgnoreGuiInset = true
+DropGui.DisplayOrder = 999
+DropGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+DropGui.Parent = LP.PlayerGui
+
+local MiniGui = Instance.new("ScreenGui")
+MiniGui.Name = "CHALLO_BOY_MINI"
+MiniGui.ResetOnSpawn = false
+MiniGui.IgnoreGuiInset = true
+MiniGui.DisplayOrder = 1000
+MiniGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+MiniGui.Parent = LP.PlayerGui
+
+--==================================================
 -- HELPERS
---========================================================
+--==================================================
 
-local function tween(obj, info, props)
-	TweenService:Create(obj, info, props):Play()
-end
+local function New(class, props, parent)
+	local obj = Instance.new(class)
 
-local FastTween =
-	TweenInfo.new(
-		0.15,
-		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.Out
-	)
-
-local SmoothTween =
-	TweenInfo.new(
-		0.25,
-		Enum.EasingStyle.Quart,
-		Enum.EasingDirection.Out
-	)
-
-local function corner(obj, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0,radius)
-	c.Parent = obj
-	return c
-end
-
-local function stroke(obj, color, thickness, transparency)
-	local s = Instance.new("UIStroke")
-	s.Color = color
-	s.Thickness = thickness or 1
-	s.Transparency = transparency or 0
-	s.Parent = obj
-	return s
-end
-
-local function CopySettings(t)
-	local copy = {}
-
-	for k,v in pairs(t) do
-		copy[k] = v
+	for k, v in pairs(props or {}) do
+		obj[k] = v
 	end
 
-	return copy
+	obj.Parent = parent
+	return obj
 end
 
---========================================================
--- AIM / WALL CHECK
---========================================================
+local function Corner(parent, radius)
+	return New("UICorner", {
+		CornerRadius = UDim.new(0, radius or 8)
+	}, parent)
+end
 
-local function IsVisible(char, part)
+local function Stroke(parent, color, thickness, transparency)
+	return New("UIStroke", {
+		Color = color or Accent,
+		Thickness = thickness or 1,
+		Transparency = transparency or 0
+	}, parent)
+end
 
-	if not char or not part then
+local function Tween(obj, props, time)
+	TweenService:Create(
+		obj,
+		TweenInfo.new(time or .18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		props
+	):Play()
+end
+
+--==================================================
+-- MAIN WINDOW
+--==================================================
+
+local Window = New("Frame", {
+	Name = "Window",
+	BackgroundColor3 = Color3.fromRGB(12, 14, 19),
+	BorderSizePixel = 0,
+	ClipsDescendants = true
+}, Gui)
+
+Corner(Window, 12)
+Stroke(Window, Accent, 1, .35)
+
+local Sidebar = New("Frame", {
+	Name = "Sidebar",
+	BackgroundColor3 = Color3.fromRGB(9, 11, 15),
+	BorderSizePixel = 0
+}, Window)
+
+local Header = New("Frame", {
+	Name = "Header",
+	BackgroundColor3 = Color3.fromRGB(16, 18, 24),
+	BorderSizePixel = 0
+}, Window)
+
+local Title = New("TextLabel", {
+	BackgroundTransparency = 1,
+	Text = "CHALLO_BOY",
+	TextColor3 = Color3.new(1,1,1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 17,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Header)
+
+local Subtitle = New("TextLabel", {
+	BackgroundTransparency = 1,
+	Text = "CONTROL PANEL",
+	TextColor3 = Color3.fromRGB(130,135,145),
+	Font = Enum.Font.Gotham,
+	TextSize = 9,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Header)
+
+local Minimize = New("TextButton", {
+	BackgroundColor3 = Color3.fromRGB(25,28,35),
+	BorderSizePixel = 0,
+	Text = "—",
+	TextColor3 = Color3.new(1,1,1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 17,
+	AutoButtonColor = false
+}, Header)
+
+Corner(Minimize, 6)
+
+local Content = New("Frame", {
+	Name = "Content",
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0
+}, Window)
+
+local SidebarTitle = New("TextLabel", {
+	BackgroundTransparency = 1,
+	Text = "MENU",
+	TextColor3 = Color3.fromRGB(100,105,115),
+	Font = Enum.Font.GothamBold,
+	TextSize = 9,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Sidebar)
+
+--==================================================
+-- SIDEBAR
+--==================================================
+
+local NavHolder = New("Frame", {
+	BackgroundTransparency = 1
+}, Sidebar)
+
+local NavLayout = New("UIListLayout", {
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder
+}, NavHolder)
+
+local Pages = {}
+local NavButtons = {}
+
+local function CreateNav(name, order)
+	local button = New("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(17,20,27),
+		BorderSizePixel = 0,
+		Text = "  "..name,
+		TextColor3 = Color3.fromRGB(175,180,190),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		AutoButtonColor = false,
+		LayoutOrder = order
+	}, NavHolder)
+
+	Corner(button, 6)
+
+	NavButtons[name] = button
+
+	return button
+end
+
+local AimNav = CreateNav("Aim Bot", 1)
+local FOVNav = CreateNav("POV / FOV", 2)
+local ESPNav = CreateNav("ESP", 3)
+local SettingNav = CreateNav("Setting", 4)
+
+--==================================================
+-- PAGE CREATOR
+--==================================================
+
+local function CreatePage(name)
+	local page = New("ScrollingFrame", {
+		Name = name,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = Accent,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		Visible = false
+	}, Content)
+
+	local pad = New("UIPadding", {
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 10),
+		PaddingLeft = UDim.new(0, 10),
+		PaddingRight = UDim.new(0, 10)
+	}, page)
+
+	local layout = New("UIListLayout", {
+		Padding = UDim.new(0, 7),
+		SortOrder = Enum.SortOrder.LayoutOrder
+	}, page)
+
+	Pages[name] = page
+	return page
+end
+
+local AimPage = CreatePage("AimPage")
+local FOVPage = CreatePage("FOVPage")
+local ESPPage = CreatePage("ESPPage")
+local SettingPage = CreatePage("SettingPage")
+
+local function ShowPage(name)
+	for n, page in pairs(Pages) do
+		page.Visible = n == name
+	end
+
+	for n, button in pairs(NavButtons) do
+		if string.find(name, n:gsub(" / ","")) then
+			button.BackgroundColor3 = Accent
+			button.TextColor3 = Color3.new(1,1,1)
+		else
+			button.BackgroundColor3 = Color3.fromRGB(17,20,27)
+			button.TextColor3 = Color3.fromRGB(175,180,190)
+		end
+	end
+end
+
+--==================================================
+-- CONTROLS
+--==================================================
+
+local ControlObjects = {}
+
+local function SectionTitle(parent, text)
+	return New("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1,0,0,20),
+		Text = text,
+		TextColor3 = Color3.fromRGB(120,125,135),
+		Font = Enum.Font.GothamBold,
+		TextSize = 9,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, parent)
+end
+
+local function Toggle(parent, text, getter, setter)
+	local frame = New("Frame", {
+		BackgroundColor3 = Color3.fromRGB(18,21,28),
+		BorderSizePixel = 0,
+		Size = UDim2.new(1,0,0,42)
+	}, parent)
+
+	Corner(frame, 7)
+
+	local label = New("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0,11,0,0),
+		Size = UDim2.new(1,-75,1,0),
+		Text = text,
+		TextColor3 = Color3.fromRGB(225,228,235),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, frame)
+
+	local button = New("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(45,48,56),
+		Position = UDim2.new(1,-58,.5,-11),
+		Size = UDim2.fromOffset(48,22),
+		Text = "",
+		AutoButtonColor = false
+	}, frame)
+
+	Corner(button, 11)
+
+	local dot = New("Frame", {
+		BackgroundColor3 = Color3.fromRGB(170,175,185),
+		Position = UDim2.fromOffset(3,3),
+		Size = UDim2.fromOffset(16,16),
+		BorderSizePixel = 0
+	}, button)
+
+	Corner(dot, 10)
+
+	local function Refresh()
+		if getter() then
+			button.BackgroundColor3 = Accent
+			dot.Position = UDim2.new(1,-19,0,3)
+		else
+			button.BackgroundColor3 = Color3.fromRGB(45,48,56)
+			dot.Position = UDim2.fromOffset(3,3)
+		end
+	end
+
+	button.Activated:Connect(function()
+		setter(not getter())
+		Refresh()
+	end)
+
+	Refresh()
+	return frame
+end
+
+local DropdownRefs = {}
+
+local function Dropdown(parent, text, values, getter, setter, key)
+	local frame = New("Frame", {
+		BackgroundColor3 = Color3.fromRGB(18,21,28),
+		BorderSizePixel = 0,
+		Size = UDim2.new(1,0,0,42)
+	}, parent)
+
+	Corner(frame, 7)
+
+	New("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0,11,0,0),
+		Size = UDim2.new(.45,0,1,0),
+		Text = text,
+		TextColor3 = Color3.fromRGB(225,228,235),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, frame)
+
+	local button = New("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(25,28,36),
+		Position = UDim2.new(.48,0,0,6),
+		Size = UDim2.new(.49,0,0,30),
+		Text = tostring(getter()).." ▼",
+		TextColor3 = Color3.fromRGB(220,225,235),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 10,
+		AutoButtonColor = false
+	}, frame)
+
+	Corner(button, 6)
+
+	DropdownRefs[key] = {
+		Frame = frame,
+		Button = button,
+		Values = values,
+		Getter = getter,
+		Setter = setter
+	}
+
+	button.Activated:Connect(function()
+		OpenDropdown(key)
+	end)
+
+	return frame
+end
+
+--==================================================
+-- DROPDOWN SYSTEM
+--==================================================
+
+local CurrentDropdown = nil
+
+function OpenDropdown(key)
+	local data = DropdownRefs[key]
+	if not data then return end
+
+	if CurrentDropdown then
+		CurrentDropdown:Destroy()
+		CurrentDropdown = nil
+	end
+
+	local popup = New("Frame", {
+		BackgroundColor3 = Color3.fromRGB(13,16,22),
+		BorderSizePixel = 0,
+		Size = UDim2.fromOffset(180,150),
+		ZIndex = 500
+	}, DropGui)
+
+	Corner(popup, 8)
+	Stroke(popup, Accent, 1, .25)
+
+	local list = New("ScrollingFrame", {
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(4,4),
+		Size = UDim2.new(1,-8,1,-8),
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = Accent,
+		ZIndex = 501
+	}, popup)
+
+	New("UIListLayout", {
+		Padding = UDim.new(0,3),
+		SortOrder = Enum.SortOrder.LayoutOrder
+	}, list)
+
+	for _, value in ipairs(data.Values) do
+		local item = New("TextButton", {
+			BackgroundColor3 = Color3.fromRGB(22,25,33),
+			BorderSizePixel = 0,
+			Size = UDim2.new(1,-2,0,30),
+			Text = tostring(value).."%",
+			TextColor3 = Color3.fromRGB(220,225,235),
+			Font = Enum.Font.GothamMedium,
+			TextSize = 10,
+			AutoButtonColor = false,
+			ZIndex = 502
+		}, list)
+
+		Corner(item, 5)
+
+		item.Activated:Connect(function()
+			data.Setter(value)
+			data.Button.Text = tostring(data.Getter()).."% ▼"
+
+			popup:Destroy()
+			CurrentDropdown = nil
+		end)
+
+		item.MouseEnter:Connect(function()
+			item.BackgroundColor3 = Accent
+		end)
+
+		item.MouseLeave:Connect(function()
+			item.BackgroundColor3 = Color3.fromRGB(22,25,33)
+		end)
+	end
+
+	CurrentDropdown = popup
+
+	local absPos = data.Button.AbsolutePosition
+	local absSize = data.Button.AbsoluteSize
+	local viewport = Camera.ViewportSize
+
+	local x = math.clamp(absPos.X, 5, viewport.X - 185)
+	local y = absPos.Y + absSize.Y + 5
+
+	if y + 150 > viewport.Y then
+		y = absPos.Y - 155
+	end
+
+	popup.Position = UDim2.fromOffset(x,y)
+end
+
+UIS.InputBegan:Connect(function(input)
+	if CurrentDropdown then
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			local mousePos = input.Position
+			local p = CurrentDropdown.AbsolutePosition
+			local s = CurrentDropdown.AbsoluteSize
+
+			if mousePos.X < p.X
+				or mousePos.X > p.X+s.X
+				or mousePos.Y < p.Y
+				or mousePos.Y > p.Y+s.Y then
+
+				CurrentDropdown:Destroy()
+				CurrentDropdown = nil
+			end
+		end
+	end
+end)
+
+--==================================================
+-- AIM PAGE
+--==================================================
+
+SectionTitle(AimPage, "AIM BOT")
+
+Toggle(
+	AimPage,
+	"Aim Assist",
+	function()
+		return S.Aim
+	end,
+	function(v)
+		S.Aim = v
+	end
+)
+
+Dropdown(
+	AimPage,
+	"Aim Strength",
+	{0,10,20,30,40,50,60,70,80,90,100},
+	function()
+		return S.Strength
+	end,
+	function(v)
+		S.Strength = v
+	end,
+	"Strength"
+)
+
+Toggle(
+	AimPage,
+	"Wall Check",
+	function()
+		return S.WallCheck
+	end,
+	function(v)
+		S.WallCheck = v
+	end
+)
+
+--==================================================
+-- FOV PAGE
+--==================================================
+
+SectionTitle(FOVPage, "POV / FOV")
+
+Toggle(
+	FOVPage,
+	"FOV Circle",
+	function()
+		return S.FOVEnabled
+	end,
+	function(v)
+		S.FOVEnabled = v
+	end
+)
+
+Dropdown(
+	FOVPage,
+	"FOV Size",
+	{60,100,140,180,220,260,300,350,400},
+	function()
+		return S.FOV
+	end,
+	function(v)
+		S.FOV = v
+	end,
+	"FOV"
+)
+
+--==================================================
+-- ESP PAGE
+--==================================================
+
+SectionTitle(ESPPage, "ESP")
+
+Toggle(
+	ESPPage,
+	"ESP Outline",
+	function()
+		return S.ESP
+	end,
+	function(v)
+		S.ESP = v
+	end
+)
+
+--==================================================
+-- SETTINGS PAGE
+--==================================================
+
+SectionTitle(SettingPage, "SETTINGS")
+
+Toggle(
+	SettingPage,
+	"RGB Effects",
+	function()
+		return S.RGB
+	end,
+	function(v)
+		S.RGB = v
+	end
+)
+
+Toggle(
+	SettingPage,
+	"UI Lock",
+	function()
+		return S.UILock
+	end,
+	function(v)
+		S.UILock = v
+	end
+)
+
+local ThemeFrame = New("Frame", {
+	BackgroundColor3 = Color3.fromRGB(18,21,28),
+	BorderSizePixel = 0,
+	Size = UDim2.new(1,0,0,42)
+}, SettingPage)
+
+Corner(ThemeFrame, 7)
+
+New("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0,11,0,0),
+	Size = UDim2.new(.4,0,1,0),
+	Text = "Theme",
+	TextColor3 = Color3.fromRGB(225,228,235),
+	Font = Enum.Font.GothamMedium,
+	TextSize = 11,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, ThemeFrame)
+
+local ThemeButton = New("TextButton", {
+	BackgroundColor3 = Color3.fromRGB(25,28,36),
+	Position = UDim2.new(.48,0,0,6),
+	Size = UDim2.new(.49,0,0,30),
+	Text = S.Theme.." ▼",
+	TextColor3 = Color3.fromRGB(220,225,235),
+	Font = Enum.Font.GothamMedium,
+	TextSize = 10,
+	AutoButtonColor = false
+}, ThemeFrame)
+
+Corner(ThemeButton, 6)
+
+local ThemeValues = {"Blue","Purple","Green","Red"}
+
+DropdownRefs.Theme = {
+	Frame = ThemeFrame,
+	Button = ThemeButton,
+	Values = ThemeValues,
+	Getter = function()
+		return S.Theme
+	end,
+	Setter = function(v)
+		S.Theme = v
+		Accent = Themes[v]
+		ThemeButton.Text = v.." ▼"
+	end
+}
+
+ThemeButton.Activated:Connect(function()
+	OpenDropdown("Theme")
+end)
+
+local SaveButton = New("TextButton", {
+	BackgroundColor3 = Accent,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1,0,0,40),
+	Text = "SAVE SETTINGS",
+	TextColor3 = Color3.new(1,1,1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 11,
+	AutoButtonColor = false
+}, SettingPage)
+
+Corner(SaveButton, 7)
+
+local ResetButton = New("TextButton", {
+	BackgroundColor3 = Color3.fromRGB(30,33,41),
+	BorderSizePixel = 0,
+	Size = UDim2.new(1,0,0,40),
+	Text = "RESET SETTINGS",
+	TextColor3 = Color3.fromRGB(240,240,245),
+	Font = Enum.Font.GothamBold,
+	TextSize = 11,
+	AutoButtonColor = false
+}, SettingPage)
+
+Corner(ResetButton, 7)
+
+local Status = New("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1,0,0,25),
+	Text = "Settings ready",
+	TextColor3 = Color3.fromRGB(110,115,125),
+	Font = Enum.Font.Gotham,
+	TextSize = 9
+}, SettingPage)
+
+--==================================================
+-- RESET POPUP
+--==================================================
+
+local Confirm = New("Frame", {
+	BackgroundColor3 = Color3.fromRGB(10,12,17),
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 700
+}, Gui)
+
+Corner(Confirm, 10)
+Stroke(Confirm, Accent, 1, .2)
+
+New("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0,10,0,12),
+	Size = UDim2.new(1,-20,0,30),
+	Text = "Are you sure?",
+	TextColor3 = Color3.new(1,1,1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 15,
+	ZIndex = 701
+}, Confirm)
+
+New("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0,10,0,43),
+	Size = UDim2.new(1,-20,0,25),
+	Text = "Reset all settings to default?",
+	TextColor3 = Color3.fromRGB(145,150,160),
+	Font = Enum.Font.Gotham,
+	TextSize = 9,
+	ZIndex = 701
+}, Confirm)
+
+local Yes = New("TextButton", {
+	BackgroundColor3 = Accent,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0,10,1,-43),
+	Size = UDim2.new(.46,-5,0,32),
+	Text = "YES",
+	TextColor3 = Color3.new(1,1,1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 10,
+	ZIndex = 701,
+	AutoButtonColor = false
+}, Confirm)
+
+local No = New("TextButton", {
+	BackgroundColor3 = Color3.fromRGB(30,33,41),
+	BorderSizePixel = 0,
+	Position = UDim2.new(.54,0,1,-43),
+	Size = UDim2.new(.46,-10,0,32),
+	Text = "NO",
+	TextColor3 = Color3.new(1,1,1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 10,
+	ZIndex = 701,
+	AutoButtonColor = false
+}, Confirm)
+
+Corner(Yes, 6)
+Corner(No, 6)
+
+--==================================================
+-- FOV CIRCLE
+--==================================================
+
+local FOVCircle = New("Frame", {
+	BackgroundTransparency = 1,
+	Visible = false,
+	BorderSizePixel = 0,
+	ZIndex = 2
+}, Gui)
+
+Corner(FOVCircle, 999)
+Stroke(FOVCircle, Accent, 2, .15)
+
+local function UpdateFOV()
+	FOVCircle.Size = UDim2.fromOffset(S.FOV*2,S.FOV*2)
+	FOVCircle.Position = UDim2.fromOffset(
+		Camera.ViewportSize.X/2-S.FOV,
+		Camera.ViewportSize.Y/2-S.FOV
+	)
+	FOVCircle.Visible = S.FOVEnabled
+end
+
+--==================================================
+-- RESPONSIVE SIZE
+--==================================================
+
+local function Resize()
+	local vp = Camera.ViewportSize
+
+	local w = math.clamp(vp.X - 18, 300, 720)
+	local h = math.clamp(vp.Y - 70, 330, 430)
+
+	if w > vp.X - 10 then
+		w = vp.X - 10
+	end
+
+	if h > vp.Y - 20 then
+		h = vp.Y - 20
+	end
+
+	Window.Size = UDim2.fromOffset(w,h)
+
+	Window.Position = UDim2.fromOffset(
+		math.floor((vp.X-w)/2),
+		math.floor((vp.Y-h)/2)
+	)
+
+	local sideW = math.clamp(math.floor(w*.205), 92, 145)
+
+	Sidebar.Size = UDim2.new(0,sideW,1,0)
+
+	Header.Position = UDim2.new(0,sideW,0,0)
+	Header.Size = UDim2.new(1,-sideW,0,48)
+
+	Content.Position = UDim2.new(0,sideW,0,48)
+	Content.Size = UDim2.new(1,-sideW,1,-48)
+
+	SidebarTitle.Position = UDim2.fromOffset(12,13)
+	SidebarTitle.Size = UDim2.new(1,-20,0,18)
+
+	NavHolder.Position = UDim2.fromOffset(7,40)
+	NavHolder.Size = UDim2.new(1,-14,0,180)
+
+	Title.Position = UDim2.fromOffset(12,5)
+	Title.Size = UDim2.new(1,-55,0,22)
+
+	Subtitle.Position = UDim2.fromOffset(12,27)
+	Subtitle.Size = UDim2.new(1,-55,0,14)
+
+	Minimize.Position = UDim2.new(1,-39,0,8)
+	Minimize.Size = UDim2.fromOffset(29,29)
+
+	Confirm.Size = UDim2.fromOffset(
+		math.min(280, vp.X-30),
+		155
+	)
+
+	Confirm.Position = UDim2.fromOffset(
+		math.floor((vp.X-Confirm.AbsoluteSize.X)/2),
+		math.floor((vp.Y-155)/2)
+	)
+
+	UpdateFOV()
+end
+
+Camera:GetPropertyChangedSignal("ViewportSize"):Connect(Resize)
+
+--==================================================
+-- NAVIGATION
+--==================================================
+
+AimNav.Activated:Connect(function()
+	ShowPage("AimPage")
+end)
+
+FOVNav.Activated:Connect(function()
+	ShowPage("FOVPage")
+end)
+
+ESPNav.Activated:Connect(function()
+	ShowPage("ESPPage")
+end)
+
+SettingNav.Activated:Connect(function()
+	ShowPage("SettingPage")
+end)
+
+--==================================================
+-- SAVE / RESET
+--==================================================
+
+local function RefreshControls()
+	if DropdownRefs.Strength then
+		DropdownRefs.Strength.Button.Text =
+			tostring(S.Strength).."% ▼"
+	end
+
+	if DropdownRefs.FOV then
+		DropdownRefs.FOV.Button.Text =
+			tostring(S.FOV).."% ▼"
+	end
+
+	if DropdownRefs.Theme then
+		DropdownRefs.Theme.Button.Text =
+			S.Theme.." ▼"
+	end
+
+	Accent = Themes[S.Theme]
+
+	SaveButton.BackgroundColor3 = Accent
+	Yes.BackgroundColor3 = Accent
+
+	UpdateFOV()
+end
+
+SaveButton.Activated:Connect(function()
+	for k,v in pairs(S) do
+		Saved[k] = v
+	end
+
+	Status.Text = "Settings saved"
+	Status.TextColor3 = Accent
+end)
+
+ResetButton.Activated:Connect(function()
+	Confirm.Visible = true
+end)
+
+No.Activated:Connect(function()
+	Confirm.Visible = false
+end)
+
+Yes.Activated:Connect(function()
+	for k,v in pairs(Defaults) do
+		S[k] = v
+	end
+
+	Confirm.Visible = false
+	Status.Text = "Settings reset"
+	Status.TextColor3 = Accent
+
+	RefreshControls()
+end)
+
+--==================================================
+-- DRAG SYSTEM
+--==================================================
+
+local function MakeDraggable(handle, target)
+	local dragging = false
+	local dragInput
+	local dragStart
+	local startPos
+
+	handle.InputBegan:Connect(function(input)
+		if S.UILock then return end
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = true
+			dragStart = input.Position
+			startPos = target.Position
+
+			if input.UserInputType == Enum.UserInputType.Touch then
+				dragInput = input
+			end
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if not dragging or S.UILock then return end
+
+		if input == dragInput then
+			local delta = input.Position-dragStart
+
+			target.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset+delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset+delta.Y
+			)
+		end
+	end)
+end
+
+MakeDraggable(Header,Window)
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+local Mini = New("TextButton", {
+	BackgroundColor3 = Color3.fromRGB(14,17,23),
+	BorderSizePixel = 0,
+	Size = UDim2.fromOffset(48,48),
+	Position = UDim2.fromOffset(15,100),
+	Text = "CB",
+	TextColor3 = Color3.new(1,1,1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 14,
+	Visible = false,
+	AutoButtonColor = false
+}, MiniGui)
+
+Corner(Mini, 12)
+Stroke(Mini, Accent, 1, .2)
+
+Minimize.Activated:Connect(function()
+	Window.Visible = false
+	Mini.Visible = true
+end)
+
+Mini.Activated:Connect(function()
+	Window.Visible = true
+	Mini.Visible = false
+end)
+
+MakeDraggable(Mini,Mini)
+
+--==================================================
+-- AIM TARGET
+--==================================================
+
+local function IsVisible(character, part)
+	if not S.WallCheck then
+		return true
+	end
+
+	if not character or not part then
 		return false
 	end
 
 	local origin = Camera.CFrame.Position
-	local direction = part.Position - origin
+	local direction = part.Position-origin
+
+	if direction.Magnitude <= 0 then
+		return true
+	end
 
 	local params = RaycastParams.new()
 
-	params.FilterType =
-		Enum.RaycastFilterType.Exclude
-
+	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = {
 		LP.Character
 	}
 
 	params.IgnoreWater = false
 
-	local result =
-		workspace:Raycast(
-			origin,
-			direction,
-			params
-		)
+	local result = workspace:Raycast(
+		origin,
+		direction,
+		params
+	)
 
 	if not result then
 		return true
 	end
 
-	return result.Instance:IsDescendantOf(char)
-end
-
-local function GetAimPart(char)
-	return char:FindFirstChild("Head")
-		or char:FindFirstChild("HumanoidRootPart")
+	return result.Instance:IsDescendantOf(character)
 end
 
 local function GetTarget()
-
 	local best = nil
 	local bestDistance = math.huge
 
 	local viewport = Camera.ViewportSize
+	local center = Vector2.new(
+		viewport.X/2,
+		viewport.Y/2
+	)
 
-	local center =
-		Vector2.new(
-			viewport.X/2,
-			viewport.Y/2
-		)
-
-	for _,player in ipairs(Players:GetPlayers()) do
-
+	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= LP then
 
 			local char = player.Character
-			local hum =
-				char and
-				char:FindFirstChildOfClass("Humanoid")
+			local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+			local head = char and char:FindFirstChild("Head")
 
-			local part =
-				char and
-				GetAimPart(char)
+			if char and humanoid and humanoid.Health > 0 and head then
 
-			if char
-				and hum
-				and hum.Health > 0
-				and part then
-
-				local pos,onScreen =
-					Camera:WorldToViewportPoint(
-						part.Position
-					)
+				local screenPos, onScreen =
+					Camera:WorldToViewportPoint(head.Position)
 
 				if onScreen then
 
+					local pos = Vector2.new(
+						screenPos.X,
+						screenPos.Y
+					)
+
 					local distance =
-						(
-							Vector2.new(
-								pos.X,
-								pos.Y
-							) - center
-						).Magnitude
+						(pos-center).Magnitude
 
 					if distance <= S.FOV
-						and IsVisible(char,part) then
+						and distance < bestDistance
+						and IsVisible(char,head) then
 
-						if distance < bestDistance then
-							bestDistance = distance
-							best = part
-						end
-
+						best = head
+						bestDistance = distance
 					end
 				end
 			end
@@ -205,8 +1124,7 @@ local function GetTarget()
 	return best
 end
 
-local function GetAimAlpha(strength)
-
+local function AimAlpha(strength)
 	if strength <= 0 then
 		return 0
 	end
@@ -215,1396 +1133,66 @@ local function GetAimAlpha(strength)
 		return 1
 	end
 
-	local n =
-		math.clamp(
-			strength/100,
-			0,
-			1
-		)
+	local normalized =
+		math.clamp(strength/100,0,1)
 
-	return math.clamp(
-		(1-math.pow(1-n,2.2))*0.42,
-		0,
-		0.98
-	)
+	local alpha =
+		1-math.pow(1-normalized,2.2)
+
+	return math.clamp(alpha*.42,0,.98)
 end
 
---========================================================
--- GUI
---========================================================
-
-local old =
-	LP.PlayerGui:FindFirstChild(
-		"CHALLO_BOY_V9"
-	)
-
-if old then
-	old:Destroy()
-end
-
-local Gui =
-	Instance.new("ScreenGui")
-
-Gui.Name =
-	"CHALLO_BOY_V9"
-
-Gui.ResetOnSpawn = false
-Gui.DisplayOrder = 10
-Gui.Parent = LP.PlayerGui
-
---========================================================
--- MAIN WINDOW
---========================================================
-
-local Window =
-	Instance.new("Frame")
-
-Window.Size =
-	UDim2.new(
-		0,900,
-		0,540
-	)
-
-Window.Position =
-	UDim2.new(
-		0.5,-450,
-		0.5,-270
-	)
-
-Window.BackgroundColor3 = BG
-Window.BorderSizePixel = 0
-Window.ClipsDescendants = true
-Window.Parent = Gui
-
-corner(Window,10)
-stroke(Window,BLUE,1,0.35)
-
--- Shadow
-local Shadow =
-	Instance.new("ImageLabel")
-
-Shadow.AnchorPoint =
-	Vector2.new(0.5,0.5)
-
-Shadow.Position =
-	UDim2.new(0.5,0,0.5,5)
-
-Shadow.Size =
-	UDim2.new(1,35,1,35)
-
-Shadow.BackgroundTransparency = 1
-Shadow.Image =
-	"rbxassetid://6014261993"
-
-Shadow.ImageTransparency = 0.55
-Shadow.ScaleType =
-	Enum.ScaleType.Slice
-
-Shadow.SliceCenter =
-	Rect.new(49,49,450,450)
-
-Shadow.ZIndex = 0
-Shadow.Parent = Window
-
-Window.ZIndex = 2
-
---========================================================
--- HEADER
---========================================================
-
-local Header =
-	Instance.new("Frame")
-
-Header.Size =
-	UDim2.new(
-		1,0,
-		0,55
-	)
-
-Header.BackgroundColor3 =
-	Color3.fromRGB(29,29,29)
-
-Header.BorderSizePixel = 0
-Header.ZIndex = 3
-Header.Parent = Window
-
-local Title =
-	Instance.new("TextLabel")
-
-Title.Size =
-	UDim2.new(
-		1,-110,
-		1,0
-	)
-
-Title.Position =
-	UDim2.new(0,18,0,0)
-
-Title.BackgroundTransparency = 1
-Title.Text =
-	"⚡  CHALLO_BOY"
-
-Title.TextColor3 = WHITE
-Title.TextSize = 20
-Title.Font =
-	Enum.Font.GothamBold
-
-Title.TextXAlignment =
-	Enum.TextXAlignment.Left
-
-Title.ZIndex = 4
-Title.Parent = Header
-
-local Minimize =
-	Instance.new("TextButton")
-
-Minimize.Size =
-	UDim2.new(0,38,0,32)
-
-Minimize.Position =
-	UDim2.new(1,-48,0,11)
-
-Minimize.BackgroundColor3 = ITEM
-Minimize.Text = "—"
-Minimize.TextColor3 = WHITE
-Minimize.TextSize = 18
-Minimize.Font =
-	Enum.Font.GothamBold
-
-Minimize.ZIndex = 5
-Minimize.Parent = Header
-
-corner(Minimize,8)
-
---========================================================
--- SIDEBAR
---========================================================
-
-local Sidebar =
-	Instance.new("Frame")
-
-Sidebar.Size =
-	UDim2.new(
-		0,190,
-		1,-55
-	)
-
-Sidebar.Position =
-	UDim2.new(0,0,0,55)
-
-Sidebar.BackgroundColor3 =
-	Color3.fromRGB(27,27,27)
-
-Sidebar.BorderSizePixel = 0
-Sidebar.ZIndex = 3
-Sidebar.Parent = Window
-
-local SideTitle =
-	Instance.new("TextLabel")
-
-SideTitle.Size =
-	UDim2.new(1,-20,0,35)
-
-SideTitle.Position =
-	UDim2.new(0,10,0,15)
-
-SideTitle.BackgroundTransparency = 1
-SideTitle.Text = "MENU"
-SideTitle.TextColor3 = GRAY
-SideTitle.TextSize = 12
-SideTitle.Font =
-	Enum.Font.GothamBold
-
-SideTitle.TextXAlignment =
-	Enum.TextXAlignment.Left
-
-SideTitle.Parent = Sidebar
-
---========================================================
--- CONTENT AREA
---========================================================
-
-local Content =
-	Instance.new("Frame")
-
-Content.Size =
-	UDim2.new(
-		1,-190,
-		1,-55
-	)
-
-Content.Position =
-	UDim2.new(
-		0,190,
-		0,55
-	)
-
-Content.BackgroundColor3 = BG
-Content.BorderSizePixel = 0
-Content.ZIndex = 3
-Content.Parent = Window
-
---========================================================
--- PAGES
---========================================================
-
-local Pages = {}
-
-local function CreatePage(name)
-
-	local page =
-		Instance.new("ScrollingFrame")
-
-	page.Name = name
-	page.Size =
-		UDim2.new(1,-35,1,-30)
-
-	page.Position =
-		UDim2.new(0,18,0,15)
-
-	page.BackgroundTransparency = 1
-	page.BorderSizePixel = 0
-
-	page.ScrollBarThickness = 4
-	page.ScrollBarImageColor3 = BLUE
-
-	page.CanvasSize =
-		UDim2.new(0,0,0,0)
-
-	page.Visible = false
-	page.ZIndex = 4
-	page.Parent = Content
-
-	local layout =
-		Instance.new("UIListLayout")
-
-	layout.Padding =
-		UDim.new(0,10)
-
-	layout.SortOrder =
-		Enum.SortOrder.LayoutOrder
-
-	layout.Parent = page
-
-	layout:GetPropertyChangedSignal(
-		"AbsoluteContentSize"
-	):Connect(function()
-
-		page.CanvasSize =
-			UDim2.new(
-				0,0,
-				0,
-				layout.AbsoluteContentSize.Y + 20
-			)
-	end)
-
-	Pages[name] = page
-
-	return page
-end
-
-local AimPage =
-	CreatePage("AimPage")
-
-local FOVPage =
-	CreatePage("FOVPage")
-
-local ESPPage =
-	CreatePage("ESPPage")
-
-local SettingPage =
-	CreatePage("SettingPage")
-
---========================================================
--- SIDEBAR BUTTONS
---========================================================
-
-local NavButtons = {}
-
-local function CreateNav(text,icon)
-
-	local b =
-		Instance.new("TextButton")
-
-	b.Size =
-		UDim2.new(
-			1,-20,
-			0,48
-		)
-
-	b.BackgroundColor3 =
-		Color3.fromRGB(27,27,27)
-
-	b.Text =
-		icon.."  "..text
-
-	b.TextColor3 = WHITE
-	b.TextSize = 14
-
-	b.Font =
-		Enum.Font.GothamSemibold
-
-	b.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	b.AutoButtonColor = false
-	b.ZIndex = 4
-	b.Parent = Sidebar
-
-	corner(b,5)
-
-	local pad =
-		Instance.new("UIPadding")
-
-	pad.PaddingLeft =
-		UDim.new(0,15)
-
-	pad.Parent = b
-
-	NavButtons[text] = b
-
-	b.MouseEnter:Connect(function()
-
-		if b.BackgroundColor3 ~= BLUE then
-
-			tween(
-				b,
-				FastTween,
-				{
-					BackgroundColor3 = HOVER
-				}
-			)
-
-		end
-	end)
-
-	b.MouseLeave:Connect(function()
-
-		if b.BackgroundColor3 ~= BLUE then
-
-			tween(
-				b,
-				FastTween,
-				{
-					BackgroundColor3 =
-						Color3.fromRGB(27,27,27)
-				}
-			)
-
-		end
-	end)
-
-	return b
-end
-
-local AimNav =
-	CreateNav("Aim Bot","🎯")
-
-local FOVNav =
-	CreateNav("POV / FOV","👁")
-
-local ESPNav =
-	CreateNav("ESP","◉")
-
-local SettingNav =
-	CreateNav("Setting","⚙")
-
-local navLayout =
-	Instance.new("UIListLayout")
-
-navLayout.Padding =
-	UDim.new(0,5)
-
-navLayout.Parent = Sidebar
-
-navLayout:GetPropertyChangedSignal(
-	"AbsoluteContentSize"
-):Connect(function()
-end)
-
-SideTitle.LayoutOrder = -1
-
---========================================================
--- SHOW PAGE
---========================================================
-
-local function ShowPage(page,name)
-
-	for _,p in pairs(Pages) do
-		p.Visible = false
-	end
-
-	page.Visible = true
-
-	for navName,b in pairs(NavButtons) do
-
-		if navName == name then
-
-			tween(
-				b,
-				SmoothTween,
-				{
-					BackgroundColor3 = BLUE
-				}
-			)
-
-		else
-
-			tween(
-				b,
-				SmoothTween,
-				{
-					BackgroundColor3 =
-						Color3.fromRGB(27,27,27)
-				}
-			)
-
-		end
-	end
-end
-
-AimNav.MouseButton1Click:Connect(function()
-	ShowPage(AimPage,"Aim Bot")
-end)
-
-FOVNav.MouseButton1Click:Connect(function()
-	ShowPage(FOVPage,"POV / FOV")
-end)
-
-ESPNav.MouseButton1Click:Connect(function()
-	ShowPage(ESPPage,"ESP")
-end)
-
-SettingNav.MouseButton1Click:Connect(function()
-	ShowPage(SettingPage,"Setting")
-end)
-
-ShowPage(AimPage,"Aim Bot")
-
---========================================================
--- PAGE TITLE
---========================================================
-
-local function AddTitle(page,title,description)
-
-	local holder =
-		Instance.new("Frame")
-
-	holder.Size =
-		UDim2.new(1,0,0,65)
-
-	holder.BackgroundTransparency = 1
-	holder.Parent = page
-
-	local t =
-		Instance.new("TextLabel")
-
-	t.Size =
-		UDim2.new(1,0,0,32)
-
-	t.BackgroundTransparency = 1
-	t.Text = title
-	t.TextColor3 = WHITE
-	t.TextSize = 22
-	t.Font =
-		Enum.Font.GothamBold
-
-	t.TextXAlignment =
-		Enum.TextXAlignment.Left
-	t.Parent = holder
-
-	local d =
-		Instance.new("TextLabel")
-
-	d.Size =
-		UDim2.new(1,0,0,25)
-
-	d.Position =
-		UDim2.new(0,0,0,34)
-
-	d.BackgroundTransparency = 1
-	d.Text = description
-	d.TextColor3 = GRAY
-	d.TextSize = 12
-	d.Font =
-		Enum.Font.Gotham
-
-	d.TextXAlignment =
-		Enum.TextXAlignment.Left
-	d.Parent = holder
-end
-
-AddTitle(
-	AimPage,
-	"Aim Bot",
-	"Aim assistance settings"
-)
-
-AddTitle(
-	FOVPage,
-	"POV / FOV",
-	"Field of view settings"
-)
-
-AddTitle(
-	ESPPage,
-	"ESP",
-	"Player visibility settings"
-)
-
-AddTitle(
-	SettingPage,
-	"Setting",
-	"Interface and configuration"
-)
-
---========================================================
--- CONTROL HOLDERS
---========================================================
-
-local ToggleControls = {}
-local DropdownControls = {}
-
-local function CreateToggle(page,label,default,callback)
-
-	local holder =
-		Instance.new("Frame")
-
-	holder.Size =
-		UDim2.new(1,-5,0,52)
-
-	holder.BackgroundColor3 = PANEL
-	holder.BorderSizePixel = 0
-	holder.Parent = page
-
-	corner(holder,6)
-
-	local text =
-		Instance.new("TextLabel")
-
-	text.Size =
-		UDim2.new(1,-90,1,0)
-
-	text.Position =
-		UDim2.new(0,15,0,0)
-
-	text.BackgroundTransparency = 1
-	text.Text = label
-	text.TextColor3 = WHITE
-	text.TextSize = 14
-	text.Font =
-		Enum.Font.GothamMedium
-
-	text.TextXAlignment =
-		Enum.TextXAlignment.Left
-	text.Parent = holder
-
-	local button =
-		Instance.new("TextButton")
-
-	button.Size =
-		UDim2.new(0,58,0,30)
-
-	button.Position =
-		UDim2.new(1,-70,0.5,-15)
-
-	button.AutoButtonColor = false
-	button.TextSize = 11
-	button.Font =
-		Enum.Font.GothamBold
-	button.Parent = holder
-
-	corner(button,7)
-
-	local value = default
-
-	local function Set(v)
-
-		value = v
-
-		if value then
-
-			button.Text = "ON"
-
-			tween(
-				button,
-				FastTween,
-				{
-					BackgroundColor3 = GREEN
-				}
-			)
-
-		else
-
-			button.Text = "OFF"
-
-			tween(
-				button,
-				FastTween,
-				{
-					BackgroundColor3 = RED
-				}
-			)
-
-		end
-
-		callback(value)
-	end
-
-	button.MouseEnter:Connect(function()
-		tween(
-			button,
-			FastTween,
-			{
-				Size =
-					UDim2.new(0,62,0,32)
-			}
-		)
-	end)
-
-	button.MouseLeave:Connect(function()
-		tween(
-			button,
-			FastTween,
-			{
-				Size =
-					UDim2.new(0,58,0,30)
-			}
-		)
-	end)
-
-	button.MouseButton1Click:Connect(function()
-		Set(not value)
-	end)
-
-	Set(default)
-
-	ToggleControls[label] = {
-		Set = Set,
-		Get = function()
-			return value
-		end
-	}
-
-	return holder
-end
-
---========================================================
--- DROPDOWN
---========================================================
-
-local DropdownGui =
-	Instance.new("ScreenGui")
-
-DropdownGui.Name =
-	"CHALLO_BOY_DROPDOWNS_V9"
-
-DropdownGui.ResetOnSpawn = false
-DropdownGui.DisplayOrder = 999
-DropdownGui.Parent = LP.PlayerGui
-
-local OpenDropdown = nil
-
-local function CreateDropdown(page,label,values,default,callback)
-
-	local holder =
-		Instance.new("Frame")
-
-	holder.Size =
-		UDim2.new(1,-5,0,58)
-
-	holder.BackgroundColor3 = PANEL
-	holder.BorderSizePixel = 0
-	holder.Parent = page
-
-	corner(holder,6)
-
-	local text =
-		Instance.new("TextLabel")
-
-	text.Size =
-		UDim2.new(0.5,0,1,0)
-
-	text.Position =
-		UDim2.new(0,15,0,0)
-
-	text.BackgroundTransparency = 1
-	text.Text = label
-	text.TextColor3 = WHITE
-	text.TextSize = 14
-	text.Font =
-		Enum.Font.GothamMedium
-
-	text.TextXAlignment =
-		Enum.TextXAlignment.Left
-	text.Parent = holder
-
-	local button =
-		Instance.new("TextButton")
-
-	button.Size =
-		UDim2.new(0,180,0,38)
-
-	button.Position =
-		UDim2.new(1,-195,0.5,-19)
-
-	button.BackgroundColor3 = ITEM
-	button.TextColor3 = WHITE
-	button.TextSize = 13
-	button.Font =
-		Enum.Font.GothamMedium
-
-	button.AutoButtonColor = false
-	button.Parent = holder
-
-	corner(button,6)
-
-	local value = default
-
-	button.Text =
-		tostring(value).."  ▼"
-
-	local popup =
-		Instance.new("ScrollingFrame")
-
-	popup.Size =
-		UDim2.new(0,180,0,145)
-
-	popup.BackgroundColor3 =
-		Color3.fromRGB(30,30,30)
-
-	popup.BorderSizePixel = 0
-
-	popup.ScrollBarThickness = 5
-	popup.ScrollBarImageColor3 = BLUE
-
-	popup.Visible = false
-	popup.ZIndex = 1000
-	popup.Parent = DropdownGui
-
-	corner(popup,6)
-	stroke(popup,BLUE,1,0.35)
-
-	local layout =
-		Instance.new("UIListLayout")
-
-	layout.Padding =
-		UDim.new(0,3)
-
-	layout.Parent = popup
-
-	local function Set(v)
-
-		value = v
-
-		button.Text =
-			tostring(value).."  ▼"
-
-		callback(value)
-	end
-
-	for _,item in ipairs(values) do
-
-		local option =
-			Instance.new("TextButton")
-
-		option.Size =
-			UDim2.new(1,-8,0,32)
-
-		option.BackgroundColor3 = ITEM
-		option.Text =
-			tostring(item)
-
-		option.TextColor3 = WHITE
-		option.TextSize = 12
-		option.Font =
-			Enum.Font.GothamMedium
-
-		option.AutoButtonColor = false
-		option.ZIndex = 1001
-		option.Parent = popup
-
-		corner(option,5)
-
-		option.MouseEnter:Connect(function()
-			tween(
-				option,
-				FastTween,
-				{
-					BackgroundColor3 = BLUE
-				}
-			)
-		end)
-
-		option.MouseLeave:Connect(function()
-			tween(
-				option,
-				FastTween,
-				{
-					BackgroundColor3 = ITEM
-				}
-			)
-		end)
-
-		option.MouseButton1Click:Connect(function()
-
-			Set(item)
-
-			popup.Visible = false
-			OpenDropdown = nil
-		end)
-	end
-
-	layout:GetPropertyChangedSignal(
-		"AbsoluteContentSize"
-	):Connect(function()
-
-		popup.CanvasSize =
-			UDim2.new(
-				0,0,
-				0,
-				layout.AbsoluteContentSize.Y + 8
-			)
-	end)
-
-	button.MouseEnter:Connect(function()
-		tween(
-			button,
-			FastTween,
-			{
-				BackgroundColor3 = HOVER
-			}
-		)
-	end)
-
-	button.MouseLeave:Connect(function()
-		if OpenDropdown ~= popup then
-			tween(
-				button,
-				FastTween,
-				{
-					BackgroundColor3 = ITEM
-				}
-			)
-		end
-	end)
-
-	button.MouseButton1Click:Connect(function()
-
-		if OpenDropdown
-			and OpenDropdown ~= popup then
-
-			OpenDropdown.Visible = false
-		end
-
-		if popup.Visible then
-
-			popup.Visible = false
-			OpenDropdown = nil
-
-			return
-		end
-
-		local p =
-			button.AbsolutePosition
-
-		local s =
-			button.AbsoluteSize
-
-		popup.Position =
-			UDim2.fromOffset(
-				p.X,
-				p.Y+s.Y+4
-			)
-
-		popup.Visible = true
-		OpenDropdown = popup
-	end)
-
-	DropdownControls[label] = {
-		Set = Set,
-		Get = function()
-			return value
-		end
-	}
-
-	return holder
-end
-
---========================================================
--- AIM PAGE
---========================================================
-
-CreateToggle(
-	AimPage,
-	"Aim Assist",
-	false,
-	function(v)
-		S.Aim = v
-	end
-)
-
-local StrengthValues = {}
-
-for i=0,100,10 do
-	table.insert(
-		StrengthValues,
-		i.."%"
-	)
-end
-
-CreateDropdown(
-	AimPage,
-	"Aim Strength",
-	StrengthValues,
-	"50%",
-	function(v)
-
-		S.Strength =
-			tonumber(
-				string.match(
-					tostring(v),
-					"%d+"
-				)
-			) or 50
-	end
-)
-
---========================================================
--- FOV PAGE
---========================================================
-
-CreateToggle(
-	FOVPage,
-	"Show FOV",
-	false,
-	function(v)
-		S.FOVEnabled = v
-	end
-)
-
-CreateDropdown(
-	FOVPage,
-	"FOV Size",
-	{
-		"60",
-		"100",
-		"140",
-		"180",
-		"220",
-		"260",
-		"300",
-		"350",
-		"400"
-	},
-	"180",
-	function(v)
-		S.FOV =
-			tonumber(v) or 180
-	end
-)
-
---========================================================
--- ESP PAGE
---========================================================
-
-CreateToggle(
-	ESPPage,
-	"Player Outline",
-	false,
-	function(v)
-		S.ESP = v
-	end
-)
-
-CreateToggle(
-	ESPPage,
-	"Visibility Check",
-	true,
-	function(v)
-		S.VisibilityCheck = v
-	end
-)
-
---========================================================
--- SETTING PAGE
---========================================================
-
-CreateToggle(
-	SettingPage,
-	"RGB Effect",
-	false,
-	function(v)
-		S.RGB = v
-	end
-)
-
-CreateToggle(
-	SettingPage,
-	"UI Lock",
-	false,
-	function(v)
-		S.UILock = v
-	end
-)
-
-CreateDropdown(
-	SettingPage,
-	"Theme",
-	{
-		"Dark",
-		"Light"
-	},
-	"Dark",
-	function(v)
-		S.Theme = v
-	end
-)
-
---========================================================
--- ACTION BUTTON
---========================================================
-
-local function CreateActionButton(parent,text,color)
-
-	local b =
-		Instance.new("TextButton")
-
-	b.Size =
-		UDim2.new(1,-5,0,48)
-
-	b.BackgroundColor3 = color
-	b.Text = text
-
-	b.TextColor3 = WHITE
-	b.TextSize = 14
-	b.Font =
-		Enum.Font.GothamBold
-
-	b.AutoButtonColor = false
-	b.Parent = parent
-
-	corner(b,6)
-
-	b.MouseEnter:Connect(function()
-
-		tween(
-			b,
-			FastTween,
-			{
-				BackgroundColor3 =
-					color:Lerp(
-						Color3.new(1,1,1),
-						0.12
-					)
-			}
-		)
-
-	end)
-
-	b.MouseLeave:Connect(function()
-
-		tween(
-			b,
-			FastTween,
-			{
-				BackgroundColor3 = color
-			}
-		)
-
-	end)
-
-	return b
-end
-
-local SaveButton =
-	CreateActionButton(
-		SettingPage,
-		"💾   Save Settings",
-		BLUE
-	)
-
-local ResetButton =
-	CreateActionButton(
-		SettingPage,
-		"↻   Reset Settings",
-		Color3.fromRGB(70,70,75)
-	)
-
---========================================================
--- CONFIRM POPUP
---========================================================
-
-local Overlay =
-	Instance.new("Frame")
-
-Overlay.Size =
-	UDim2.fromScale(1,1)
-
-Overlay.BackgroundColor3 =
-	Color3.new(0,0,0)
-
-Overlay.BackgroundTransparency = 0.4
-Overlay.Visible = false
-Overlay.ZIndex = 2000
-Overlay.Parent = Window
-
-local Confirm =
-	Instance.new("Frame")
-
-Confirm.Size =
-	UDim2.new(0,330,0,185)
-
-Confirm.Position =
-	UDim2.new(0.5,-165,0.5,-92)
-
-Confirm.BackgroundColor3 =
-	PANEL
-
-Confirm.ZIndex = 2001
-Confirm.Parent = Overlay
-
-corner(Confirm,9)
-stroke(Confirm,BLUE,1.5,0.2)
-
-local ConfirmTitle =
-	Instance.new("TextLabel")
-
-ConfirmTitle.Size =
-	UDim2.new(1,-30,0,45)
-
-ConfirmTitle.Position =
-	UDim2.new(0,15,0,20)
-
-ConfirmTitle.BackgroundTransparency = 1
-ConfirmTitle.Text =
-	"Are you sure?"
-
-ConfirmTitle.TextColor3 = WHITE
-ConfirmTitle.TextSize = 22
-ConfirmTitle.Font =
-	Enum.Font.GothamBold
-
-ConfirmTitle.ZIndex = 2002
-ConfirmTitle.Parent = Confirm
-
-local ConfirmInfo =
-	Instance.new("TextLabel")
-
-ConfirmInfo.Size =
-	UDim2.new(1,-30,0,35)
-
-ConfirmInfo.Position =
-	UDim2.new(0,15,0,62)
-
-ConfirmInfo.BackgroundTransparency = 1
-ConfirmInfo.Text =
-	"Reset your current settings?"
-
-ConfirmInfo.TextColor3 = GRAY
-ConfirmInfo.TextSize = 12
-ConfirmInfo.Font =
-	Enum.Font.Gotham
-
-ConfirmInfo.ZIndex = 2002
-ConfirmInfo.Parent = Confirm
-
-local Yes =
-	CreateActionButton(
-		Confirm,
-		"YES",
-		GREEN
-	)
-
-Yes.Size =
-	UDim2.new(0,125,0,40)
-
-Yes.Position =
-	UDim2.new(0,25,1,-55)
-
-Yes.ZIndex = 2002
-
-local No =
-	CreateActionButton(
-		Confirm,
-		"NO",
-		RED
-	)
-
-No.Size =
-	UDim2.new(0,125,0,40)
-
-No.Position =
-	UDim2.new(1,-150,1,-55)
-
-No.ZIndex = 2002
-
---========================================================
--- SAVE
---========================================================
-
-SaveButton.MouseButton1Click:Connect(function()
-
-	SAVED =
-		CopySettings(S)
-
-	SaveButton.Text =
-		"✓   Settings Saved"
-
-	task.delay(1.5,function()
-
-		if SaveButton.Parent then
-			SaveButton.Text =
-				"💾   Save Settings"
-		end
-
-	end)
-end)
-
---========================================================
--- RESET
---========================================================
-
-ResetButton.MouseButton1Click:Connect(function()
-
-	Overlay.Visible = true
-
-end)
-
-No.MouseButton1Click:Connect(function()
-
-	Overlay.Visible = false
-
-end)
-
-Yes.MouseButton1Click:Connect(function()
-
-	local target
-
-	if SAVED then
-		target = CopySettings(SAVED)
-	else
-		target = CopySettings(DEFAULTS)
-	end
-
-	for k,v in pairs(target) do
-		S[k] = v
-	end
-
-	-- Update controls
-	ToggleControls["Aim Assist"].Set(S.Aim)
-	ToggleControls["Show FOV"].Set(S.FOVEnabled)
-	ToggleControls["Player Outline"].Set(S.ESP)
-	ToggleControls["Visibility Check"].Set(S.VisibilityCheck)
-	ToggleControls["RGB Effect"].Set(S.RGB)
-	ToggleControls["UI Lock"].Set(S.UILock)
-
-	DropdownControls["Aim Strength"].Set(
-		S.Strength.."%"
-	)
-
-	DropdownControls["FOV Size"].Set(
-		tostring(S.FOV)
-	)
-
-	DropdownControls["Theme"].Set(
-		S.Theme
-	)
-
-	Overlay.Visible = false
-
-	ResetButton.Text =
-		"✓   Settings Reset"
-
-	task.delay(1.5,function()
-
-		if ResetButton.Parent then
-			ResetButton.Text =
-				"↻   Reset Settings"
-		end
-
-	end)
-end)
-
---========================================================
--- FOV CIRCLE
---========================================================
-
-local FOVCircle =
-	Instance.new("Frame")
-
-FOVCircle.AnchorPoint =
-	Vector2.new(0.5,0.5)
-
-FOVCircle.BackgroundTransparency = 1
-FOVCircle.BorderSizePixel = 0
-FOVCircle.Visible = false
-FOVCircle.ZIndex = 1
-FOVCircle.Parent = Gui
-
-corner(FOVCircle,999)
-
-local FOVStroke =
-	stroke(
-		FOVCircle,
-		BLUE2,
-		2,
-		0
-	)
-
---========================================================
+--==================================================
 -- ESP
---========================================================
+--==================================================
 
 local Highlights = {}
 
 local function RemoveESP(player)
+	local h = Highlights[player]
 
-	if Highlights[player] then
-
-		Highlights[player]:Destroy()
-
+	if h then
+		h:Destroy()
 		Highlights[player] = nil
 	end
 end
 
 local function AddESP(player)
-
-	if player == LP then
-		return
-	end
+	if player == LP then return end
+	if not S.ESP then return end
 
 	local char = player.Character
-
-	if not char then
-		return
-	end
+	if not char then return end
 
 	RemoveESP(player)
 
-	local h =
-		Instance.new("Highlight")
-
-	h.Name =
-		"CHALLO_BOY_ESP"
-
+	local h = Instance.new("Highlight")
+	h.Name = "CHALLO_BOY_ESP"
 	h.Adornee = char
-	h.FillTransparency = 0.85
+	h.FillTransparency = 1
 	h.OutlineTransparency = 0
-	h.OutlineColor = BLUE2
-	h.DepthMode =
-		Enum.HighlightDepthMode.AlwaysOnTop
-
-	h.Parent = char
+	h.OutlineColor = Accent
+	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	h.Parent = Gui
 
 	Highlights[player] = h
 end
 
+local function UpdateESP()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LP then
+			if S.ESP then
+				AddESP(player)
+			else
+				RemoveESP(player)
+			end
+		end
+	end
+end
+
 Players.PlayerAdded:Connect(function(player)
-
 	player.CharacterAdded:Connect(function()
-
-		task.wait(0.4)
+		task.wait(.5)
 
 		if S.ESP then
 			AddESP(player)
@@ -1612,171 +1200,49 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-	RemoveESP(player)
-end)
+Players.PlayerRemoving:Connect(RemoveESP)
 
---========================================================
--- DRAG
---========================================================
-
-local dragging = false
-local dragStart
-local startPos
-
-Header.InputBegan:Connect(function(input)
-
-	if S.UILock then
-		return
-	end
-
-	if input.UserInputType ==
-		Enum.UserInputType.MouseButton1
-		or input.UserInputType ==
-		Enum.UserInputType.Touch then
-
-		dragging = true
-		dragStart = input.Position
-		startPos = Window.Position
+task.spawn(function()
+	while task.wait(.35) do
+		UpdateESP()
 	end
 end)
 
-Header.InputEnded:Connect(function(input)
+--==================================================
+-- RGB EFFECT
+--==================================================
 
-	if input.UserInputType ==
-		Enum.UserInputType.MouseButton1
-		or input.UserInputType ==
-		Enum.UserInputType.Touch then
-
-		dragging = false
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-
-	if not dragging then
-		return
-	end
-
-	if input.UserInputType ==
-		Enum.UserInputType.MouseMovement
-		or input.UserInputType ==
-		Enum.UserInputType.Touch then
-
-		local delta =
-			input.Position - dragStart
-
-		Window.Position =
-			UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-	end
-end)
-
---========================================================
--- MINIMIZE
---========================================================
-
-local Mini =
-	Instance.new("TextButton")
-
-Mini.Size =
-	UDim2.new(0,60,0,60)
-
-Mini.Position =
-	UDim2.new(
-		0,20,
-		0.5,-30
-	)
-
-Mini.BackgroundColor3 = BG
-Mini.Text = "⚡"
-Mini.TextColor3 = WHITE
-Mini.TextSize = 25
-Mini.Font =
-	Enum.Font.GothamBold
-
-Mini.Visible = false
-Mini.ZIndex = 100
-Mini.Parent = Gui
-
-corner(Mini,999)
-stroke(Mini,BLUE2,2,0)
-
-Minimize.MouseButton1Click:Connect(function()
-
-	Window.Visible = false
-	Mini.Visible = true
-
-end)
-
-Mini.MouseButton1Click:Connect(function()
-
-	Window.Visible = true
-	Mini.Visible = false
-
-end)
-
---========================================================
--- RGB
---========================================================
-
-local hue = 0
-
---========================================================
--- MAIN LOOP
---========================================================
+local Hue = 0
 
 RunService.RenderStepped:Connect(function(dt)
 
-	-- FOV
-	if S.FOVEnabled then
-
-		local viewport =
-			Camera.ViewportSize
-
-		FOVCircle.Position =
-			UDim2.fromOffset(
-				viewport.X/2,
-				viewport.Y/2
-			)
-
-		FOVCircle.Size =
-			UDim2.fromOffset(
-				S.FOV*2,
-				S.FOV*2
-			)
-
-		FOVCircle.Visible = true
-
+	if S.RGB then
+		Hue = (Hue + dt*.15)%1
+		Accent = Color3.fromHSV(Hue,.8,1)
 	else
-
-		FOVCircle.Visible = false
-
+		Accent = Themes[S.Theme]
 	end
 
-	-- AIM
-	if S.Aim
-		and S.Strength > 0 then
+	-- Accent UI
+	Stroke(Window,Accent,1,.35).Color = Accent
 
-		local target =
-			GetTarget()
+	SaveButton.BackgroundColor3 = Accent
+	Yes.BackgroundColor3 = Accent
+
+	-- FOV
+	UpdateFOV()
+
+	-- Aim
+	if S.Aim and S.Strength > 0 then
+		local target = GetTarget()
 
 		if target then
+			local desired = CFrame.lookAt(
+				Camera.CFrame.Position,
+				target.Position
+			)
 
-			local desired =
-				CFrame.lookAt(
-					Camera.CFrame.Position,
-					target.Position
-				)
-
-			local alpha =
-				GetAimAlpha(
-					S.Strength
-				)
+			local alpha = AimAlpha(S.Strength)
 
 			Camera.CFrame =
 				Camera.CFrame:Lerp(
@@ -1786,55 +1252,25 @@ RunService.RenderStepped:Connect(function(dt)
 		end
 	end
 
-	-- ESP
-	for _,player in ipairs(Players:GetPlayers()) do
-
-		if player ~= LP then
-
-			if S.ESP then
-
-				if player.Character
-					and not Highlights[player] then
-
-					AddESP(player)
-
-				end
-
-			elseif Highlights[player] then
-
-				RemoveESP(player)
-
-			end
-		end
+	-- ESP color
+	for _, highlight in pairs(Highlights) do
+		highlight.OutlineColor = Accent
 	end
 
-	-- RGB
-	if S.RGB then
-
-		hue =
-			(hue + dt*0.35)%1
-
-		local c =
-			Color3.fromHSV(
-				hue,
-				0.8,
-				1
-			)
-
-		stroke(Window,c,1,0.1).Color = c
-		FOVStroke.Color = c
-
-	else
-
-		-- Keep normal blue accent.
-		for _,obj in ipairs(Window:GetChildren()) do
-
-			if obj:IsA("UIStroke") then
-				obj.Color = BLUE
-			end
-
+	-- FOV color
+	for _, obj in ipairs(FOVCircle:GetChildren()) do
+		if obj:IsA("UIStroke") then
+			obj.Color = Accent
 		end
-
-		FOVStroke.Color = BLUE2
 	end
 end)
+
+--==================================================
+-- STARTUP
+--==================================================
+
+ShowPage("AimPage")
+Resize()
+RefreshControls()
+
+print("CHALLO_BOY v10 loaded - PC + Mobile")
