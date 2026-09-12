@@ -1,6 +1,9 @@
 --========================================================
--- CHALLO BOY | AIM + ESP SYSTEM
--- Untuk game Roblox milik sendiri
+-- CHALLO BOY
+-- AIM + FOV + ESP SKELETON RGB
+--========================================================
+-- LocalScript
+-- StarterPlayer > StarterPlayerScripts
 --========================================================
 
 local Players = game:GetService("Players")
@@ -23,36 +26,38 @@ local AimStrength = 70
 local FOV = 180
 
 local AimTarget = "Head"
+
 local NameSize = 60
 local UI_SIZE = 80
 
 local RGB_SPEED = 0.35
 
 --========================================================
--- SCREEN GUI
+-- MAIN SCREEN GUI
 --========================================================
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CHALLO_BOY_SYSTEM"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = PlayerGui
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "CHALLO_BOY_UI"
+MainGui.ResetOnSpawn = false
+MainGui.IgnoreGuiInset = true
+MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+MainGui.Parent = PlayerGui
 
 local UIScale = Instance.new("UIScale")
 UIScale.Scale = UI_SIZE / 100
-UIScale.Parent = ScreenGui
+UIScale.Parent = MainGui
 
 --========================================================
--- MAIN UI
+-- MAIN PANEL
 --========================================================
 
 local Main = Instance.new("Frame")
+Main.Name = "MainPanel"
 Main.Size = UDim2.fromOffset(570, 370)
 Main.Position = UDim2.new(0.5, -285, 0.5, -185)
 Main.BackgroundColor3 = Color3.fromRGB(15, 17, 24)
 Main.BorderSizePixel = 0
-Main.Parent = ScreenGui
+Main.Parent = MainGui
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 16)
@@ -72,8 +77,8 @@ Header.BackgroundTransparency = 1
 Header.Parent = Main
 
 local Brand = Instance.new("TextLabel")
-Brand.Size = UDim2.new(1, -90, 1, 0)
-Brand.Position = UDim2.fromOffset(20, 0)
+Brand.Size = UDim2.new(1, -100, 0, 30)
+Brand.Position = UDim2.fromOffset(20, 7)
 Brand.BackgroundTransparency = 1
 Brand.Text = "CHALLO BOY"
 Brand.Font = Enum.Font.GothamBlack
@@ -81,29 +86,30 @@ Brand.TextSize = 21
 Brand.TextXAlignment = Enum.TextXAlignment.Left
 Brand.Parent = Header
 
-local Sub = Instance.new("TextLabel")
-Sub.Size = UDim2.new(1, -90, 0, 20)
-Sub.Position = UDim2.fromOffset(22, 34)
-Sub.BackgroundTransparency = 1
-Sub.Text = "AIM • ESP SYSTEM"
-Sub.Font = Enum.Font.GothamMedium
-Sub.TextSize = 10
-Sub.TextXAlignment = Enum.TextXAlignment.Left
-Sub.TextColor3 = Color3.fromRGB(130, 140, 160)
-Sub.Parent = Header
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Size = UDim2.new(1, -100, 0, 18)
+SubTitle.Position = UDim2.fromOffset(22, 34)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "AIM  •  ESP  •  FOV"
+SubTitle.Font = Enum.Font.GothamMedium
+SubTitle.TextSize = 9
+SubTitle.TextColor3 = Color3.fromRGB(130, 140, 160)
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = Header
 
 --========================================================
 -- MINIMIZE BUTTON
 --========================================================
 
 local MinButton = Instance.new("TextButton")
+MinButton.Name = "Minimize"
 MinButton.Size = UDim2.fromOffset(38, 38)
 MinButton.Position = UDim2.new(1, -50, 0, 11)
 MinButton.BackgroundColor3 = Color3.fromRGB(28, 32, 43)
 MinButton.Text = "−"
 MinButton.TextSize = 24
 MinButton.Font = Enum.Font.GothamBold
-MinButton.TextColor3 = Color3.fromRGB(230, 235, 245)
+MinButton.TextColor3 = Color3.fromRGB(235, 240, 250)
 MinButton.AutoButtonColor = false
 MinButton.Parent = Header
 
@@ -112,7 +118,83 @@ MinCorner.CornerRadius = UDim.new(1, 0)
 MinCorner.Parent = MinButton
 
 --========================================================
--- DRAG
+-- SMALL OPEN BUTTON
+--========================================================
+-- PENTING:
+-- Tombol ini berada di GUI TERPISAH.
+-- Jadi saat Main.Visible = false,
+-- tombol CB tetap muncul.
+--========================================================
+
+local OpenGui = Instance.new("ScreenGui")
+OpenGui.Name = "CHALLO_BOY_OPEN_BUTTON"
+OpenGui.ResetOnSpawn = false
+OpenGui.IgnoreGuiInset = true
+OpenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+OpenGui.DisplayOrder = 100
+OpenGui.Parent = PlayerGui
+
+local OpenCircle = Instance.new("TextButton")
+OpenCircle.Name = "OpenButton"
+OpenCircle.Size = UDim2.fromOffset(58, 58)
+OpenCircle.Position = UDim2.new(0, 20, 0.5, -29)
+OpenCircle.BackgroundColor3 = Color3.fromRGB(18, 21, 29)
+OpenCircle.Text = "CB"
+OpenCircle.TextSize = 16
+OpenCircle.Font = Enum.Font.GothamBlack
+OpenCircle.TextColor3 = Color3.new(1, 1, 1)
+OpenCircle.AutoButtonColor = false
+OpenCircle.Visible = false
+OpenCircle.Parent = OpenGui
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenCircle
+
+local OpenStroke = Instance.new("UIStroke")
+OpenStroke.Thickness = 2
+OpenStroke.Parent = OpenCircle
+
+--========================================================
+-- MINIMIZE / RESTORE
+--========================================================
+
+local function MinimizeUI()
+
+	-- HANYA PANEL UI yang disembunyikan.
+	-- Aim / ESP / FOV TIDAK disentuh.
+
+	Main.Visible = false
+	OpenCircle.Visible = true
+
+end
+
+local function RestoreUI()
+
+	OpenCircle.Visible = false
+	Main.Visible = true
+
+	Main.Size = UDim2.fromOffset(0, 0)
+
+	TweenService:Create(
+		Main,
+		TweenInfo.new(
+			0.3,
+			Enum.EasingStyle.Back,
+			Enum.EasingDirection.Out
+		),
+		{
+			Size = UDim2.fromOffset(570, 370)
+		}
+	):Play()
+
+end
+
+MinButton.MouseButton1Click:Connect(MinimizeUI)
+OpenCircle.MouseButton1Click:Connect(RestoreUI)
+
+--========================================================
+-- DRAG MAIN UI
 --========================================================
 
 local dragging = false
@@ -127,7 +209,9 @@ Header.InputBegan:Connect(function(input)
 		dragging = true
 		dragStart = input.Position
 		startPosition = Main.Position
+
 	end
+
 end)
 
 Header.InputEnded:Connect(function(input)
@@ -136,7 +220,9 @@ Header.InputEnded:Connect(function(input)
 		or input.UserInputType == Enum.UserInputType.Touch then
 
 		dragging = false
+
 	end
+
 end)
 
 UserInputService.InputChanged:Connect(function(input)
@@ -156,68 +242,9 @@ UserInputService.InputChanged:Connect(function(input)
 			startPosition.Y.Scale,
 			startPosition.Y.Offset + delta.Y
 		)
+
 	end
-end)
 
---========================================================
--- MINIMIZED CIRCLE
---========================================================
-
-local OpenCircle = Instance.new("TextButton")
-OpenCircle.Size = UDim2.fromOffset(58, 58)
-OpenCircle.Position = UDim2.new(0, 25, 0.5, -29)
-OpenCircle.BackgroundColor3 = Color3.fromRGB(20, 23, 32)
-OpenCircle.Text = "CB"
-OpenCircle.TextSize = 17
-OpenCircle.Font = Enum.Font.GothamBlack
-OpenCircle.TextColor3 = Color3.new(1, 1, 1)
-OpenCircle.Visible = false
-OpenCircle.AutoButtonColor = false
-OpenCircle.Parent = ScreenGui
-
-local OpenCorner = Instance.new("UICorner")
-OpenCorner.CornerRadius = UDim.new(1, 0)
-OpenCorner.Parent = OpenCircle
-
-local OpenStroke = Instance.new("UIStroke")
-OpenStroke.Thickness = 2
-OpenStroke.Parent = OpenCircle
-
-MinButton.MouseButton1Click:Connect(function()
-
-	local tween = TweenService:Create(
-		Main,
-		TweenInfo.new(0.25, Enum.EasingStyle.Quad),
-		{
-			Size = UDim2.fromOffset(0, 0)
-		}
-	)
-
-	tween:Play()
-
-	tween.Completed:Connect(function()
-		Main.Visible = false
-		OpenCircle.Visible = true
-	end)
-end)
-
-OpenCircle.MouseButton1Click:Connect(function()
-
-	OpenCircle.Visible = false
-	Main.Visible = true
-	Main.Size = UDim2.fromOffset(0, 0)
-
-	TweenService:Create(
-		Main,
-		TweenInfo.new(
-			0.3,
-			Enum.EasingStyle.Back,
-			Enum.EasingDirection.Out
-		),
-		{
-			Size = UDim2.fromOffset(570, 370)
-		}
-	):Play()
 end)
 
 --========================================================
@@ -257,7 +284,7 @@ Content.Parent = Main
 
 local Pages = {}
 
-local function NewPage(name)
+local function CreatePage(name)
 
 	local page = Instance.new("Frame")
 	page.Name = name
@@ -269,22 +296,23 @@ local function NewPage(name)
 	Pages[name] = page
 
 	return page
+
 end
 
-local AimPage = NewPage("Aim")
-local FOVPage = NewPage("FOV")
-local ESPPage = NewPage("ESP")
-local SettingsPage = NewPage("Settings")
+local AimPage = CreatePage("Aim")
+local FOVPage = CreatePage("FOV")
+local ESPPage = CreatePage("ESP")
+local SettingsPage = CreatePage("Settings")
 
 AimPage.Visible = true
 
 --========================================================
--- TAB
+-- TABS
 --========================================================
 
 local SelectedTab
 
-local function NewTab(text, page)
+local function CreateTab(text, page)
 
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(1, -18, 0, 43)
@@ -319,28 +347,21 @@ local function NewTab(text, page)
 		button.BackgroundColor3 =
 			Color3.fromRGB(35, 95, 190)
 
-		button.TextColor3 = Color3.new(1, 1, 1)
+		button.TextColor3 =
+			Color3.new(1, 1, 1)
 
 		SelectedTab = button
 
-		page.Position = UDim2.new(0, 15, 0, 0)
-
-		TweenService:Create(
-			page,
-			TweenInfo.new(0.18),
-			{
-				Position = UDim2.new(0, 0, 0, 0)
-			}
-		):Play()
 	end)
 
 	return button
+
 end
 
-local AimTab = NewTab("🎯  AIM", AimPage)
-local FOVTab = NewTab("⭕  FOV", FOVPage)
-local ESPTab = NewTab("👁  ESP", ESPPage)
-local SettingsTab = NewTab("⚙  SETTINGS", SettingsPage)
+local AimTab = CreateTab("🎯  AIM", AimPage)
+local FOVTab = CreateTab("⭕  FOV", FOVPage)
+local ESPTab = CreateTab("👁  ESP", ESPPage)
+local SettingsTab = CreateTab("⚙  SETTINGS", SettingsPage)
 
 SelectedTab = AimTab
 AimTab.BackgroundColor3 = Color3.fromRGB(35, 95, 190)
@@ -350,7 +371,7 @@ AimTab.TextColor3 = Color3.new(1, 1, 1)
 -- UI HELPERS
 --========================================================
 
-local function Label(parent, text, y)
+local function CreateLabel(parent, text, y)
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, -20, 0, 25)
@@ -364,9 +385,10 @@ local function Label(parent, text, y)
 	label.Parent = parent
 
 	return label
+
 end
 
-local function Input(parent, y, text)
+local function CreateInput(parent, y, text)
 
 	local box = Instance.new("TextBox")
 	box.Size = UDim2.new(1, -20, 0, 38)
@@ -385,9 +407,10 @@ local function Input(parent, y, text)
 	corner.Parent = box
 
 	return box
+
 end
 
-local function Preset(parent, y, values, callback)
+local function CreatePresets(parent, y, values, callback)
 
 	local holder = Instance.new("Frame")
 	holder.Size = UDim2.new(1, -20, 0, 34)
@@ -402,192 +425,324 @@ local function Preset(parent, y, values, callback)
 
 	for _, value in ipairs(values) do
 
-		local b = Instance.new("TextButton")
-		b.Size = UDim2.new(
+		local button = Instance.new("TextButton")
+
+		button.Size = UDim2.new(
 			1 / #values,
 			-5,
 			1,
 			0
 		)
 
-		b.BackgroundColor3 =
+		button.BackgroundColor3 =
 			Color3.fromRGB(31, 35, 46)
 
-		b.Text = tostring(value)
-		b.TextColor3 = Color3.fromRGB(205, 210, 225)
-		b.TextSize = 11
-		b.Font = Enum.Font.GothamBold
-		b.AutoButtonColor = false
-		b.Parent = holder
+		button.Text = tostring(value)
+		button.TextColor3 =
+			Color3.fromRGB(205, 210, 225)
 
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0, 7)
-		c.Parent = b
+		button.TextSize = 11
+		button.Font = Enum.Font.GothamBold
+		button.AutoButtonColor = false
+		button.Parent = holder
 
-		b.MouseButton1Click:Connect(function()
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 7)
+		corner.Parent = button
+
+		button.MouseButton1Click:Connect(function()
+
 			callback(value)
+
 		end)
+
 	end
 
 	return holder
+
 end
 
-local function Toggle(parent, text, y, callback)
+local function CreateToggle(parent, text, y, callback)
 
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(1, -20, 0, 42)
-	b.Position = UDim2.fromOffset(10, y)
-	b.BackgroundColor3 = Color3.fromRGB(27, 31, 41)
-	b.Text = text .. " : OFF"
-	b.TextColor3 = Color3.fromRGB(205, 210, 225)
-	b.TextSize = 13
-	b.Font = Enum.Font.GothamBold
-	b.AutoButtonColor = false
-	b.Parent = parent
+	local button = Instance.new("TextButton")
 
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 8)
-	c.Parent = b
+	button.Size = UDim2.new(1, -20, 0, 42)
+	button.Position = UDim2.fromOffset(10, y)
+	button.BackgroundColor3 =
+		Color3.fromRGB(27, 31, 41)
+
+	button.Text = text .. " : OFF"
+	button.TextColor3 =
+		Color3.fromRGB(205, 210, 225)
+
+	button.TextSize = 13
+	button.Font = Enum.Font.GothamBold
+	button.AutoButtonColor = false
+	button.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = button
 
 	local state = false
 
-	b.MouseButton1Click:Connect(function()
+	button.MouseButton1Click:Connect(function()
 
 		state = not state
 
 		if state then
-			b.Text = text .. " : ON"
-			b.BackgroundColor3 = Color3.fromRGB(35, 95, 190)
+
+			button.Text = text .. " : ON"
+
+			button.BackgroundColor3 =
+				Color3.fromRGB(35, 95, 190)
+
 		else
-			b.Text = text .. " : OFF"
-			b.BackgroundColor3 = Color3.fromRGB(27, 31, 41)
+
+			button.Text = text .. " : OFF"
+
+			button.BackgroundColor3 =
+				Color3.fromRGB(27, 31, 41)
+
 		end
 
 		callback(state)
+
 	end)
 
-	return b
+	return button
+
 end
 
 --========================================================
 -- AIM PAGE
 --========================================================
 
-Label(AimPage, "TARGET LOCK", 5)
+CreateLabel(AimPage, "TARGET LOCK", 5)
 
-Toggle(AimPage, "Aim Lock", 35, function(state)
-	AimEnabled = state
-end)
+CreateToggle(
+	AimPage,
+	"Aim Lock",
+	35,
+	function(state)
 
-Label(AimPage, "Aim Strength — Manual", 88)
+		AimEnabled = state
 
-local AimInput = Input(AimPage, 115, "70%")
+	end
+)
+
+CreateLabel(
+	AimPage,
+	"Aim Strength — Manual",
+	88
+)
+
+local AimInput =
+	CreateInput(
+		AimPage,
+		115,
+		"70%"
+	)
 
 local function SetAimStrength(value)
 
-	AimStrength = math.clamp(tonumber(value) or 70, 1, 100)
-	AimInput.Text = tostring(AimStrength) .. "%"
+	value = tonumber(value) or 70
+
+	AimStrength =
+		math.clamp(
+			value,
+			1,
+			100
+		)
+
+	AimInput.Text =
+		tostring(AimStrength) .. "%"
+
 end
 
 AimInput.FocusLost:Connect(function()
 
-	local value = tonumber(
+	SetAimStrength(
 		AimInput.Text:gsub("%%", "")
 	)
 
-	SetAimStrength(value)
 end)
 
-Preset(AimPage, 158, {
-	25, 50, 75, 100
-}, function(value)
+CreatePresets(
+	AimPage,
+	158,
+	{
+		25,
+		50,
+		75,
+		100
+	},
+	function(value)
 
-	SetAimStrength(value)
-end)
+		SetAimStrength(value)
 
-Label(AimPage, "Aim Target", 202)
+	end
+)
 
-Preset(AimPage, 230, {
-	"Head",
-	"Body",
-	"Random"
-}, function(value)
+CreateLabel(
+	AimPage,
+	"Aim Target",
+	202
+)
 
-	AimTarget = value
-end)
+CreatePresets(
+	AimPage,
+	230,
+	{
+		"Head",
+		"Body",
+		"Random"
+	},
+	function(value)
+
+		AimTarget = value
+
+	end
+)
 
 --========================================================
 -- FOV PAGE
 --========================================================
 
-Label(FOVPage, "FOV — Manual", 5)
+CreateLabel(
+	FOVPage,
+	"FOV — Manual",
+	5
+)
 
-local FOVInput = Input(FOVPage, 35, "180")
+local FOVInput =
+	CreateInput(
+		FOVPage,
+		35,
+		"180"
+	)
 
 local function SetFOV(value)
 
-	FOV = math.clamp(tonumber(value) or 180, 40, 600)
-	FOVInput.Text = tostring(FOV)
+	value = tonumber(value) or 180
+
+	FOV =
+		math.clamp(
+			value,
+			40,
+			600
+		)
+
+	FOVInput.Text =
+		tostring(FOV)
+
 end
 
 FOVInput.FocusLost:Connect(function()
 
-	SetFOV(
-		tonumber(FOVInput.Text)
-	)
+	SetFOV(FOVInput.Text)
+
 end)
 
-Label(FOVPage, "Preset FOV", 82)
+CreateLabel(
+	FOVPage,
+	"Preset FOV",
+	82
+)
 
-Preset(FOVPage, 110, {
-	100, 180, 250, 300
-}, function(value)
+CreatePresets(
+	FOVPage,
+	110,
+	{
+		100,
+		180,
+		250,
+		300
+	},
+	function(value)
 
-	SetFOV(value)
-end)
+		SetFOV(value)
+
+	end
+)
 
 --========================================================
 -- ESP PAGE
 --========================================================
 
-Label(ESPPage, "PLAYER ESP", 5)
+CreateLabel(
+	ESPPage,
+	"PLAYER ESP",
+	5
+)
 
-Toggle(ESPPage, "ESP Skeleton", 35, function(state)
-	ESPEnabled = state
-end)
+CreateToggle(
+	ESPPage,
+	"ESP Skeleton",
+	35,
+	function(state)
 
-Label(ESPPage, "Name Size — Manual", 88)
+		ESPEnabled = state
 
-local NameInput = Input(ESPPage, 115, "60%")
+	end
+)
+
+CreateLabel(
+	ESPPage,
+	"Name Size — Manual",
+	88
+)
+
+local NameInput =
+	CreateInput(
+		ESPPage,
+		115,
+		"60%"
+	)
 
 local function SetNameSize(value)
 
-	NameSize = math.clamp(
-		tonumber(value) or 60,
-		30,
-		150
-	)
+	value = tonumber(value) or 60
 
-	NameInput.Text = tostring(NameSize) .. "%"
+	NameSize =
+		math.clamp(
+			value,
+			30,
+			150
+		)
+
+	NameInput.Text =
+		tostring(NameSize) .. "%"
+
 end
 
 NameInput.FocusLost:Connect(function()
 
 	SetNameSize(
-		tonumber(NameInput.Text:gsub("%%", ""))
+		NameInput.Text:gsub("%%", "")
 	)
+
 end)
 
-Preset(ESPPage, 158, {
-	50, 75, 100, 125
-}, function(value)
-
-	SetNameSize(value)
-end)
-
-Label(
+CreatePresets(
 	ESPPage,
-	"Skeleton + nama tetap terlihat menembus objek.",
+	158,
+	{
+		50,
+		75,
+		100,
+		125
+	},
+	function(value)
+
+		SetNameSize(value)
+
+	end
+)
+
+CreateLabel(
+	ESPPage,
+	"Skeleton RGB + nama tetap terlihat melalui objek.",
 	205
 )
 
@@ -595,52 +750,83 @@ Label(
 -- SETTINGS PAGE
 --========================================================
 
-Label(SettingsPage, "UI SIZE — Manual", 5)
+CreateLabel(
+	SettingsPage,
+	"UI SIZE — Manual",
+	5
+)
 
-local UIInput = Input(SettingsPage, 35, "80%")
+local UIInput =
+	CreateInput(
+		SettingsPage,
+		35,
+		"80%"
+	)
 
 local function SetUISize(value)
 
-	UI_SIZE = math.clamp(
-		tonumber(value) or 80,
-		50,
-		150
-	)
+	value = tonumber(value) or 80
 
-	UIScale.Scale = UI_SIZE / 100
-	UIInput.Text = tostring(UI_SIZE) .. "%"
+	UI_SIZE =
+		math.clamp(
+			value,
+			50,
+			150
+		)
+
+	UIScale.Scale =
+		UI_SIZE / 100
+
+	UIInput.Text =
+		tostring(UI_SIZE) .. "%"
+
 end
 
 UIInput.FocusLost:Connect(function()
 
 	SetUISize(
-		tonumber(UIInput.Text:gsub("%%", ""))
+		UIInput.Text:gsub("%%", "")
 	)
+
 end)
 
-Label(SettingsPage, "Preset UI Size", 82)
-
-Preset(SettingsPage, 110, {
-	50, 70, 85, 100
-}, function(value)
-
-	SetUISize(value)
-end)
-
-Label(
+CreateLabel(
 	SettingsPage,
-	"Minimize untuk mengubah UI menjadi tombol bulat.",
+	"Preset UI Size",
+	82
+)
+
+CreatePresets(
+	SettingsPage,
+	110,
+	{
+		50,
+		70,
+		85,
+		100
+	},
+	function(value)
+
+		SetUISize(value)
+
+	end
+)
+
+CreateLabel(
+	SettingsPage,
+	"Klik − untuk mengecilkan UI menjadi tombol bulat.",
 	165
 )
 
 --========================================================
--- FOV CIRCLE
+-- FOV DISPLAY
 --========================================================
 
 local FOVGui = Instance.new("ScreenGui")
-FOVGui.Name = "CHALLO_FOV"
-FOVGui.IgnoreGuiInset = true
+FOVGui.Name = "CHALLO_BOY_FOV"
 FOVGui.ResetOnSpawn = false
+FOVGui.IgnoreGuiInset = true
+FOVGui.DisplayOrder = 1
 FOVGui.Parent = PlayerGui
 
 local FOVCircle = Instance.new("Frame")
@@ -659,21 +845,26 @@ FOVStroke.Transparency = 0.2
 FOVStroke.Parent = FOVCircle
 
 --========================================================
--- ESP
+-- ESP GUI
 --========================================================
 
 local ESPGui = Instance.new("ScreenGui")
-ESPGui.Name = "CHALLO_ESP"
-ESPGui.IgnoreGuiInset = true
+ESPGui.Name = "CHALLO_BOY_ESP"
 ESPGui.ResetOnSpawn = false
+ESPGui.IgnoreGuiInset = true
 ESPGui.DisplayOrder = 2
 ESPGui.Parent = PlayerGui
 
 local ESPObjects = {}
 
--- Body connections
+--========================================================
+-- R15 SKELETON CONNECTIONS
+--========================================================
+
 local Connections = {
+
 	{"Head", "UpperTorso"},
+
 	{"UpperTorso", "LeftUpperArm"},
 	{"LeftUpperArm", "LeftLowerArm"},
 	{"LeftLowerArm", "LeftHand"},
@@ -690,46 +881,71 @@ local Connections = {
 
 	{"LowerTorso", "RightUpperLeg"},
 	{"RightUpperLeg", "RightLowerLeg"},
-	{"RightLowerLeg", "RightFoot"},
+	{"RightLowerLeg", "RightFoot"}
 }
 
-local function NewLine()
+--========================================================
+-- ESP LINE
+--========================================================
+
+local function NewESPLine()
 
 	local line = Instance.new("Frame")
-	line.AnchorPoint = Vector2.new(0.5, 0.5)
+
+	line.AnchorPoint =
+		Vector2.new(0.5, 0.5)
+
 	line.BorderSizePixel = 0
 	line.BackgroundTransparency = 0
 	line.Visible = false
+
 	line.Parent = ESPGui
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
+	local corner =
+		Instance.new("UICorner")
+
+	corner.CornerRadius =
+		UDim.new(1, 0)
+
 	corner.Parent = line
 
 	return line
+
 end
 
-local function NewESP(player)
+--========================================================
+-- CREATE ESP
+--========================================================
+
+local function CreateESP(player)
 
 	if ESPObjects[player] then
 		return
 	end
 
 	local data = {
-		Lines = {},
-		Labels = {}
+		Lines = {}
 	}
 
 	for i = 1, #Connections do
-		data.Lines[i] = NewLine()
+
+		data.Lines[i] =
+			NewESPLine()
+
 	end
 
-	-- Name
-	local name = Instance.new("TextLabel")
-	name.AnchorPoint = Vector2.new(0.5, 1)
+	local name =
+		Instance.new("TextLabel")
+
+	name.AnchorPoint =
+		Vector2.new(0.5, 1)
+
 	name.BackgroundTransparency = 1
 	name.Text = player.Name
-	name.Font = Enum.Font.GothamBold
+
+	name.Font =
+		Enum.Font.GothamBold
+
 	name.TextStrokeTransparency = 0.3
 	name.Visible = false
 	name.Parent = ESPGui
@@ -737,11 +953,13 @@ local function NewESP(player)
 	data.Name = name
 
 	ESPObjects[player] = data
+
 end
 
 local function RemoveESP(player)
 
-	local data = ESPObjects[player]
+	local data =
+		ESPObjects[player]
 
 	if not data then
 		return
@@ -756,65 +974,80 @@ local function RemoveESP(player)
 	end
 
 	ESPObjects[player] = nil
+
 end
 
-local function GetPart(character, name)
-
-	return character:FindFirstChild(name)
-end
+--========================================================
+-- DRAW ESP LINE
+--========================================================
 
 local function DrawLine(line, a, b, color)
 
-	local diff = b - a
-	local length = diff.Magnitude
+	local difference = b - a
+	local length = difference.Magnitude
 
-	line.Position = UDim2.fromOffset(
-		(a.X + b.X) / 2,
-		(a.Y + b.Y) / 2
-	)
+	if length <= 1 then
+		line.Visible = false
+		return
+	end
 
-	line.Size = UDim2.fromOffset(
-		length,
-		2
-	)
+	line.Position =
+		UDim2.fromOffset(
+			(a.X + b.X) / 2,
+			(a.Y + b.Y) / 2
+		)
 
-	line.Rotation = math.deg(
-		math.atan2(diff.Y, diff.X)
-	)
+	line.Size =
+		UDim2.fromOffset(
+			length,
+			2
+		)
+
+	line.Rotation =
+		math.deg(
+			math.atan2(
+				difference.Y,
+				difference.X
+			)
+		)
 
 	line.BackgroundColor3 = color
 	line.Visible = true
+
 end
+
+--========================================================
+-- UPDATE ESP
+--========================================================
 
 local function UpdateESP(player, data, color)
 
-	local character = player.Character
+	local character =
+		player.Character
 
 	if not character then
-		for _, line in ipairs(data.Lines) do
-			line.Visible = false
-		end
-
-		data.Name.Visible = false
 		return
 	end
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
-	if not humanoid or humanoid.Health <= 0 then
+	if not humanoid
+		or humanoid.Health <= 0 then
 
 		for _, line in ipairs(data.Lines) do
 			line.Visible = false
 		end
 
 		data.Name.Visible = false
+
 		return
 	end
 
 	local positions = {}
-
-	local anyVisible = false
+	local hasVisiblePart = false
 
 	for _, connection in ipairs(Connections) do
 
@@ -823,7 +1056,9 @@ local function UpdateESP(player, data, color)
 			if not positions[partName] then
 
 				local part =
-					GetPart(character, partName)
+					character:FindFirstChild(
+						partName
+					)
 
 				if part then
 
@@ -833,38 +1068,49 @@ local function UpdateESP(player, data, color)
 						)
 
 					positions[partName] = {
-						Position = Vector2.new(
-							pos.X,
-							pos.Y
-						),
-						Visible = visible and pos.Z > 0
+						Position =
+							Vector2.new(
+								pos.X,
+								pos.Y
+							),
+
+						Visible =
+							visible
+							and pos.Z > 0
 					}
 
 					if visible and pos.Z > 0 then
-						anyVisible = true
+						hasVisiblePart = true
 					end
+
 				end
 			end
 		end
 	end
 
-	if not anyVisible then
+	if not hasVisiblePart then
 
 		for _, line in ipairs(data.Lines) do
 			line.Visible = false
 		end
 
 		data.Name.Visible = false
+
 		return
 	end
 
 	-- Draw skeleton
 	for i, connection in ipairs(Connections) do
 
-		local a = positions[connection[1]]
-		local b = positions[connection[2]]
+		local a =
+			positions[connection[1]]
 
-		if a and b and a.Visible and b.Visible then
+		local b =
+			positions[connection[2]]
+
+		if a and b
+			and a.Visible
+			and b.Visible then
 
 			DrawLine(
 				data.Lines[i],
@@ -874,12 +1120,15 @@ local function UpdateESP(player, data, color)
 			)
 
 		else
+
 			data.Lines[i].Visible = false
+
 		end
 	end
 
-	-- Name
-	local head = positions["Head"]
+	-- Player name
+	local head =
+		positions["Head"]
 
 	if head and head.Visible then
 
@@ -891,7 +1140,7 @@ local function UpdateESP(player, data, color)
 
 		data.Name.TextSize =
 			math.clamp(
-				15 * (NameSize / 100),
+				15 * NameSize / 100,
 				7,
 				25
 			)
@@ -900,12 +1149,15 @@ local function UpdateESP(player, data, color)
 		data.Name.Visible = true
 
 	else
+
 		data.Name.Visible = false
+
 	end
+
 end
 
 --========================================================
--- PLAYER CONNECTION
+-- PLAYER SETUP
 --========================================================
 
 local function SetupPlayer(player)
@@ -914,27 +1166,36 @@ local function SetupPlayer(player)
 		return
 	end
 
-	NewESP(player)
+	CreateESP(player)
+
 end
 
-for _, player in ipairs(Players:GetPlayers()) do
+for _, player in ipairs(
+	Players:GetPlayers()
+) do
+
 	SetupPlayer(player)
+
 end
 
-Players.PlayerAdded:Connect(SetupPlayer)
+Players.PlayerAdded:Connect(
+	SetupPlayer
+)
 
-Players.PlayerRemoving:Connect(RemoveESP)
+Players.PlayerRemoving:Connect(
+	RemoveESP
+)
 
 --========================================================
--- ANTI WALL
+-- ANTI-WALL CHECK
 --========================================================
 
 local function IsVisible(character)
 
-	local targetPart =
+	local head =
 		character:FindFirstChild("Head")
 
-	if not targetPart then
+	if not head then
 		return false
 	end
 
@@ -942,7 +1203,7 @@ local function IsVisible(character)
 		Camera.CFrame.Position
 
 	local direction =
-		targetPart.Position - origin
+		head.Position - origin
 
 	local params =
 		RaycastParams.new()
@@ -953,10 +1214,12 @@ local function IsVisible(character)
 	local ignore = {}
 
 	if LocalPlayer.Character then
+
 		table.insert(
 			ignore,
 			LocalPlayer.Character
 		)
+
 	end
 
 	params.FilterDescendantsInstances =
@@ -973,37 +1236,57 @@ local function IsVisible(character)
 		return true
 	end
 
+	-- Jika yang terkena adalah target,
+	-- berarti tidak ada objek yang menghalangi.
 	return result.Instance:IsDescendantOf(
 		character
 	)
+
 end
 
 --========================================================
--- AIM POSITION
+-- AIM PART
 --========================================================
 
 local function GetAimPart(character)
 
 	if AimTarget == "Head" then
 
-		return character:FindFirstChild("Head")
+		return character:FindFirstChild(
+			"Head"
+		)
 
 	elseif AimTarget == "Body" then
 
-		return character:FindFirstChild("UpperTorso")
-			or character:FindFirstChild("Torso")
+		return character:FindFirstChild(
+			"UpperTorso"
+		)
+			or character:FindFirstChild(
+				"Torso"
+			)
 
 	elseif AimTarget == "Random" then
 
 		if math.random(1, 2) == 1 then
-			return character:FindFirstChild("Head")
+
+			return character:FindFirstChild(
+				"Head"
+			)
+
 		else
-			return character:FindFirstChild("UpperTorso")
-				or character:FindFirstChild("Torso")
+
+			return character:FindFirstChild(
+				"UpperTorso"
+			)
+				or character:FindFirstChild(
+					"Torso"
+				)
+
 		end
 	end
 
 	return character:FindFirstChild("Head")
+
 end
 
 --========================================================
@@ -1021,7 +1304,7 @@ local function GetTarget()
 			viewport.Y / 2
 		)
 
-	local closest = nil
+	local closestPlayer = nil
 	local closestDistance = FOV
 
 	for _, player in ipairs(
@@ -1041,34 +1324,41 @@ local function GetTarget()
 					)
 
 				local head =
-					character:FindFirstChild("Head")
+					character:FindFirstChild(
+						"Head"
+					)
 
 				if humanoid
 					and humanoid.Health > 0
 					and head then
 
-					local screenPos, visible =
+					local screenPosition, onScreen =
 						Camera:WorldToViewportPoint(
 							head.Position
 						)
 
-					if visible and screenPos.Z > 0 then
+					if onScreen
+						and screenPosition.Z > 0 then
 
 						local distance =
 							(
 								Vector2.new(
-									screenPos.X,
-									screenPos.Y
-								) - center
+									screenPosition.X,
+									screenPosition.Y
+								)
+								- center
 							).Magnitude
 
 						if distance <= closestDistance then
 
-							-- ANTI TEMBOK
+							-- ANTI-TEMBOK
 							if IsVisible(character) then
 
-								closest = player
-								closestDistance = distance
+								closestPlayer =
+									player
+
+								closestDistance =
+									distance
 
 							end
 						end
@@ -1078,11 +1368,12 @@ local function GetTarget()
 		end
 	end
 
-	return closest
+	return closestPlayer
+
 end
 
 --========================================================
--- MAIN LOOP
+-- MAIN RENDER LOOP
 --========================================================
 
 RunService.RenderStepped:Connect(function()
@@ -1098,77 +1389,105 @@ RunService.RenderStepped:Connect(function()
 			1
 		)
 
-	-- UI RGB
+	-- UI decoration
 	MainStroke.Color = RGB
 	OpenStroke.Color = RGB
 	Brand.TextColor3 = RGB
 	FOVStroke.Color = RGB
 
+	--============================================
 	-- FOV
+	--============================================
+
 	FOVCircle.Size =
 		UDim2.fromOffset(
 			FOV * 2,
 			FOV * 2
 		)
 
-	FOVCircle.Visible = AimEnabled
+	FOVCircle.Visible =
+		AimEnabled
 
+	--============================================
 	-- AIM
+	--============================================
+
 	if AimEnabled then
 
 		local target =
 			GetTarget()
 
 		if target
-			and target.Character
-			and IsVisible(target.Character) then
+			and target.Character then
 
-			local aimPart =
-				GetAimPart(target.Character)
+			-- CEK LAGI ANTI-TEMBOK
+			if IsVisible(
+				target.Character
+			) then
 
-			if aimPart then
-
-				local strength =
-					math.clamp(
-						AimStrength / 100,
-						0.01,
-						1
+				local aimPart =
+					GetAimPart(
+						target.Character
 					)
 
-				Camera.CFrame =
-					Camera.CFrame:Lerp(
-						CFrame.lookAt(
-							Camera.CFrame.Position,
-							aimPart.Position
-						),
-						strength
-					)
+				if aimPart then
+
+					local strength =
+						math.clamp(
+							AimStrength / 100,
+							0.01,
+							1
+						)
+
+					Camera.CFrame =
+						Camera.CFrame:Lerp(
+							CFrame.lookAt(
+								Camera.CFrame.Position,
+								aimPart.Position
+							),
+							strength
+						)
+
+				end
 			end
 		end
 	end
 
+	--============================================
 	-- ESP
-	for player, data in pairs(ESPObjects) do
+	--============================================
+
+	for player, data in pairs(
+		ESPObjects
+	) do
 
 		if ESPEnabled then
+
 			UpdateESP(
 				player,
 				data,
 				RGB
 			)
+
 		else
 
-			for _, line in ipairs(data.Lines) do
+			for _, line in ipairs(
+				data.Lines
+			) do
+
 				line.Visible = false
+
 			end
 
 			data.Name.Visible = false
+
 		end
 	end
+
 end)
 
 --========================================================
--- OPEN ANIMATION
+-- START ANIMATION
 --========================================================
 
 Main.Size =
@@ -1182,6 +1501,9 @@ TweenService:Create(
 		Enum.EasingDirection.Out
 	),
 	{
-		Size = UDim2.fromOffset(570, 370)
+		Size = UDim2.fromOffset(
+			570,
+			370
+		)
 	}
 ):Play()
