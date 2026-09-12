@@ -1,1846 +1,61 @@
---[[
-========================================================
-              CHALLO_BOY UI v8
-        Roblox Studio - Own Game Version
-========================================================
-Features:
-- Aim Bot
-- FOV / POV
-- ESP
-- Settings
-- Aim Strength 0% - 100%
-- FOV 60 - 400
-- Visibility / Wall Check
-- Draggable UI
-- UI Lock
-- RGB
-- UI Size
-- Minimize
-- Save Settings
-- Reset Settings + Confirmation
-- English UI
-========================================================
-]]
+--// CHALLO_BOY UI v8
+--// Roblox Studio - Own Game Version
+--// Aim Bot / FOV / ESP / Settings
+--// Save + Reset Settings
 
---------------------------------------------------------
--- SERVICES
---------------------------------------------------------
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local Players =
-	game:GetService("Players")
+local LP = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-local RunService =
-	game:GetService("RunService")
-
-local UserInputService =
-	game:GetService("UserInputService")
-
-local TweenService =
-	game:GetService("TweenService")
-
-local Camera =
-	workspace.CurrentCamera
-
-local LP =
-	Players.LocalPlayer
-
---------------------------------------------------------
+--==================================================
 -- SETTINGS
---------------------------------------------------------
+--==================================================
 
 local S = {
 	Aim = false,
 	Strength = 50,
 
 	FOV = 180,
-	ShowFOV = false,
+	FOVEnabled = false,
 
 	ESP = false,
 
 	VisibilityCheck = true,
 
 	RGB = false,
-
-	UI = true,
-
-	UISize = 1,
+	UITransparency = 0,
 
 	UILock = false,
 
 	Theme = "Dark",
 }
 
---------------------------------------------------------
--- DEFAULT SETTINGS
---------------------------------------------------------
+local DEFAULTS = {}
 
-local DefaultSettings = {
-	Aim = false,
-	Strength = 50,
+for k,v in pairs(S) do
+	DEFAULTS[k] = v
+end
 
-	FOV = 180,
-	ShowFOV = false,
+local SAVED = nil
 
-	ESP = false,
-
-	VisibilityCheck = true,
-
-	RGB = false,
-
-	UI = true,
-
-	UISize = 1,
-
-	UILock = false,
-
-	Theme = "Dark",
-}
-
---------------------------------------------------------
--- SAVED SETTINGS
---------------------------------------------------------
-
-local SavedSettings = nil
+--==================================================
+-- HELPERS
+--==================================================
 
 local function CopySettings(source)
+	local result = {}
 
-	local copy = {}
-
-	for key, value in pairs(source) do
-		copy[key] = value
+	for k,v in pairs(source) do
+		result[k] = v
 	end
 
-	return copy
+	return result
 end
-
---------------------------------------------------------
--- GUI
---------------------------------------------------------
-
-local ScreenGui =
-	Instance.new("ScreenGui")
-
-ScreenGui.Name =
-	"CHALLO_BOY_V8"
-
-ScreenGui.ResetOnSpawn =
-	false
-
-ScreenGui.DisplayOrder =
-	1
-
-ScreenGui.Parent =
-	LP:WaitForChild("PlayerGui")
-
---------------------------------------------------------
--- DROPDOWN GUI
---------------------------------------------------------
-
-local DropdownGui =
-	Instance.new("ScreenGui")
-
-DropdownGui.Name =
-	"CHALLO_BOY_DROPDOWNS"
-
-DropdownGui.ResetOnSpawn =
-	false
-
-DropdownGui.DisplayOrder =
-	999
-
-DropdownGui.Parent =
-	LP.PlayerGui
-
---------------------------------------------------------
--- MINI GUI
---------------------------------------------------------
-
-local MiniGui =
-	Instance.new("ScreenGui")
-
-MiniGui.Name =
-	"CHALLO_BOY_MINI"
-
-MiniGui.ResetOnSpawn =
-	false
-
-MiniGui.DisplayOrder =
-	1000
-
-MiniGui.Parent =
-	LP.PlayerGui
-
---------------------------------------------------------
--- MAIN WINDOW
---------------------------------------------------------
-
-local Window =
-	Instance.new("Frame")
-
-Window.Name =
-	"Window"
-
-Window.Size =
-	UDim2.new(
-		0,
-		390,
-		0,
-		500
-	)
-
-Window.Position =
-	UDim2.new(
-		0.5,
-		-195,
-		0.5,
-		-250
-	)
-
-Window.BackgroundColor3 =
-	Color3.fromRGB(
-		18,
-		18,
-		24
-	)
-
-Window.BorderSizePixel =
-	0
-
-Window.Parent =
-	ScreenGui
-
-local WindowCorner =
-	Instance.new("UICorner")
-
-WindowCorner.CornerRadius =
-	UDim.new(
-		0,
-		14
-	)
-
-WindowCorner.Parent =
-	Window
-
---------------------------------------------------------
--- TOP BAR
---------------------------------------------------------
-
-local TopBar =
-	Instance.new("Frame")
-
-TopBar.Size =
-	UDim2.new(
-		1,
-		0,
-		0,
-		55
-	)
-
-TopBar.BackgroundTransparency =
-	1
-
-TopBar.Parent =
-	Window
-
---------------------------------------------------------
--- LOGO
---------------------------------------------------------
-
-local Logo =
-	Instance.new("TextLabel")
-
-Logo.Size =
-	UDim2.new(
-		1,
-		-65,
-		1,
-		0
-	)
-
-Logo.Position =
-	UDim2.new(
-		0,
-		15,
-		0,
-		0
-	)
-
-Logo.BackgroundTransparency =
-	1
-
-Logo.Text =
-	"⚡ CHALLO_BOY"
-
-Logo.TextColor3 =
-	Color3.new(
-		1,
-		1,
-		1
-	)
-
-Logo.Font =
-	Enum.Font.GothamBold
-
-Logo.TextSize =
-	20
-
-Logo.TextXAlignment =
-	Enum.TextXAlignment.Left
-
-Logo.Parent =
-	TopBar
-
---------------------------------------------------------
--- MINIMIZE
---------------------------------------------------------
-
-local Minimize =
-	Instance.new("TextButton")
-
-Minimize.Size =
-	UDim2.new(
-		0,
-		45,
-		0,
-		38
-	)
-
-Minimize.Position =
-	UDim2.new(
-		1,
-		-52,
-		0,
-		8
-	)
-
-Minimize.BackgroundColor3 =
-	Color3.fromRGB(
-		35,
-		35,
-		45
-	)
-
-Minimize.Text =
-	"—"
-
-Minimize.TextColor3 =
-	Color3.new(
-		1,
-		1,
-		1
-	)
-
-Minimize.Font =
-	Enum.Font.GothamBold
-
-Minimize.TextSize =
-	22
-
-Minimize.Parent =
-	TopBar
-
-local MiniCorner =
-	Instance.new("UICorner")
-
-MiniCorner.CornerRadius =
-	UDim.new(
-		0,
-		9
-	)
-
-MiniCorner.Parent =
-	Minimize
-
---------------------------------------------------------
--- TAB BAR
---------------------------------------------------------
-
-local TabBar =
-	Instance.new("Frame")
-
-TabBar.Size =
-	UDim2.new(
-		1,
-		-20,
-		0,
-		45
-	)
-
-TabBar.Position =
-	UDim2.new(
-		0,
-		10,
-		0,
-		58
-	)
-
-TabBar.BackgroundTransparency =
-	1
-
-TabBar.Parent =
-	Window
-
-local TabLayout =
-	Instance.new("UIListLayout")
-
-TabLayout.FillDirection =
-	Enum.FillDirection.Horizontal
-
-TabLayout.HorizontalAlignment =
-	Enum.HorizontalAlignment.Center
-
-TabLayout.Padding =
-	UDim.new(
-		0,
-		5
-	)
-
-TabLayout.Parent =
-	TabBar
-
---------------------------------------------------------
--- PAGE CONTAINER
---------------------------------------------------------
-
-local PageContainer =
-	Instance.new("Frame")
-
-PageContainer.Size =
-	UDim2.new(
-		1,
-		-20,
-		1,
-		-115
-	)
-
-PageContainer.Position =
-	UDim2.new(
-		0,
-		10,
-		0,
-		108
-	)
-
-PageContainer.BackgroundTransparency =
-	1
-
-PageContainer.Parent =
-	Window
-
---------------------------------------------------------
--- PAGE CREATOR
---------------------------------------------------------
-
-local Pages = {}
-
-local function CreatePage(name)
-
-	local Page =
-		Instance.new("ScrollingFrame")
-
-	Page.Name =
-		name
-
-	Page.Size =
-		UDim2.new(
-			1,
-			0,
-			1,
-			0
-		)
-
-	Page.BackgroundTransparency =
-		1
-
-	Page.BorderSizePixel =
-		0
-
-	Page.ScrollBarThickness =
-		4
-
-	Page.CanvasSize =
-		UDim2.new(
-			0,
-			0,
-			0,
-			0
-		)
-
-	Page.Visible =
-		false
-
-	Page.Parent =
-		PageContainer
-
-	local Layout =
-		Instance.new("UIListLayout")
-
-	Layout.Padding =
-		UDim.new(
-		0,
-		8
-	)
-
-	Layout.SortOrder =
-		Enum.SortOrder.LayoutOrder
-
-	Layout.Parent =
-		Page
-
-	Layout:GetPropertyChangedSignal(
-		"AbsoluteContentSize"
-	):Connect(function()
-
-		Page.CanvasSize =
-			UDim2.new(
-				0,
-				0,
-				0,
-				Layout.AbsoluteContentSize.Y + 15
-			)
-
-	end)
-
-	Pages[name] =
-		Page
-
-	return Page
-end
-
---------------------------------------------------------
--- PAGES
---------------------------------------------------------
-
-local AimPage =
-	CreatePage("Aim")
-
-local FOVPage =
-	CreatePage("FOV")
-
-local ESPPage =
-	CreatePage("ESP")
-
-local SettingPage =
-	CreatePage("Settings")
-
---------------------------------------------------------
--- TAB CREATOR
---------------------------------------------------------
-
-local function CreateTab(text, page)
-
-	local Button =
-		Instance.new("TextButton")
-
-	Button.Size =
-		UDim2.new(
-			0,
-			85,
-			0,
-			40
-		)
-
-	Button.BackgroundColor3 =
-		Color3.fromRGB(
-			30,
-			30,
-			40
-		)
-
-	Button.Text =
-		text
-
-	Button.TextColor3 =
-		Color3.new(
-			1,
-			1,
-			1
-		)
-
-	Button.Font =
-		Enum.Font.GothamBold
-
-	Button.TextSize =
-		12
-
-	Button.Parent =
-		TabBar
-
-	local Corner =
-		Instance.new("UICorner")
-
-	Corner.CornerRadius =
-		UDim.new(
-			0,
-			8
-		)
-
-	Corner.Parent =
-		Button
-
-	Button.MouseButton1Click:Connect(function()
-
-		for _, p in pairs(Pages) do
-			p.Visible = false
-		end
-
-		page.Visible = true
-
-	end)
-
-	return Button
-end
-
-CreateTab(
-	"Aim Bot",
-	AimPage
-)
-
-CreateTab(
-	"FOV",
-	FOVPage
-)
-
-CreateTab(
-	"ESP",
-	ESPPage
-)
-
-CreateTab(
-	"Settings",
-	SettingPage
-)
-
-AimPage.Visible =
-	true
-
---------------------------------------------------------
--- SECTION
---------------------------------------------------------
-
-local function Section(parent, text)
-
-	local Label =
-		Instance.new("TextLabel")
-
-	Label.Size =
-		UDim2.new(
-			1,
-			-10,
-			0,
-			30
-		)
-
-	Label.BackgroundTransparency =
-		1
-
-	Label.Text =
-		text
-
-	Label.TextColor3 =
-		Color3.fromRGB(
-			170,
-			170,
-			180
-		)
-
-	Label.Font =
-		Enum.Font.GothamBold
-
-	Label.TextSize =
-		13
-
-	Label.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	Label.Parent =
-		parent
-
-	return Label
-end
-
---------------------------------------------------------
--- CONTROL SETTERS
---------------------------------------------------------
-
-local ToggleSetters = {}
-local DropdownSetters = {}
-
---------------------------------------------------------
--- TOGGLE
---------------------------------------------------------
-
-local function Toggle(parent, text, default, callback)
-
-	local Holder =
-		Instance.new("Frame")
-
-	Holder.Size =
-		UDim2.new(
-			1,
-			-10,
-			0,
-			46
-		)
-
-	Holder.BackgroundColor3 =
-		Color3.fromRGB(
-			27,
-			27,
-			36
-		)
-
-	Holder.Parent =
-		parent
-
-	local Corner =
-		Instance.new("UICorner")
-
-	Corner.CornerRadius =
-		UDim.new(
-			0,
-			9
-		)
-
-	Corner.Parent =
-		Holder
-
-	local Label =
-		Instance.new("TextLabel")
-
-	Label.Size =
-		UDim2.new(
-			1,
-			-75,
-			1,
-			0
-		)
-
-	Label.Position =
-		UDim2.new(
-			0,
-			12,
-			0,
-			0
-		)
-
-	Label.BackgroundTransparency =
-		1
-
-	Label.Text =
-		text
-
-	Label.TextColor3 =
-		Color3.new(
-			1,
-			1,
-			1
-		)
-
-	Label.Font =
-		Enum.Font.Gotham
-
-	Label.TextSize =
-		14
-
-	Label.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	Label.Parent =
-		Holder
-
-	local Button =
-		Instance.new("TextButton")
-
-	Button.Size =
-		UDim2.new(
-			0,
-			52,
-			0,
-			28
-		)
-
-	Button.Position =
-		UDim2.new(
-			1,
-			-62,
-			0.5,
-			-14
-		)
-
-	Button.Text =
-		"OFF"
-
-	Button.TextColor3 =
-		Color3.new(
-			1,
-			1,
-			1
-		)
-
-	Button.Font =
-		Enum.Font.GothamBold
-
-	Button.TextSize =
-		11
-
-	Button.BackgroundColor3 =
-		Color3.fromRGB(
-			55,
-			55,
-			65
-		)
-
-	Button.Parent =
-		Holder
-
-	local BCorner =
-		Instance.new("UICorner")
-
-	BCorner.CornerRadius =
-		UDim.new(
-			0,
-			14
-		)
-
-	BCorner.Parent =
-		Button
-
-	local value =
-		default
-
-	local function Update(v)
-
-		value = v
-
-		if value then
-			Button.Text = "ON"
-		else
-			Button.Text = "OFF"
-		end
-
-		callback(value)
-
-	end
-
-	Button.MouseButton1Click:Connect(function()
-
-		Update(
-			not value
-		)
-
-	end)
-
-	ToggleSetters[text] =
-		Update
-
-	Update(default)
-
-	return Holder
-end
-
---------------------------------------------------------
--- DROPDOWN
---------------------------------------------------------
-
-local function Dropdown(parent, text, values, default, callback)
-
-	local Holder =
-		Instance.new("Frame")
-
-	Holder.Size =
-		UDim2.new(
-			1,
-			-10,
-			0,
-			50
-		)
-
-	Holder.BackgroundColor3 =
-		Color3.fromRGB(
-			27,
-			27,
-			36
-		)
-
-	Holder.Parent =
-		parent
-
-	local Corner =
-		Instance.new("UICorner")
-
-	Corner.CornerRadius =
-		UDim.new(
-			0,
-			9
-		)
-
-	Corner.Parent =
-		Holder
-
-	local Label =
-		Instance.new("TextLabel")
-
-	Label.Size =
-		UDim2.new(
-			0.55,
-			0,
-			1,
-			0
-		)
-
-	Label.Position =
-		UDim2.new(
-			0,
-			12,
-			0,
-			0
-		)
-
-	Label.BackgroundTransparency =
-		1
-
-	Label.Text =
-		text
-
-	Label.TextColor3 =
-		Color3.new(
-			1,
-			1,
-			1
-		)
-
-	Label.Font =
-		Enum.Font.Gotham
-
-	Label.TextSize =
-		14
-
-	Label.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	Label.Parent =
-		Holder
-
-	local Button =
-		Instance.new("TextButton")
-
-	Button.Size =
-		UDim2.new(
-			0,
-			130,
-			0,
-			32
-		)
-
-	Button.Position =
-		UDim2.new(
-			1,
-			-140,
-			0.5,
-			-16
-		)
-
-	Button.BackgroundColor3 =
-		Color3.fromRGB(
-			45,
-			45,
-			58
-		)
-
-	Button.TextColor3 =
-		Color3.new(
-			1,
-			1,
-			1
-		)
-
-	Button.Font =
-		Enum.Font.Gotham
-
-	Button.TextSize =
-		12
-
-	Button.Parent =
-		Holder
-
-	local BCorner =
-		Instance.new("UICorner")
-
-	BCorner.CornerRadius =
-		UDim.new(
-			0,
-			8
-		)
-
-	BCorner.Parent =
-		Button
-
-	local current =
-		default
-
-	local function Update(v)
-
-		current = v
-
-		Button.Text =
-			tostring(v)
-
-		callback(v)
-
-	end
-
-	Update(default)
-
-	local Popup =
-		Instance.new("ScrollingFrame")
-
-	Popup.Size =
-		UDim2.new(
-			0,
-			130,
-			0,
-			math.min(
-				#values * 34,
-				170
-			)
-		)
-
-	Popup.BackgroundColor3 =
-		Color3.fromRGB(
-			25,
-			25,
-			33
-		)
-
-	Popup.BorderSizePixel =
-		0
-
-	Popup.ScrollBarThickness =
-		3
-
-	Popup.Visible =
-		false
-
-	Popup.ZIndex =
-		500
-
-	Popup.Parent =
-		DropdownGui
-
-	local PLayout =
-		Instance.new("UIListLayout")
-
-	PLayout.Parent =
-		Popup
-
-	for _, v in ipairs(values) do
-
-		local Option =
-			Instance.new("TextButton")
-
-		Option.Size =
-			UDim2.new(
-				1,
-				0,
-				0,
-				32
-			)
-
-		Option.BackgroundTransparency =
-			1
-
-		Option.Text =
-			tostring(v)
-
-		Option.TextColor3 =
-			Color3.new(
-				1,
-				1,
-				1
-			)
-
-		Option.Font =
-			Enum.Font.Gotham
-
-		Option.TextSize =
-			12
-
-		Option.ZIndex =
-			501
-
-		Option.Parent =
-			Popup
-
-		Option.MouseButton1Click:Connect(function()
-
-			Update(v)
-
-			Popup.Visible =
-				false
-
-		end)
-
-	end
-
-	Button.MouseButton1Click:Connect(function()
-
-		Popup.Visible =
-			not Popup.Visible
-
-		local pos =
-			Button.AbsolutePosition
-
-		local size =
-			Button.AbsoluteSize
-
-		local popupHeight =
-			Popup.AbsoluteSize.Y
-
-		local screenHeight =
-			Camera.ViewportSize.Y
-
-		local x =
-			pos.X
-
-		local y =
-			pos.Y + size.Y + 4
-
-		if y + popupHeight >
-			screenHeight then
-
-			y =
-				pos.Y - popupHeight - 4
-
-		end
-
-		Popup.Position =
-			UDim2.fromOffset(
-				x,
-				y
-			)
-
-	end)
-
-	DropdownSetters[text] =
-		Update
-
-	return Holder
-end
-
---------------------------------------------------------
--- NORMAL BUTTON
---------------------------------------------------------
-
-local function ActionButton(parent, text, callback)
-
-	local Button =
-		Instance.new("TextButton")
-
-	Button.Size =
-		UDim2.new(
-			1,
-			-10,
-			0,
-			46
-		)
-
-	Button.BackgroundColor3 =
-		Color3.fromRGB(
-			27,
-			27,
-			36
-		)
-
-	Button.Text =
-		text
-
-	Button.TextColor3 =
-		Color3.new(
-			1,
-			1,
-			1
-		)
-
-	Button.Font =
-		Enum.Font.GothamBold
-
-	Button.TextSize =
-		14
-
-	Button.Parent =
-		parent
-
-	local Corner =
-		Instance.new("UICorner")
-
-	Corner.CornerRadius =
-		UDim.new(
-			0,
-			9
-		)
-
-	Corner.Parent =
-		Button
-
-	Button.MouseButton1Click:Connect(
-		callback
-	)
-
-	return Button
-end
-
---------------------------------------------------------
--- AIM PAGE
---------------------------------------------------------
-
-Section(
-	AimPage,
-	"AIM BOT"
-)
-
-Toggle(
-	AimPage,
-	"Aim Bot",
-	S.Aim,
-	function(v)
-		S.Aim = v
-	end
-)
-
-Dropdown(
-	AimPage,
-	"Aim Strength",
-	{
-		"0%",
-		"10%",
-		"20%",
-		"30%",
-		"40%",
-		"50%",
-		"60%",
-		"70%",
-		"80%",
-		"90%",
-		"100%"
-	},
-	"50%",
-	function(v)
-
-		S.Strength =
-			tonumber(
-				string.match(
-					v,
-					"%d+"
-				)
-			) or 50
-
-	end
-)
-
---------------------------------------------------------
--- FOV PAGE
---------------------------------------------------------
-
-Section(
-	FOVPage,
-	"FOV / POV"
-)
-
-Dropdown(
-	FOVPage,
-	"FOV Size",
-	{
-		"60",
-		"100",
-		"140",
-		"180",
-		"220",
-		"260",
-		"300",
-		"350",
-		"400"
-	},
-	"180",
-	function(v)
-
-		S.FOV =
-			tonumber(v) or 180
-
-	end
-)
-
-Toggle(
-	FOVPage,
-	"Show FOV",
-	S.ShowFOV,
-	function(v)
-		S.ShowFOV = v
-	end
-)
-
---------------------------------------------------------
--- ESP PAGE
---------------------------------------------------------
-
-Section(
-	ESPPage,
-	"ESP"
-)
-
-Toggle(
-	ESPPage,
-	"ESP Outline",
-	S.ESP,
-	function(v)
-		S.ESP = v
-	end
-)
-
-Toggle(
-	ESPPage,
-	"Visibility Check",
-	S.VisibilityCheck,
-	function(v)
-		S.VisibilityCheck = v
-	end
-)
-
---------------------------------------------------------
--- SETTINGS PAGE
---------------------------------------------------------
-
-Section(
-	SettingPage,
-	"GENERAL SETTINGS"
-)
-
-Toggle(
-	SettingPage,
-	"RGB Effect",
-	S.RGB,
-	function(v)
-		S.RGB = v
-	end
-)
-
-Dropdown(
-	SettingPage,
-	"UI Size",
-	{
-		"80%",
-		"90%",
-		"100%",
-		"110%",
-		"120%"
-	},
-	"100%",
-	function(v)
-
-		local n =
-			tonumber(
-				string.match(
-					v,
-					"%d+"
-				)
-			) or 100
-
-		S.UISize =
-			n / 100
-
-	end
-)
-
-Toggle(
-	SettingPage,
-	"UI Lock",
-	S.UILock,
-	function(v)
-		S.UILock = v
-	end
-)
-
-Dropdown(
-	SettingPage,
-	"Theme",
-	{
-		"Dark",
-		"Light"
-	},
-	"Dark",
-	function(v)
-		S.Theme = v
-	end
-)
-
---------------------------------------------------------
--- SAVE SETTING
---------------------------------------------------------
-
-Section(
-	SettingPage,
-	"CONFIGURATION"
-)
-
-ActionButton(
-	SettingPage,
-	"💾 Save Settings",
-	function()
-
-		SavedSettings =
-			CopySettings(S)
-
-	end
-)
-
---------------------------------------------------------
--- RESET CONFIRMATION
---------------------------------------------------------
-
-local ConfirmOverlay =
-	Instance.new("Frame")
-
-ConfirmOverlay.Size =
-	UDim2.new(
-		1,
-		0,
-		1,
-		0
-	)
-
-ConfirmOverlay.BackgroundColor3 =
-	Color3.fromRGB(
-		0,
-		0,
-		0
-	)
-
-ConfirmOverlay.BackgroundTransparency =
-	0.35
-
-ConfirmOverlay.Visible =
-	false
-
-ConfirmOverlay.ZIndex =
-	100
-
-ConfirmOverlay.Parent =
-	ScreenGui
-
---------------------------------------------------------
--- CONFIRM BOX
---------------------------------------------------------
-
-local ConfirmBox =
-	Instance.new("Frame")
-
-ConfirmBox.Size =
-	UDim2.new(
-		0,
-		280,
-		0,
-		155
-	)
-
-ConfirmBox.Position =
-	UDim2.new(
-		0.5,
-		-140,
-		0.5,
-		-78
-	)
-
-ConfirmBox.BackgroundColor3 =
-	Color3.fromRGB(
-		25,
-		25,
-		33
-	)
-
-ConfirmBox.ZIndex =
-	101
-
-ConfirmBox.Parent =
-	ConfirmOverlay
-
-local ConfirmCorner =
-	Instance.new("UICorner")
-
-ConfirmCorner.CornerRadius =
-	UDim.new(
-		0,
-		14
-	)
-
-ConfirmCorner.Parent =
-	ConfirmBox
-
---------------------------------------------------------
--- CONFIRM TITLE
---------------------------------------------------------
-
-local ConfirmTitle =
-	Instance.new("TextLabel")
-
-ConfirmTitle.Size =
-	UDim2.new(
-		1,
-		0,
-		0,
-		55
-	)
-
-ConfirmTitle.BackgroundTransparency =
-	1
-
-ConfirmTitle.Text =
-	"Are you sure?"
-
-ConfirmTitle.TextColor3 =
-	Color3.new(
-		1,
-		1,
-		1
-	)
-
-ConfirmTitle.Font =
-	Enum.Font.GothamBold
-
-ConfirmTitle.TextSize =
-	20
-
-ConfirmTitle.ZIndex =
-	102
-
-ConfirmTitle.Parent =
-	ConfirmBox
-
---------------------------------------------------------
--- CONFIRM DESCRIPTION
---------------------------------------------------------
-
-local ConfirmDescription =
-	Instance.new("TextLabel")
-
-ConfirmDescription.Size =
-	UDim2.new(
-		1,
-		-20,
-		0,
-		35
-	)
-
-ConfirmDescription.Position =
-	UDim2.new(
-		0,
-		10,
-		0,
-		48
-	)
-
-ConfirmDescription.BackgroundTransparency =
-	1
-
-ConfirmDescription.Text =
-	"Reset your current settings?"
-
-ConfirmDescription.TextColor3 =
-	Color3.fromRGB(
-		180,
-		180,
-		190
-	)
-
-ConfirmDescription.Font =
-	Enum.Font.Gotham
-
-ConfirmDescription.TextSize =
-	12
-
-ConfirmDescription.ZIndex =
-	102
-
-ConfirmDescription.Parent =
-	ConfirmBox
-
---------------------------------------------------------
--- YES
---------------------------------------------------------
-
-local YesButton =
-	Instance.new("TextButton")
-
-YesButton.Size =
-	UDim2.new(
-		0,
-		105,
-		0,
-		38
-	)
-
-YesButton.Position =
-	UDim2.new(
-		0,
-		25,
-		1,
-		-50
-	)
-
-YesButton.BackgroundColor3 =
-	Color3.fromRGB(
-		45,
-		120,
-		75
-	)
-
-YesButton.Text =
-	"YES"
-
-YesButton.TextColor3 =
-	Color3.new(
-		1,
-		1,
-		1
-	)
-
-YesButton.Font =
-	Enum.Font.GothamBold
-
-YesButton.TextSize =
-	13
-
-YesButton.ZIndex =
-	102
-
-YesButton.Parent =
-	ConfirmBox
-
-local YesCorner =
-	Instance.new("UICorner")
-
-YesCorner.CornerRadius =
-	UDim.new(
-		0,
-		8
-	)
-
-YesCorner.Parent =
-	YesButton
-
---------------------------------------------------------
--- NO
---------------------------------------------------------
-
-local NoButton =
-	Instance.new("TextButton")
-
-NoButton.Size =
-	UDim2.new(
-		0,
-		105,
-		0,
-		38
-	)
-
-NoButton.Position =
-	UDim2.new(
-		1,
-		-130,
-		1,
-		-50
-	)
-
-NoButton.BackgroundColor3 =
-	Color3.fromRGB(
-		60,
-		60,
-		72
-	)
-
-NoButton.Text =
-	"NO"
-
-NoButton.TextColor3 =
-	Color3.new(
-		1,
-		1,
-		1
-	)
-
-NoButton.Font =
-	Enum.Font.GothamBold
-
-NoButton.TextSize =
-	13
-
-NoButton.ZIndex =
-	102
-
-NoButton.Parent =
-	ConfirmBox
-
-local NoCorner =
-	Instance.new("UICorner")
-
-NoCorner.CornerRadius =
-	UDim.new(
-		0,
-		8
-	)
-
-NoCorner.Parent =
-	NoButton
-
---------------------------------------------------------
--- APPLY SETTINGS
---------------------------------------------------------
-
-local function ApplySettings(values)
-
-	if not values then
-		return
-	end
-
-	for key, value in pairs(values) do
-		S[key] = value
-	end
-
-	----------------------------------------------------
-	-- REFRESH TOGGLE UI
-	----------------------------------------------------
-
-	if ToggleSetters["Aim Bot"] then
-		ToggleSetters["Aim Bot"](S.Aim)
-	end
-
-	if ToggleSetters["Show FOV"] then
-		ToggleSetters["Show FOV"](S.ShowFOV)
-	end
-
-	if ToggleSetters["ESP Outline"] then
-		ToggleSetters["ESP Outline"](S.ESP)
-	end
-
-	if ToggleSetters["Visibility Check"] then
-		ToggleSetters["Visibility Check"](
-			S.VisibilityCheck
-		)
-	end
-
-	if ToggleSetters["RGB Effect"] then
-		ToggleSetters["RGB Effect"](S.RGB)
-	end
-
-	if ToggleSetters["UI Lock"] then
-		ToggleSetters["UI Lock"](S.UILock)
-	end
-
-	----------------------------------------------------
-	-- REFRESH DROPDOWNS
-	----------------------------------------------------
-
-	if DropdownSetters["Aim Strength"] then
-
-		DropdownSetters["Aim Strength"](
-			tostring(S.Strength) .. "%"
-		)
-
-	end
-
-	if DropdownSetters["FOV Size"] then
-
-		DropdownSetters["FOV Size"](
-			tostring(S.FOV)
-		)
-
-	end
-
-	local sizeText =
-		tostring(
-			math.floor(
-				S.UISize * 100
-			)
-		) .. "%"
-
-	if DropdownSetters["UI Size"] then
-		DropdownSetters["UI Size"](
-			sizeText
-		)
-	end
-
-	if DropdownSetters["Theme"] then
-		DropdownSetters["Theme"](
-			S.Theme
-		)
-	end
-
-end
-
---------------------------------------------------------
--- RESET BUTTON
---------------------------------------------------------
-
-ActionButton(
-	SettingPage,
-	"🔄 Reset Settings",
-	function()
-
-		ConfirmOverlay.Visible =
-			true
-
-	end
-)
-
---------------------------------------------------------
--- YES ACTION
---------------------------------------------------------
-
-YesButton.MouseButton1Click:Connect(function()
-
-	local settingsToRestore
-
-	if SavedSettings then
-
-		settingsToRestore =
-			CopySettings(
-				SavedSettings
-			)
-
-	else
-
-		settingsToRestore =
-			CopySettings(
-				DefaultSettings
-			)
-
-	end
-
-	ApplySettings(
-		settingsToRestore
-	)
-
-	ConfirmOverlay.Visible =
-		false
-
-end)
-
---------------------------------------------------------
--- NO ACTION
---------------------------------------------------------
-
-NoButton.MouseButton1Click:Connect(function()
-
-	ConfirmOverlay.Visible =
-		false
-
-end)
-
---------------------------------------------------------
--- AIM SYSTEM
---------------------------------------------------------
 
 local function GetAimAlpha(strength)
-
 	if strength <= 0 then
 		return 0
 	end
@@ -1863,19 +78,17 @@ local function GetAimAlpha(strength)
 	end
 
 	return math.clamp(
-		alpha * 0.42,
+		alpha * .42,
 		0,
-		0.98
+		.98
 	)
-
 end
 
---------------------------------------------------------
--- WALL CHECK
---------------------------------------------------------
+--==================================================
+-- TARGET / WALL CHECK
+--==================================================
 
 local function IsVisible(char, part)
-
 	if not char or not part then
 		return false
 	end
@@ -1900,8 +113,7 @@ local function IsVisible(char, part)
 		LP.Character
 	}
 
-	params.IgnoreWater =
-		false
+	params.IgnoreWater = false
 
 	local result =
 		workspace:Raycast(
@@ -1919,20 +131,16 @@ local function IsVisible(char, part)
 	end
 
 	return false
-
 end
 
---------------------------------------------------------
--- TARGET
---------------------------------------------------------
+local function GetAimPart(char)
+	return char:FindFirstChild("Head")
+		or char:FindFirstChild("HumanoidRootPart")
+end
 
 local function GetTarget()
-
-	local closest =
-		nil
-
-	local closestDistance =
-		math.huge
+	local best = nil
+	local bestDistance = math.huge
 
 	local viewport =
 		Camera.ViewportSize
@@ -1943,82 +151,1530 @@ local function GetTarget()
 			viewport.Y / 2
 		)
 
-	for _, player in ipairs(
-		Players:GetPlayers()
-	) do
+	for _,player in ipairs(Players:GetPlayers()) do
 
 		if player ~= LP then
 
 			local char =
 				player.Character
 
-			if char then
+			local humanoid =
+				char and char:FindFirstChildOfClass("Humanoid")
 
-				local humanoid =
-					char:FindFirstChildOfClass(
-						"Humanoid"
+			local part =
+				char and GetAimPart(char)
+
+			if char
+				and humanoid
+				and humanoid.Health > 0
+				and part then
+
+				local screenPos, onScreen =
+					Camera:WorldToViewportPoint(
+						part.Position
 					)
 
-				local part =
-					char:FindFirstChild(
-						"Head"
-					)
+				if onScreen then
 
-				if humanoid
-					and humanoid.Health > 0
-					and part then
+					local distance =
+						(
+							Vector2.new(
+								screenPos.X,
+								screenPos.Y
+							)
+							- center
+						).Magnitude
 
-					local screenPos,
-						onScreen =
-						Camera:WorldToViewportPoint(
-							part.Position
-						)
+					if distance <= S.FOV then
 
-					if onScreen then
+						-- Wall check is always enforced.
+						if IsVisible(char, part) then
 
-						local distance =
-							(
-								Vector2.new(
-									screenPos.X,
-									screenPos.Y
-								) - center
-							).Magnitude
-
-						if distance <= S.FOV
-							and distance < closestDistance then
-
-							if IsVisible(
-								char,
-								part
-							) then
-
-								closest =
-									part
-
-								closestDistance =
-									distance
-
+							if distance < bestDistance then
+								bestDistance = distance
+								best = part
 							end
 
 						end
-
 					end
-
 				end
-
 			end
-
 		end
-
 	end
 
-	return closest
-
+	return best
 end
 
---------------------------------------------------------
+--==================================================
+-- GUI
+--==================================================
+
+local Old =
+	LP.PlayerGui:FindFirstChild(
+		"CHALLO_BOY_V8"
+	)
+
+if Old then
+	Old:Destroy()
+end
+
+local OldMini =
+	LP.PlayerGui:FindFirstChild(
+		"CHALLO_BOY_MINI"
+	)
+
+if OldMini then
+	OldMini:Destroy()
+end
+
+local OldDrop =
+	LP.PlayerGui:FindFirstChild(
+		"CHALLO_BOY_DROPDOWNS"
+	)
+
+if OldDrop then
+	OldDrop:Destroy()
+end
+
+local Gui =
+	Instance.new("ScreenGui")
+
+Gui.Name =
+	"CHALLO_BOY_V8"
+
+Gui.ResetOnSpawn =
+	false
+
+Gui.DisplayOrder =
+	1
+
+Gui.Parent =
+	LP.PlayerGui
+
+--==================================================
+-- COLORS
+--==================================================
+
+local DARK =
+	Color3.fromRGB(
+		20,20,25
+	)
+
+local DARK2 =
+	Color3.fromRGB(
+		28,28,35
+	)
+
+local LIGHT =
+	Color3.fromRGB(
+		235,235,240
+	)
+
+local ACCENT =
+	Color3.fromRGB(
+		90,140,255
+	)
+
+local WHITE =
+	Color3.fromRGB(
+		255,255,255
+	)
+
+local GRAY =
+	Color3.fromRGB(
+		165,165,175
+	)
+
+local RED =
+	Color3.fromRGB(
+		230,70,80
+	)
+
+local GREEN =
+	Color3.fromRGB(
+		70,220,120
+	)
+
+--==================================================
+-- MAIN WINDOW
+--==================================================
+
+local Window =
+	Instance.new("Frame")
+
+Window.Name =
+	"Window"
+
+Window.Size =
+	UDim2.new(
+		0,420,
+		0,480
+	)
+
+Window.Position =
+	UDim2.new(
+		0.5,-210,
+		0.5,-240
+	)
+
+Window.BackgroundColor3 =
+	DARK
+
+Window.BorderSizePixel =
+	0
+
+Window.Parent =
+	Gui
+
+local Corner =
+	Instance.new("UICorner")
+
+Corner.CornerRadius =
+	UDim.new(0,14)
+
+Corner.Parent =
+	Window
+
+local Stroke =
+	Instance.new("UIStroke")
+
+Stroke.Thickness =
+	1.5
+
+Stroke.Color =
+	ACCENT
+
+Stroke.Transparency =
+	0.2
+
+Stroke.Parent =
+	Window
+
+--==================================================
+-- HEADER
+--==================================================
+
+local Header =
+	Instance.new("Frame")
+
+Header.Size =
+	UDim2.new(
+		1,0,
+		0,58
+	)
+
+Header.BackgroundTransparency =
+	1
+
+Header.Parent =
+	Window
+
+local Logo =
+	Instance.new("TextButton")
+
+Logo.Size =
+	UDim2.new(
+		1,-60,
+		1,0
+	)
+
+Logo.Position =
+	UDim2.new(
+		0,12,
+		0,0
+	)
+
+Logo.BackgroundTransparency =
+	1
+
+Logo.Text =
+	"⚡ CHALLO_BOY ⚡"
+
+Logo.TextColor3 =
+	WHITE
+
+Logo.TextSize =
+	21
+
+Logo.Font =
+	Enum.Font.GothamBold
+
+Logo.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+Logo.Parent =
+	Header
+
+local Minimize =
+	Instance.new("TextButton")
+
+Minimize.Size =
+	UDim2.new(
+		0,40,
+		0,36
+	)
+
+Minimize.Position =
+	UDim2.new(
+		1,-48,
+		0,11
+	)
+
+Minimize.BackgroundColor3 =
+	DARK2
+
+Minimize.Text =
+	"—"
+
+Minimize.TextColor3 =
+	WHITE
+
+Minimize.TextSize =
+	20
+
+Minimize.Font =
+	Enum.Font.GothamBold
+
+Minimize.Parent =
+	Header
+
+Instance.new("UICorner",
+	Minimize
+).CornerRadius =
+	UDim.new(0,9)
+
+--==================================================
+-- NAVIGATION
+--==================================================
+
+local Navigation =
+	Instance.new("Frame")
+
+Navigation.Size =
+	UDim2.new(
+		1,-20,
+		0,45
+	)
+
+Navigation.Position =
+	UDim2.new(
+		0,10,
+		0,62
+	)
+
+Navigation.BackgroundTransparency =
+	1
+
+Navigation.Parent =
+	Window
+
+local NavLayout =
+	Instance.new("UIListLayout")
+
+NavLayout.FillDirection =
+	Enum.FillDirection.Horizontal
+
+NavLayout.Padding =
+	UDim.new(0,6)
+
+NavLayout.Parent =
+	Navigation
+
+--==================================================
+-- CONTENT
+--==================================================
+
+local Content =
+	Instance.new("Frame")
+
+Content.Size =
+	UDim2.new(
+		1,-20,
+		1,-120
+	)
+
+Content.Position =
+	UDim2.new(
+		0,10,
+		0,112
+	)
+
+Content.BackgroundTransparency =
+	1
+
+Content.Parent =
+	Window
+
+local Pages = {}
+
+local function CreatePage(name)
+
+	local page =
+		Instance.new("ScrollingFrame")
+
+	page.Name =
+		name
+
+	page.Size =
+		UDim2.new(
+			1,0,
+			1,0
+		)
+
+	page.BackgroundTransparency =
+		1
+
+	page.BorderSizePixel =
+		0
+
+	page.ScrollBarThickness =
+		4
+
+	page.ScrollBarImageColor3 =
+		ACCENT
+
+	page.CanvasSize =
+		UDim2.new(0,0,0,0)
+
+	page.Visible =
+		false
+
+	page.Parent =
+		Content
+
+	local layout =
+		Instance.new("UIListLayout")
+
+	layout.Padding =
+		UDim.new(0,8)
+
+	layout.SortOrder =
+		Enum.SortOrder.LayoutOrder
+
+	layout.Parent =
+		page
+
+	layout:GetPropertyChangedSignal(
+		"AbsoluteContentSize"
+	):Connect(function()
+
+		page.CanvasSize =
+			UDim2.new(
+				0,0,
+				0,
+				layout.AbsoluteContentSize.Y + 15
+			)
+	end)
+
+	Pages[name] =
+		page
+
+	return page
+end
+
+local AimPage =
+	CreatePage("AimPage")
+
+local FOVPage =
+	CreatePage("FOVPage")
+
+local ESPPage =
+	CreatePage("ESPPage")
+
+local SettingPage =
+	CreatePage("SettingPage")
+
+--==================================================
+-- PAGE / BUTTON HELPERS
+--==================================================
+
+local function CreateNavButton(text)
+
+	local button =
+		Instance.new("TextButton")
+
+	button.Size =
+		UDim2.new(
+			0,96,
+			0,40
+		)
+
+	button.BackgroundColor3 =
+		DARK2
+
+	button.Text =
+		text
+
+	button.TextColor3 =
+		WHITE
+
+	button.TextSize =
+		13
+
+	button.Font =
+		Enum.Font.GothamSemibold
+
+	button.Parent =
+		Navigation
+
+	Instance.new("UICorner",
+		button
+	).CornerRadius =
+		UDim.new(0,9)
+
+	return button
+end
+
+local AimNav =
+	CreateNavButton("Aim Bot")
+
+local FOVNav =
+	CreateNavButton("POV / FOV")
+
+local ESPNav =
+	CreateNavButton("ESP")
+
+local SettingNav =
+	CreateNavButton("Setting")
+
+local function ShowPage(page)
+
+	for _,p in pairs(Pages) do
+		p.Visible = false
+	end
+
+	page.Visible = true
+end
+
+AimNav.MouseButton1Click:Connect(function()
+	ShowPage(AimPage)
+end)
+
+FOVNav.MouseButton1Click:Connect(function()
+	ShowPage(FOVPage)
+end)
+
+ESPNav.MouseButton1Click:Connect(function()
+	ShowPage(ESPPage)
+end)
+
+SettingNav.MouseButton1Click:Connect(function()
+	ShowPage(SettingPage)
+end)
+
+ShowPage(AimPage)
+
+--==================================================
+-- CONTROL HELPERS
+--==================================================
+
+local Controls = {}
+
+local function CreateToggle(parent,label,default,callback)
+
+	local holder =
+		Instance.new("Frame")
+
+	holder.Size =
+		UDim2.new(
+			1,-8,
+			0,48
+		)
+
+	holder.BackgroundColor3 =
+		DARK2
+
+	holder.BorderSizePixel =
+		0
+
+	holder.Parent =
+		parent
+
+	Instance.new("UICorner",
+		holder
+	).CornerRadius =
+		UDim.new(0,10)
+
+	local text =
+		Instance.new("TextLabel")
+
+	text.Size =
+		UDim2.new(
+			1,-80,
+			1,0
+		)
+
+	text.Position =
+		UDim2.new(
+			0,14,
+			0,0
+		)
+
+	text.BackgroundTransparency =
+		1
+
+	text.Text =
+		label
+
+	text.TextColor3 =
+		WHITE
+
+	text.TextSize =
+		14
+
+	text.Font =
+		Enum.Font.GothamMedium
+
+	text.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	text.Parent =
+		holder
+
+	local button =
+		Instance.new("TextButton")
+
+	button.Size =
+		UDim2.new(
+			0,54,
+			0,28
+		)
+
+	button.Position =
+		UDim2.new(
+			1,-64,
+			0.5,-14
+		)
+
+	button.TextSize =
+		11
+
+	button.Font =
+		Enum.Font.GothamBold
+
+	button.Parent =
+		holder
+
+	Instance.new("UICorner",
+		button
+	).CornerRadius =
+		UDim.new(1,0)
+
+	local value =
+		default
+
+	local function Update(v)
+
+		value = v
+
+		if value then
+			button.Text = "ON"
+			button.BackgroundColor3 = GREEN
+			button.TextColor3 = Color3.new(0,0,0)
+		else
+			button.Text = "OFF"
+			button.BackgroundColor3 = RED
+			button.TextColor3 = WHITE
+		end
+
+		callback(value)
+	end
+
+	button.MouseButton1Click:Connect(function()
+		Update(not value)
+	end)
+
+	Update(default)
+
+	local control = {
+		Set = Update,
+		Get = function()
+			return value
+		end,
+	}
+
+	table.insert(
+		Controls,
+		control
+	)
+
+	return control
+end
+
+local function CreateDropdown(parent,label,values,default,callback)
+
+	local holder =
+		Instance.new("Frame")
+
+	holder.Size =
+		UDim2.new(
+			1,-8,
+			0,58
+		)
+
+	holder.BackgroundColor3 =
+		DARK2
+
+	holder.BorderSizePixel =
+		0
+
+	holder.Parent =
+		parent
+
+	Instance.new("UICorner",
+		holder
+	).CornerRadius =
+		UDim.new(0,10)
+
+	local text =
+		Instance.new("TextLabel")
+
+	text.Size =
+		UDim2.new(
+			0.45,0,
+			1,0
+		)
+
+	text.Position =
+		UDim2.new(
+			0,14,
+			0,0
+		)
+
+	text.BackgroundTransparency =
+		1
+
+	text.Text =
+		label
+
+	text.TextColor3 =
+		WHITE
+
+	text.TextSize =
+		14
+
+	text.Font =
+		Enum.Font.GothamMedium
+
+	text.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	text.Parent =
+		holder
+
+	local button =
+		Instance.new("TextButton")
+
+	button.Size =
+		UDim2.new(
+			0.45,0,
+			0,36
+		)
+
+	button.Position =
+		UDim2.new(
+			0.52,0,
+			0.5,-18
+		)
+
+	button.BackgroundColor3 =
+		Color3.fromRGB(
+			40,40,48
+		)
+
+	button.TextColor3 =
+		WHITE
+
+	button.TextSize =
+		13
+
+	button.Font =
+		Enum.Font.GothamMedium
+
+	button.Parent =
+		holder
+
+	Instance.new("UICorner",
+		button
+	).CornerRadius =
+		UDim.new(0,8)
+
+	local current =
+		default
+
+	button.Text =
+		tostring(current)
+
+	local DropdownGui =
+		LP.PlayerGui:FindFirstChild(
+			"CHALLO_BOY_DROPDOWNS"
+		)
+
+	if not DropdownGui then
+
+		DropdownGui =
+			Instance.new("ScreenGui")
+
+		DropdownGui.Name =
+			"CHALLO_BOY_DROPDOWNS"
+
+		DropdownGui.ResetOnSpawn =
+			false
+
+		DropdownGui.DisplayOrder =
+			999
+
+		DropdownGui.Parent =
+			LP.PlayerGui
+	end
+
+	local popup =
+		Instance.new("ScrollingFrame")
+
+	popup.Size =
+		UDim2.new(
+			0,
+			150,
+			0,
+			150
+		)
+
+	popup.BackgroundColor3 =
+		DARK
+
+	popup.BorderSizePixel =
+		0
+
+	popup.Visible =
+		false
+
+	popup.ZIndex =
+		500
+
+	popup.ScrollBarThickness =
+		4
+
+	popup.Parent =
+		DropdownGui
+
+	Instance.new("UICorner",
+		popup
+	).CornerRadius =
+		UDim.new(0,9)
+
+	local popupLayout =
+		Instance.new("UIListLayout")
+
+	popupLayout.Padding =
+		UDim.new(0,3)
+
+	popupLayout.Parent =
+		popup
+
+	for _,item in ipairs(values) do
+
+		local option =
+			Instance.new("TextButton")
+
+		option.Size =
+			UDim2.new(
+				1,-8,
+				0,30
+			)
+
+		option.BackgroundColor3 =
+			DARK2
+
+		option.Text =
+			tostring(item)
+
+		option.TextColor3 =
+			WHITE
+
+		option.TextSize =
+			12
+
+		option.Font =
+			Enum.Font.GothamMedium
+
+		option.ZIndex =
+			501
+
+		option.Parent =
+			popup
+
+		Instance.new("UICorner",
+			option
+		).CornerRadius =
+			UDim.new(0,7)
+
+		option.MouseButton1Click:Connect(function()
+
+			current =
+				item
+
+			button.Text =
+				tostring(item)
+
+			popup.Visible =
+				false
+
+			callback(item)
+		end)
+	end
+
+	popup.CanvasSize =
+		UDim2.new(
+			0,0,
+			0,
+			popupLayout.AbsoluteContentSize.Y + 8
+		)
+
+	button.MouseButton1Click:Connect(function()
+
+		local pos =
+			button.AbsolutePosition
+
+		local size =
+			button.AbsoluteSize
+
+		popup.Position =
+			UDim2.fromOffset(
+				pos.X,
+				pos.Y + size.Y + 4
+			)
+
+		popup.Visible =
+			not popup.Visible
+	end)
+
+	local control = {
+
+		Set = function(v)
+
+			current =
+				v
+
+			button.Text =
+				tostring(v)
+
+			callback(v)
+		end,
+
+		Get = function()
+			return current
+		end,
+	}
+
+	table.insert(
+		Controls,
+		control
+	)
+
+	return control
+end
+
+--==================================================
+-- AIM PAGE
+--==================================================
+
+local AimTitle =
+	Instance.new("TextLabel")
+
+AimTitle.Size =
+	UDim2.new(1,0,0,32)
+
+AimTitle.BackgroundTransparency =
+	1
+
+AimTitle.Text =
+	"AIM BOT"
+
+AimTitle.TextColor3 =
+	WHITE
+
+AimTitle.TextSize =
+	18
+
+AimTitle.Font =
+	Enum.Font.GothamBold
+
+AimTitle.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+AimTitle.Parent =
+	AimPage
+
+CreateToggle(
+	AimPage,
+	"Aim Assist",
+	false,
+	function(v)
+		S.Aim = v
+	end
+)
+
+local StrengthValues = {}
+
+for i = 0,100,10 do
+	table.insert(
+		StrengthValues,
+		i .. "%"
+	)
+end
+
+local StrengthControl =
+	CreateDropdown(
+		AimPage,
+		"Aim Strength",
+		StrengthValues,
+		"50%",
+		function(v)
+
+			S.Strength =
+				tonumber(
+					string.match(
+						v,
+						"%d+"
+					)
+				)
+				or 50
+		end
+	)
+
+--==================================================
+-- FOV PAGE
+--==================================================
+
+local FOVTitle =
+	Instance.new("TextLabel")
+
+FOVTitle.Size =
+	UDim2.new(1,0,0,32)
+
+FOVTitle.BackgroundTransparency =
+	1
+
+FOVTitle.Text =
+	"POV / FOV"
+
+FOVTitle.TextColor3 =
+	WHITE
+
+FOVTitle.TextSize =
+	18
+
+FOVTitle.Font =
+	Enum.Font.GothamBold
+
+FOVTitle.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+FOVTitle.Parent =
+	FOVPage
+
+CreateToggle(
+	FOVPage,
+	"Show FOV",
+	false,
+	function(v)
+		S.FOVEnabled = v
+	end
+)
+
+local FOVValues = {
+	"60",
+	"100",
+	"140",
+	"180",
+	"220",
+	"260",
+	"300",
+	"350",
+	"400",
+}
+
+CreateDropdown(
+	FOVPage,
+	"FOV Size",
+	FOVValues,
+	"180",
+	function(v)
+		S.FOV =
+			tonumber(v)
+			or 180
+	end
+)
+
+--==================================================
+-- ESP PAGE
+--==================================================
+
+local ESPTitle =
+	Instance.new("TextLabel")
+
+ESPTitle.Size =
+	UDim2.new(1,0,0,32)
+
+ESPTitle.BackgroundTransparency =
+	1
+
+ESPTitle.Text =
+	"ESP"
+
+ESPTitle.TextColor3 =
+	WHITE
+
+ESPTitle.TextSize =
+	18
+
+ESPTitle.Font =
+	Enum.Font.GothamBold
+
+ESPTitle.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+ESPTitle.Parent =
+	ESPPage
+
+CreateToggle(
+	ESPPage,
+	"Player Outline",
+	false,
+	function(v)
+		S.ESP = v
+	end
+)
+
+CreateToggle(
+	ESPPage,
+	"Visibility Check",
+	true,
+	function(v)
+		S.VisibilityCheck = v
+	end
+)
+
+--==================================================
+-- SETTINGS PAGE
+--==================================================
+
+local SettingTitle =
+	Instance.new("TextLabel")
+
+SettingTitle.Size =
+	UDim2.new(1,0,0,32)
+
+SettingTitle.BackgroundTransparency =
+	1
+
+SettingTitle.Text =
+	"SETTING"
+
+SettingTitle.TextColor3 =
+	WHITE
+
+SettingTitle.TextSize =
+	18
+
+SettingTitle.Font =
+	Enum.Font.GothamBold
+
+SettingTitle.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+SettingTitle.Parent =
+	SettingPage
+
+CreateToggle(
+	SettingPage,
+	"RGB Effect",
+	false,
+	function(v)
+		S.RGB = v
+	end
+)
+
+local ThemeControl =
+	CreateDropdown(
+		SettingPage,
+		"Theme",
+		{
+			"Dark",
+			"Light",
+		},
+		"Dark",
+		function(v)
+			S.Theme = v
+		end
+	)
+
+local LockControl =
+	CreateToggle(
+		SettingPage,
+		"UI Lock",
+		false,
+		function(v)
+			S.UILock = v
+		end
+	)
+
+--==================================================
+-- SAVE SETTINGS
+--==================================================
+
+local SaveButton =
+	Instance.new("TextButton")
+
+SaveButton.Size =
+	UDim2.new(
+		1,-8,
+		0,46
+	)
+
+SaveButton.BackgroundColor3 =
+	ACCENT
+
+SaveButton.Text =
+	"💾  Save Settings"
+
+SaveButton.TextColor3 =
+	WHITE
+
+SaveButton.TextSize =
+	14
+
+SaveButton.Font =
+	Enum.Font.GothamBold
+
+SaveButton.Parent =
+	SettingPage
+
+Instance.new("UICorner",
+	SaveButton
+).CornerRadius =
+	UDim.new(0,10)
+
+SaveButton.MouseButton1Click:Connect(function()
+
+	SAVED =
+		CopySettings(S)
+
+	SaveButton.Text =
+		"✓  Settings Saved"
+
+	task.delay(
+		1.5,
+		function()
+
+			if SaveButton.Parent then
+				SaveButton.Text =
+					"💾  Save Settings"
+			end
+		end
+	)
+end)
+
+--==================================================
+-- RESET CONFIRMATION
+--==================================================
+
+local ConfirmOverlay =
+	Instance.new("Frame")
+
+ConfirmOverlay.Size =
+	UDim2.new(
+		1,0,
+		1,0
+	)
+
+ConfirmOverlay.BackgroundColor3 =
+	Color3.new(0,0,0)
+
+ConfirmOverlay.BackgroundTransparency =
+	0.35
+
+ConfirmOverlay.Visible =
+	false
+
+ConfirmOverlay.ZIndex =
+	1000
+
+ConfirmOverlay.Parent =
+	Window
+
+local ConfirmBox =
+	Instance.new("Frame")
+
+ConfirmBox.Size =
+	UDim2.new(
+		0,300,
+		0,180
+	)
+
+ConfirmBox.Position =
+	UDim2.new(
+		0.5,-150,
+		0.5,-90
+	)
+
+ConfirmBox.BackgroundColor3 =
+	DARK
+
+ConfirmBox.ZIndex =
+	1001
+
+ConfirmBox.Parent =
+	ConfirmOverlay
+
+Instance.new("UICorner",
+	ConfirmBox
+).CornerRadius =
+	UDim.new(0,14)
+
+local ConfirmStroke =
+	Instance.new("UIStroke")
+
+ConfirmStroke.Color =
+	ACCENT
+
+ConfirmStroke.Thickness =
+	1.5
+
+ConfirmStroke.Parent =
+	ConfirmBox
+
+local ConfirmText =
+	Instance.new("TextLabel")
+
+ConfirmText.Size =
+	UDim2.new(
+		1,-20,
+		0,65
+	)
+
+ConfirmText.Position =
+	UDim2.new(
+		0,10,
+		0,20
+	)
+
+ConfirmText.BackgroundTransparency =
+	1
+
+ConfirmText.Text =
+	"Are you sure?"
+
+ConfirmText.TextColor3 =
+	WHITE
+
+ConfirmText.TextSize =
+	22
+
+ConfirmText.Font =
+	Enum.Font.GothamBold
+
+ConfirmText.ZIndex =
+	1002
+
+ConfirmText.Parent =
+	ConfirmBox
+
+local YesButton =
+	Instance.new("TextButton")
+
+YesButton.Size =
+	UDim2.new(
+		0,115,
+		0,42
+	)
+
+YesButton.Position =
+	UDim2.new(
+		0,25,
+		1,-62
+	)
+
+YesButton.BackgroundColor3 =
+	GREEN
+
+YesButton.Text =
+	"YES"
+
+YesButton.TextColor3 =
+	Color3.new(0,0,0)
+
+YesButton.TextSize =
+	14
+
+YesButton.Font =
+	Enum.Font.GothamBold
+
+YesButton.ZIndex =
+	1002
+
+YesButton.Parent =
+	ConfirmBox
+
+Instance.new("UICorner",
+	YesButton
+).CornerRadius =
+	UDim.new(0,9)
+
+local NoButton =
+	Instance.new("TextButton")
+
+NoButton.Size =
+	UDim2.new(
+		0,115,
+		0,42
+	)
+
+NoButton.Position =
+	UDim2.new(
+		1,-140,
+		1,-62
+	)
+
+NoButton.BackgroundColor3 =
+	RED
+
+NoButton.Text =
+	"NO"
+
+NoButton.TextColor3 =
+	WHITE
+
+NoButton.TextSize =
+	14
+
+NoButton.Font =
+	Enum.Font.GothamBold
+
+NoButton.ZIndex =
+	1002
+
+NoButton.Parent =
+	ConfirmBox
+
+Instance.new("UICorner",
+	NoButton
+).CornerRadius =
+	UDim.new(0,9)
+
+local ResetButton =
+	Instance.new("TextButton")
+
+ResetButton.Size =
+	UDim2.new(
+		1,-8,
+		0,46
+	)
+
+ResetButton.BackgroundColor3 =
+	Color3.fromRGB(
+		80,80,90
+	)
+
+ResetButton.Text =
+	"🔄  Reset Settings"
+
+ResetButton.TextColor3 =
+	WHITE
+
+ResetButton.TextSize =
+	14
+
+ResetButton.Font =
+	Enum.Font.GothamBold
+
+ResetButton.Parent =
+	SettingPage
+
+Instance.new("UICorner",
+	ResetButton
+).CornerRadius =
+	UDim.new(0,10)
+
+ResetButton.MouseButton1Click:Connect(function()
+	ConfirmOverlay.Visible = true
+end)
+
+NoButton.MouseButton1Click:Connect(function()
+	ConfirmOverlay.Visible = false
+end)
+
+YesButton.MouseButton1Click:Connect(function()
+
+	local target
+
+	if SAVED then
+		target =
+			CopySettings(SAVED)
+	else
+		target =
+			CopySettings(DEFAULTS)
+	end
+
+	for k,v in pairs(target) do
+		S[k] = v
+	end
+
+	-- Update visible controls
+	StrengthControl:Set(
+		S.Strength .. "%"
+	)
+
+	ThemeControl:Set(
+		S.Theme
+	)
+
+	LockControl:Set(
+		S.UILock
+	)
+
+	-- Find toggle controls in creation order:
+	-- Aim, Show FOV, ESP, Visibility, RGB, UI Lock
+	if Controls[1] then
+		Controls[1].Set(S.Aim)
+	end
+
+	if Controls[2] then
+		Controls[2].Set(S.FOVEnabled)
+	end
+
+	if Controls[3] then
+		Controls[3].Set(S.ESP)
+	end
+
+	if Controls[4] then
+		Controls[4].Set(S.VisibilityCheck)
+	end
+
+	if Controls[5] then
+		Controls[5].Set(S.RGB)
+	end
+
+	ConfirmOverlay.Visible = false
+
+	ResetButton.Text =
+		"✓  Settings Reset"
+
+	task.delay(
+		1.5,
+		function()
+
+			if ResetButton.Parent then
+				ResetButton.Text =
+					"🔄  Reset Settings"
+			end
+		end
+	)
+end)
+
+--==================================================
 -- FOV CIRCLE
---------------------------------------------------------
+--==================================================
 
 local FOVCircle =
 	Instance.new("Frame")
@@ -2026,50 +1682,26 @@ local FOVCircle =
 FOVCircle.Name =
 	"FOVCircle"
 
-FOVCircle.BackgroundTransparency =
-	1
-
 FOVCircle.AnchorPoint =
 	Vector2.new(
 		0.5,
 		0.5
 	)
 
-FOVCircle.Position =
-	UDim2.new(
-		0.5,
-		0,
-		0.5,
-		0
-	)
+FOVCircle.BackgroundTransparency =
+	1
 
-FOVCircle.Size =
-	UDim2.fromOffset(
-		S.FOV * 2,
-		S.FOV * 2
-	)
+FOVCircle.BorderSizePixel =
+	0
 
 FOVCircle.Visible =
 	false
 
-FOVCircle.Parent =
-	ScreenGui
-
-local Stroke =
-	Instance.new("UIStroke")
-
-Stroke.Thickness =
+FOVCircle.ZIndex =
 	2
 
-Stroke.Color =
-	Color3.new(
-		1,
-		1,
-		1
-	)
-
-Stroke.Parent =
-	FOVCircle
+FOVCircle.Parent =
+	Gui
 
 local CircleCorner =
 	Instance.new("UICorner")
@@ -2083,128 +1715,175 @@ CircleCorner.CornerRadius =
 CircleCorner.Parent =
 	FOVCircle
 
---------------------------------------------------------
+local CircleStroke =
+	Instance.new("UIStroke")
+
+CircleStroke.Thickness =
+	2
+
+CircleStroke.Color =
+	ACCENT
+
+CircleStroke.Parent =
+	FOVCircle
+
+--==================================================
 -- ESP
---------------------------------------------------------
+--==================================================
 
 local Highlights = {}
 
-local function RemoveESP()
+local function AddESP(player)
 
-	for player, highlight in pairs(
-		Highlights
-	) do
+	if player == LP then
+		return
+	end
 
-		if highlight then
-			highlight:Destroy()
-		end
+	local char =
+		player.Character
+
+	if not char then
+		return
+	end
+
+	if Highlights[player] then
+		Highlights[player]:Destroy()
+	end
+
+	local highlight =
+		Instance.new("Highlight")
+
+	highlight.Name =
+		"CHALLO_BOY_ESP"
+
+	highlight.Adornee =
+		char
+
+	highlight.FillTransparency =
+		0.85
+
+	highlight.OutlineTransparency =
+		0
+
+	highlight.OutlineColor =
+		ACCENT
+
+	highlight.DepthMode =
+		Enum.HighlightDepthMode.AlwaysOnTop
+
+	highlight.Enabled =
+		S.ESP
+
+	highlight.Parent =
+		char
+
+	Highlights[player] =
+		highlight
+end
+
+local function RemoveESP(player)
+
+	if Highlights[player] then
+
+		Highlights[player]:Destroy()
 
 		Highlights[player] =
 			nil
-
 	end
-
 end
 
 local function UpdateESP()
 
-	if not S.ESP then
-
-		RemoveESP()
-
-		return
-
-	end
-
-	for _, player in ipairs(
-		Players:GetPlayers()
-	) do
+	for _,player in ipairs(Players:GetPlayers()) do
 
 		if player ~= LP then
 
 			local char =
 				player.Character
 
-			if char then
+			if S.ESP then
 
-				local highlight =
-					Highlights[player]
-
-				if not highlight then
-
-					highlight =
-						Instance.new(
-							"Highlight"
-						)
-
-					highlight.Name =
-						"CHALLO_BOY_ESP"
-
-					highlight.DepthMode =
-						Enum.HighlightDepthMode.AlwaysOnTop
-
-					highlight.FillTransparency =
-						1
-
-					highlight.OutlineTransparency =
-						0
-
-					highlight.Parent =
-						char
-
-					Highlights[player] =
-						highlight
-
+				if char then
+					AddESP(player)
 				end
 
+			else
+				RemoveESP(player)
 			end
-
 		end
-
 	end
-
 end
 
---------------------------------------------------------
--- RGB
---------------------------------------------------------
+Players.PlayerAdded:Connect(function(player)
 
-local hue =
-	0
+	player.CharacterAdded:Connect(function()
 
---------------------------------------------------------
+		task.wait(0.5)
+
+		if S.ESP then
+			AddESP(player)
+		end
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	RemoveESP(player)
+end)
+
+--==================================================
 -- DRAG SYSTEM
---------------------------------------------------------
+--==================================================
 
 local dragging =
 	false
 
 local dragStart
+local startPos
 
-local startPosition
-
-Logo.InputBegan:Connect(function(input)
+local function StartDrag(input)
 
 	if S.UILock then
 		return
 	end
+
+	dragging =
+		true
+
+	dragStart =
+		input.Position
+
+	startPos =
+		Window.Position
+end
+
+local function UpdateDrag(input)
+
+	if not dragging then
+		return
+	end
+
+	local delta =
+		input.Position -
+		dragStart
+
+	Window.Position =
+		UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+end
+
+Logo.InputBegan:Connect(function(input)
 
 	if input.UserInputType ==
 		Enum.UserInputType.MouseButton1
 		or input.UserInputType ==
 		Enum.UserInputType.Touch then
 
-		dragging =
-			true
-
-		dragStart =
-			input.Position
-
-		startPosition =
-			Window.Position
-
+		StartDrag(input)
 	end
-
 end)
 
 Logo.InputEnded:Connect(function(input)
@@ -2216,83 +1895,68 @@ Logo.InputEnded:Connect(function(input)
 
 		dragging =
 			false
-
 	end
-
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-
-	if not dragging then
-		return
-	end
 
 	if input.UserInputType ==
 		Enum.UserInputType.MouseMovement
 		or input.UserInputType ==
 		Enum.UserInputType.Touch then
 
-		local delta =
-			input.Position -
-			dragStart
-
-		Window.Position =
-			UDim2.new(
-				startPosition.X.Scale,
-				startPosition.X.Offset + delta.X,
-				startPosition.Y.Scale,
-				startPosition.Y.Offset + delta.Y
-			)
-
+		UpdateDrag(input)
 	end
-
 end)
 
---------------------------------------------------------
+--==================================================
 -- MINI BUTTON
---------------------------------------------------------
+--==================================================
+
+local MiniGui =
+	Instance.new("ScreenGui")
+
+MiniGui.Name =
+	"CHALLO_BOY_MINI"
+
+MiniGui.ResetOnSpawn =
+	false
+
+MiniGui.DisplayOrder =
+	1000
+
+MiniGui.Parent =
+	LP.PlayerGui
 
 local Mini =
 	Instance.new("TextButton")
 
 Mini.Size =
 	UDim2.new(
-		0,
-		145,
-		0,
-		45
+		0,58,
+		0,58
 	)
 
 Mini.Position =
 	UDim2.new(
-		0,
-		20,
-		0,
-		100
+		0,20,
+		0.5,-29
 	)
 
 Mini.BackgroundColor3 =
-	Color3.fromRGB(
-		20,
-		20,
-		28
-	)
+	DARK
 
 Mini.Text =
-	"⚡ CHALLO_BOY"
+	"⚡"
 
 Mini.TextColor3 =
-	Color3.new(
-		1,
-		1,
-		1
-	)
+	WHITE
+
+Mini.TextSize =
+	25
 
 Mini.Font =
 	Enum.Font.GothamBold
-
-Mini.TextSize =
-	14
 
 Mini.Visible =
 	false
@@ -2300,21 +1964,25 @@ Mini.Visible =
 Mini.Parent =
 	MiniGui
 
-local MiniCorner2 =
-	Instance.new("UICorner")
-
-MiniCorner2.CornerRadius =
+Instance.new("UICorner",
+	Mini
+).CornerRadius =
 	UDim.new(
-		0,
-		10
+		1,
+		0
 	)
 
-MiniCorner2.Parent =
-	Mini
+local MiniStroke =
+	Instance.new("UIStroke")
 
---------------------------------------------------------
--- MINIMIZE
---------------------------------------------------------
+MiniStroke.Color =
+	ACCENT
+
+MiniStroke.Thickness =
+	2
+
+MiniStroke.Parent =
+	Mini
 
 Minimize.MouseButton1Click:Connect(function()
 
@@ -2323,29 +1991,21 @@ Minimize.MouseButton1Click:Connect(function()
 
 	Mini.Visible =
 		true
-
 end)
 
 Mini.MouseButton1Click:Connect(function()
 
-	Mini.Visible =
-		false
-
 	Window.Visible =
 		true
 
+	Mini.Visible =
+		false
 end)
 
---------------------------------------------------------
--- MINI DRAG
---------------------------------------------------------
-
-local miniDragging =
-	false
-
+-- Mini drag
+local miniDragging = false
 local miniStart
-
-local miniPosition
+local miniPos
 
 Mini.InputBegan:Connect(function(input)
 
@@ -2360,11 +2020,9 @@ Mini.InputBegan:Connect(function(input)
 		miniStart =
 			input.Position
 
-		miniPosition =
+		miniPos =
 			Mini.Position
-
 	end
-
 end)
 
 Mini.InputEnded:Connect(function(input)
@@ -2376,9 +2034,7 @@ Mini.InputEnded:Connect(function(input)
 
 		miniDragging =
 			false
-
 	end
-
 end)
 
 UserInputService.InputChanged:Connect(function(input)
@@ -2398,39 +2054,63 @@ UserInputService.InputChanged:Connect(function(input)
 
 		Mini.Position =
 			UDim2.new(
-				miniPosition.X.Scale,
-				miniPosition.X.Offset + delta.X,
-				miniPosition.Y.Scale,
-				miniPosition.Y.Offset + delta.Y
+				miniPos.X.Scale,
+				miniPos.X.Offset + delta.X,
+				miniPos.Y.Scale,
+				miniPos.Y.Offset + delta.Y
 			)
-
 	end
-
 end)
 
---------------------------------------------------------
--- RENDER LOOP
---------------------------------------------------------
+--==================================================
+-- RGB
+--==================================================
+
+local hue =
+	0
+
+local function RGBColor()
+
+	return Color3.fromHSV(
+		hue,
+		0.8,
+		1
+	)
+end
+
+--==================================================
+-- MAIN LOOP
+--==================================================
 
 RunService.RenderStepped:Connect(function(dt)
 
-	----------------------------------------------------
 	-- FOV
-	----------------------------------------------------
+	if S.FOVEnabled then
 
-	FOVCircle.Visible =
-		S.ShowFOV
+		local viewport =
+			Camera.ViewportSize
 
-	FOVCircle.Size =
-		UDim2.fromOffset(
-			S.FOV * 2,
-			S.FOV * 2
-		)
+		FOVCircle.Position =
+			UDim2.fromOffset(
+				viewport.X / 2,
+				viewport.Y / 2
+			)
 
-	----------------------------------------------------
+		FOVCircle.Size =
+			UDim2.fromOffset(
+				S.FOV * 2,
+				S.FOV * 2
+			)
+
+		FOVCircle.Visible =
+			true
+
+	else
+		FOVCircle.Visible =
+			false
+	end
+
 	-- AIM
-	----------------------------------------------------
-
 	if S.Aim
 		and S.Strength > 0 then
 
@@ -2455,90 +2135,40 @@ RunService.RenderStepped:Connect(function(dt)
 					desired,
 					alpha
 				)
-
 		end
-
 	end
 
-	----------------------------------------------------
 	-- ESP
-	----------------------------------------------------
-
 	UpdateESP()
 
-	----------------------------------------------------
 	-- RGB
-	----------------------------------------------------
-
 	if S.RGB then
 
 		hue =
-			(hue + dt * 0.15)
+			(hue + dt * 0.35)
 			% 1
 
-		local rgb =
-			Color3.fromHSV(
-				hue,
-				0.8,
-				1
-			)
-
-		Logo.TextColor3 =
-			rgb
+		local color =
+			RGBColor()
 
 		Stroke.Color =
-			rgb
+			color
+
+		CircleStroke.Color =
+			color
+
+		MiniStroke.Color =
+			color
 
 	else
 
-		Logo.TextColor3 =
-			Color3.new(
-				1,
-				1,
-				1
-			)
-
 		Stroke.Color =
-			Color3.new(
-				1,
-				1,
-				1
-			)
+			ACCENT
 
+		CircleStroke.Color =
+			ACCENT
+
+		MiniStroke.Color =
+			ACCENT
 	end
-
-	----------------------------------------------------
-	-- UI SIZE
-	----------------------------------------------------
-
-	Window.Size =
-		UDim2.new(
-			0,
-			390 * S.UISize,
-			0,
-			500 * S.UISize
-		)
-
 end)
-
---------------------------------------------------------
--- CHARACTER RESPAWN ESP
---------------------------------------------------------
-
-Players.PlayerRemoving:Connect(function(player)
-
-	local highlight =
-		Highlights[player]
-
-	if highlight then
-		highlight:Destroy()
-	end
-
-	Highlights[player] =
-		nil
-
-end)
-
---------------------------------------------------------
--- END
---------------------------------------------------------
