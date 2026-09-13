@@ -1,331 +1,541 @@
-
--- LocalScript in StarterPlayer > StarterPlayerScripts
--- UI demo for your own Roblox Studio experience.
--- Does not implement player targeting, aimbot, or wall-penetrating ESP.
+-- [[ MOBILE AIM ASSIST + RGB UI ]]
+-- [[ FOR YOUR OWN ROBLOX EXPERIENCE ]]
+-- [[ CHALLO BOY X RENA STUDIO ]]
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
-local gui = Instance.new("ScreenGui")
-gui.Name = "AimESP_Demo"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+--==================================================
+-- UI
+--==================================================
 
-local state = {
-    aimEnabled = false,
-    aimStrength = 50,
-    targetPart = "Head",
-    povSize = 180,
-    povTransparency = 0.45,
-    colorMode = "RGB",
-    customColor = Color3.fromRGB(56, 189, 248),
-    esp = {
-        Box = false, Tracer = false, Name = false,
-        Distance = false, ["Health Bar"] = false,
-        Skeleton = false, Highlight = false,
-    },
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AimAssistRGB"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local MenuOpenButton = Instance.new("TextButton")
+MenuOpenButton.Name = "MenuOpenButton"
+MenuOpenButton.Parent = ScreenGui
+MenuOpenButton.Position = UDim2.new(0, 10, 0, 40)
+MenuOpenButton.Size = UDim2.new(0, 115, 0, 42)
+MenuOpenButton.Font = Enum.Font.SourceSansBold
+MenuOpenButton.Text = "MENU"
+MenuOpenButton.TextSize = 18
+MenuOpenButton.TextColor3 = Color3.new(1,1,1)
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 9)
+BtnCorner.Parent = MenuOpenButton
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 270, 0, 300)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20,20,25)
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+--==================================================
+-- TOP BAR
+--==================================================
+
+local TopBar = Instance.new("Frame")
+TopBar.Parent = MainFrame
+TopBar.Size = UDim2.new(1,0,0,45)
+TopBar.BackgroundColor3 = Color3.fromRGB(30,30,35)
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0,10)
+TopCorner.Parent = TopBar
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TopBar
+Title.BackgroundTransparency = 1
+Title.Size = UDim2.new(1,0,1,0)
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "AIM ASSIST | RGB"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextSize = 17
+
+--==================================================
+-- CONTENT
+--==================================================
+
+local Content = Instance.new("Frame")
+Content.Parent = MainFrame
+Content.BackgroundTransparency = 1
+Content.Position = UDim2.new(0,0,0,55)
+Content.Size = UDim2.new(1,0,1,-55)
+
+local Layout = Instance.new("UIListLayout")
+Layout.Parent = Content
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.Padding = UDim.new(0,9)
+
+--==================================================
+-- VARIABLES
+--==================================================
+
+local AimEnabled = false
+local EspEnabled = false
+local AimStrength = 50
+local IsTouching = false
+
+--==================================================
+-- RGB ENGINE
+--==================================================
+
+local RGBObjects = {
+    MenuOpenButton,
+    MainFrame,
+    TopBar,
+    Title
 }
 
-local function make(className, props, parent)
-    local obj = Instance.new(className)
-    for k, v in pairs(props or {}) do obj[k] = v end
-    obj.Parent = parent
-    return obj
+local RGBButtons = {}
+
+local function AddRGB(obj)
+    table.insert(RGBButtons,obj)
 end
 
-local panel = make("Frame", {
-    Name = "Panel",
-    Size = UDim2.fromOffset(310, 390),
-    Position = UDim2.new(0, 24, 0.25, 0),
-    BackgroundColor3 = Color3.fromRGB(18, 22, 32),
-    BorderSizePixel = 0,
-}, gui)
-make("UICorner", {CornerRadius = UDim.new(0, 12)}, panel)
-make("UIStroke", {Color = Color3.fromRGB(55, 65, 81), Thickness = 1}, panel)
+AddRGB(MenuOpenButton)
 
-local top = make("Frame", {
-    Size = UDim2.new(1, 0, 0, 42),
-    BackgroundColor3 = Color3.fromRGB(28, 35, 49),
-    BorderSizePixel = 0,
-}, panel)
-make("UICorner", {CornerRadius = UDim.new(0, 12)}, top)
+local function RGBColor()
+    return Color3.fromHSV((tick() * 0.15) % 1, 1, 1)
+end
 
-make("TextLabel", {
-    Size = UDim2.new(1, -82, 1, 0),
-    Position = UDim2.fromOffset(12, 0),
-    BackgroundTransparency = 1,
-    Text = "AIM & ESP  •  DEMO",
-    TextColor3 = Color3.new(1, 1, 1),
-    TextSize = 15,
-    Font = Enum.Font.GothamBold,
-    TextXAlignment = Enum.TextXAlignment.Left,
-}, top)
+RunService.RenderStepped:Connect(function()
+    local color = RGBColor()
 
-local minimize = make("TextButton", {
-    Size = UDim2.fromOffset(34, 30),
-    Position = UDim2.new(1, -72, 0, 6),
-    Text = "−",
-    TextSize = 22,
-    Font = Enum.Font.GothamBold,
-    TextColor3 = Color3.new(1, 1, 1),
-    BackgroundColor3 = Color3.fromRGB(55, 65, 81),
-    BorderSizePixel = 0,
-}, top)
-make("UICorner", {CornerRadius = UDim.new(0, 7)}, minimize)
+    for _,obj in ipairs(RGBObjects) do
+        if obj and obj.Parent then
+            if obj == Title then
+                obj.TextColor3 = color
+            elseif obj == MainFrame then
+                obj.BackgroundColor3 = Color3.fromRGB(20,20,25)
+            else
+                obj.BackgroundColor3 = color
+            end
+        end
+    end
 
-local close = make("TextButton", {
-    Size = UDim2.fromOffset(30, 30),
-    Position = UDim2.new(1, -36, 0, 6),
-    Text = "×",
-    TextSize = 20,
-    Font = Enum.Font.GothamBold,
-    TextColor3 = Color3.new(1, 1, 1),
-    BackgroundColor3 = Color3.fromRGB(127, 29, 29),
-    BorderSizePixel = 0,
-}, top)
-make("UICorner", {CornerRadius = UDim.new(0, 7)}, close)
-
-local reopen = make("TextButton", {
-    Size = UDim2.fromOffset(54, 42),
-    Position = UDim2.new(0, 18, 0.25, 0),
-    Text = "A&E",
-    TextSize = 14,
-    Font = Enum.Font.GothamBold,
-    TextColor3 = Color3.new(1, 1, 1),
-    BackgroundColor3 = Color3.fromRGB(28, 35, 49),
-    Visible = false,
-    BorderSizePixel = 0,
-}, gui)
-make("UICorner", {CornerRadius = UDim.new(0, 10)}, reopen)
-
-minimize.Activated:Connect(function()
-    panel.Visible = false
-    reopen.Visible = true
-end)
-reopen.Activated:Connect(function()
-    panel.Visible = true
-    reopen.Visible = false
-end)
-close.Activated:Connect(function()
-    gui:Destroy()
+    for _,button in ipairs(RGBButtons) do
+        if button and button.Parent then
+            button.BackgroundColor3 = color
+        end
+    end
 end)
 
--- Drag panel using the title bar.
-local dragging, dragStart, startPos
-top.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
+--==================================================
+-- TOGGLE CREATOR
+--==================================================
+
+local function CreateToggle(name, callback)
+
+    local Button = Instance.new("TextButton")
+    Button.Parent = Content
+    Button.Size = UDim2.new(0,230,0,45)
+    Button.Font = Enum.Font.SourceSansBold
+    Button.TextSize = 18
+    Button.TextColor3 = Color3.new(1,1,1)
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0,7)
+    Corner.Parent = Button
+
+    AddRGB(Button)
+
+    local state = false
+
+    local function Update()
+        Button.Text = name .. ": " .. (state and "ON" or "OFF")
+    end
+
+    Update()
+
+    Button.MouseButton1Click:Connect(function()
+        state = not state
+        Update()
+        callback(state)
+    end)
+
+    return Button
+end
+
+--==================================================
+-- AIM STRENGTH LABEL
+--==================================================
+
+local StrengthLabel = Instance.new("TextLabel")
+StrengthLabel.Parent = Content
+StrengthLabel.Size = UDim2.new(0,230,0,30)
+StrengthLabel.BackgroundTransparency = 1
+StrengthLabel.Font = Enum.Font.SourceSansBold
+StrengthLabel.TextSize = 17
+StrengthLabel.TextColor3 = Color3.new(1,1,1)
+StrengthLabel.Text = "Aim Strength: 50%"
+
+--==================================================
+-- STRENGTH SLIDER
+--==================================================
+
+local Slider = Instance.new("Frame")
+Slider.Parent = Content
+Slider.Size = UDim2.new(0,230,0,25)
+Slider.BackgroundColor3 = Color3.fromRGB(55,55,60)
+
+local SliderCorner = Instance.new("UICorner")
+SliderCorner.CornerRadius = UDim.new(1,0)
+SliderCorner.Parent = Slider
+
+local Fill = Instance.new("Frame")
+Fill.Parent = Slider
+Fill.Size = UDim2.new(0.5,0,1,0)
+Fill.BackgroundColor3 = Color3.fromRGB(255,0,0)
+
+local FillCorner = Instance.new("UICorner")
+FillCorner.CornerRadius = UDim.new(1,0)
+FillCorner.Parent = Fill
+
+local draggingSlider = false
+
+local function SetStrength(x)
+
+    local percent = math.clamp(
+        (x - Slider.AbsolutePosition.X) /
+        Slider.AbsoluteSize.X,
+        0,
+        1
+    )
+
+    AimStrength = math.floor(percent * 100)
+
+    Fill.Size = UDim2.new(percent,0,1,0)
+
+    StrengthLabel.Text =
+        "Aim Strength: " .. AimStrength .. "%"
+end
+
+Slider.InputBegan:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+        draggingSlider = true
+        SetStrength(input.Position.X)
+
+    end
+
+end)
+
+Slider.InputEnded:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+        draggingSlider = false
+
+    end
+
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+
+    if draggingSlider then
+
+        if input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseMovement then
+
+            SetStrength(input.Position.X)
+
+        end
+
+    end
+
+end)
+
+--==================================================
+-- AIM ASSIST
+--==================================================
+
+local function GetClosestTarget()
+
+    local closest = nil
+    local shortest = math.huge
+
+    if not LocalPlayer.Character then
+        return nil
+    end
+
+    local root =
+        LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+    if not root then
+        return nil
+    end
+
+    for _,player in ipairs(Players:GetPlayers()) do
+
+        if player ~= LocalPlayer
+        and player.Character then
+
+            local humanoid =
+                player.Character:FindFirstChildOfClass("Humanoid")
+
+            local head =
+                player.Character:FindFirstChild("Head")
+
+            if humanoid
+            and humanoid.Health > 0
+            and head then
+
+                local screenPos, visible =
+                    Camera:WorldToViewportPoint(head.Position)
+
+                if visible then
+
+                    local distance =
+                        (Vector2.new(screenPos.X,screenPos.Y)
+                        -
+                        Vector2.new(
+                            Camera.ViewportSize.X/2,
+                            Camera.ViewportSize.Y/2
+                        )).Magnitude
+
+                    if distance < shortest then
+
+                        shortest = distance
+                        closest = head
+
+                    end
+
+                end
+
+            end
+
+        end
+
+    end
+
+    return closest
+end
+
+CreateToggle("Aim Assist",function(state)
+    AimEnabled = state
+end)
+
+--==================================================
+-- ESP
+--==================================================
+
+local function SetupESP(player)
+
+    if player == LocalPlayer then
+        return
+    end
+
+    local function CharacterAdded(character)
+
+        local old = character:FindFirstChild("RGB_ESP")
+
+        if old then
+            old:Destroy()
+        end
+
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "RGB_ESP"
+        highlight.Parent = character
+
+        highlight.FillTransparency = 0.75
+        highlight.OutlineTransparency = 0
+        highlight.Enabled = EspEnabled
+
+        task.spawn(function()
+
+            while highlight.Parent do
+
+                highlight.OutlineColor = RGBColor()
+                highlight.FillColor = RGBColor()
+
+                task.wait()
+
+            end
+
+        end)
+
+    end
+
+    if player.Character then
+        CharacterAdded(player.Character)
+    end
+
+    player.CharacterAdded:Connect(CharacterAdded)
+
+end
+
+for _,player in ipairs(Players:GetPlayers()) do
+    SetupESP(player)
+end
+
+Players.PlayerAdded:Connect(SetupESP)
+
+CreateToggle("ESP",function(state)
+
+    EspEnabled = state
+
+    for _,player in ipairs(Players:GetPlayers()) do
+
+        if player.Character then
+
+            local esp =
+                player.Character:FindFirstChild("RGB_ESP")
+
+            if esp then
+                esp.Enabled = state
+            end
+
+        end
+
+    end
+
+end)
+
+--==================================================
+-- TOUCH DETECTION
+--==================================================
+
+UserInputService.InputBegan:Connect(function(input,processed)
+
+    if processed then
+        return
+    end
+
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+        IsTouching = true
+
+    end
+
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+        IsTouching = false
+
+    end
+
+end)
+
+--==================================================
+-- AIM LOOP
+--==================================================
+
+RunService.RenderStepped:Connect(function()
+
+    if AimEnabled and IsTouching then
+
+        local target = GetClosestTarget()
+
+        if target then
+
+            local strength = AimStrength / 100
+
+            if strength > 0 then
+
+                local cameraPosition =
+                    Camera.CFrame.Position
+
+                local targetCFrame =
+                    CFrame.new(
+                        cameraPosition,
+                        target.Position
+                    )
+
+                Camera.CFrame =
+                    Camera.CFrame:Lerp(
+                        targetCFrame,
+                        strength
+                    )
+
+            end
+
+        end
+
+    end
+
+end)
+
+--==================================================
+-- MENU BUTTON
+--==================================================
+
+MenuOpenButton.MouseButton1Click:Connect(function()
+
+    MainFrame.Visible = not MainFrame.Visible
+
+end)
+
+--==================================================
+-- MOBILE DRAG
+--==================================================
+
+local dragging = false
+local dragStart
+local startPosition
+
+TopBar.InputBegan:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
         dragging = true
         dragStart = input.Position
-        startPos = panel.Position
+        startPosition = MainFrame.Position
+
+        input.Changed:Connect(function()
+
+            if input.UserInputState ==
+                Enum.UserInputState.End then
+
+                dragging = false
+
+            end
+
+        end)
+
     end
+
 end)
+
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        panel.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
+
+    if not dragging then
+        return
     end
+
+    if input.UserInputType ~= Enum.UserInputType.Touch
+    and input.UserInputType ~= Enum.UserInputType.MouseMovement then
+        return
+    end
+
+    local delta = input.Position - dragStart
+
+    MainFrame.Position = UDim2.new(
+        startPosition.X.Scale,
+        startPosition.X.Offset + delta.X,
+        startPosition.Y.Scale,
+        startPosition.Y.Offset + delta.Y
+    )
+
 end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-local tabs = make("Frame", {
-    Position = UDim2.fromOffset(8, 50),
-    Size = UDim2.new(1, -16, 0, 34),
-    BackgroundTransparency = 1,
-}, panel)
-local tabLayout = make("UIListLayout", {
-    FillDirection = Enum.FillDirection.Horizontal,
-    Padding = UDim.new(0, 4),
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, tabs)
-
-local content = make("ScrollingFrame", {
-    Position = UDim2.fromOffset(8, 92),
-    Size = UDim2.new(1, -16, 1, -100),
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-    ScrollBarThickness = 4,
-    CanvasSize = UDim2.new(),
-    AutomaticCanvasSize = Enum.AutomaticSize.Y,
-}, panel)
-make("UIListLayout", {
-    Padding = UDim.new(0, 7),
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, content)
-make("UIPadding", {
-    PaddingBottom = UDim.new(0, 8),
-    PaddingRight = UDim.new(0, 4),
-}, content)
-
-local pages = {}
-local activePage
-
-local function clearContent()
-    for _, child in ipairs(content:GetChildren()) do
-        if child:IsA("GuiObject") and not child:IsA("UIListLayout")
-            and not child:IsA("UIPadding") then
-            child:Destroy()
-        end
-    end
-end
-
-local function section(text)
-    make("TextLabel", {
-        Size = UDim2.new(1, -4, 0, 24),
-        BackgroundTransparency = 1,
-        Text = text,
-        TextColor3 = Color3.fromRGB(125, 211, 252),
-        TextSize = 13,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    }, content)
-end
-
-local function rowButton(text, callback)
-    local b = make("TextButton", {
-        Size = UDim2.new(1, -4, 0, 34),
-        BackgroundColor3 = Color3.fromRGB(35, 43, 59),
-        Text = text,
-        TextColor3 = Color3.fromRGB(240, 244, 248),
-        TextSize = 13,
-        Font = Enum.Font.GothamMedium,
-        BorderSizePixel = 0,
-    }, content)
-    make("UICorner", {CornerRadius = UDim.new(0, 7)}, b)
-    b.Activated:Connect(callback)
-    return b
-end
-
-local function label(text)
-    make("TextLabel", {
-        Size = UDim2.new(1, -4, 0, 23),
-        BackgroundTransparency = 1,
-        Text = text,
-        TextColor3 = Color3.fromRGB(203, 213, 225),
-        TextSize = 12,
-        Font = Enum.Font.Gotham,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    }, content)
-end
-
-local function sliderRow(title, minVal, maxVal, initial, callback)
-    label(title .. ": " .. tostring(initial))
-    local slider = make("TextButton", {
-        Size = UDim2.new(1, -4, 0, 24),
-        BackgroundColor3 = Color3.fromRGB(51, 65, 85),
-        Text = "Tap to adjust",
-        TextColor3 = Color3.new(1, 1, 1),
-        TextSize = 11,
-        Font = Enum.Font.Gotham,
-        BorderSizePixel = 0,
-    }, content)
-    make("UICorner", {CornerRadius = UDim.new(0, 6)}, slider)
-
-    local value = initial
-    slider.Activated:Connect(function()
-        value = value + math.max(1, math.floor((maxVal - minVal) / 10))
-        if value > maxVal then value = minVal end
-        slider.Text = title .. ": " .. tostring(value)
-        callback(value)
-    end)
-end
-
-local function showPage(name)
-    activePage = name
-    clearContent()
-
-    if name == "Aim Bot" then
-        section("AIM BOT  •  DEMO SETTINGS")
-        rowButton("Aim Bot: " .. (state.aimEnabled and "ON" or "OFF"), function()
-            state.aimEnabled = not state.aimEnabled
-            showPage(name)
-        end)
-        rowButton("Target Part: " .. state.targetPart, function()
-            state.targetPart = state.targetPart == "Head" and "Body" or "Head"
-            showPage(name)
-        end)
-        label("Aim settings are UI-only in this demo.")
-    elseif name == "Aim Power" then
-        section("AIM POWER")
-        sliderRow("Aim Strength (%)", 0, 100, state.aimStrength, function(v)
-            state.aimStrength = v
-        end)
-        sliderRow("POV Size", 60, 360, state.povSize, function(v)
-            state.povSize = v
-        end)
-        sliderRow("POV Transparency (%)", 0, 100,
-            math.floor(state.povTransparency * 100), function(v)
-                state.povTransparency = v / 100
-            end)
-    elseif name == "ESP" then
-        section("ESP OPTIONS  •  TOGGLE SEPARATELY")
-        for espName, enabled in pairs(state.esp) do
-            rowButton(espName .. " ESP: " .. (enabled and "ON" or "OFF"), function()
-                state.esp[espName] = not state.esp[espName]
-                showPage(name)
-            end)
-        end
-        section("ESP COLOR")
-        rowButton("Color Mode: " .. state.colorMode, function()
-            state.colorMode = state.colorMode == "RGB" and "Custom" or "RGB"
-            showPage(name)
-        end)
-        rowButton("Custom Color: Sky Blue", function()
-            state.customColor = state.customColor == Color3.fromRGB(56, 189, 248)
-                and Color3.fromRGB(244, 114, 182)
-                or Color3.fromRGB(56, 189, 248)
-        end)
-        label("Color settings are stored for your own-game implementation.")
-    else
-        section("SOCIAL MEDIA")
-        label("TikTok: @challo_boy")
-        label("YouTube: @challo_boy")
-        label("Thank you for using my script, enjoy 👍")
-    end
-end
-
-local tabNames = {"Aim Bot", "Aim Power", "ESP", "Social"}
-for i, name in ipairs(tabNames) do
-    local button = make("TextButton", {
-        Size = UDim2.fromOffset(name == "Aim Power" and 82 or 65, 32),
-        BackgroundColor3 = Color3.fromRGB(35, 43, 59),
-        Text = name,
-        TextColor3 = Color3.new(1, 1, 1),
-        TextSize = 11,
-        Font = Enum.Font.GothamMedium,
-        BorderSizePixel = 0,
-        LayoutOrder = i,
-    }, tabs)
-    make("UICorner", {CornerRadius = UDim.new(0, 7)}, button)
-    button.Activated:Connect(function()
-        showPage(name == "Social" and "Social Media" or name)
-    end)
-end
-
--- RGB color preview cycle for the UI accent.
-local hue = 0
-RunService.RenderStepped:Connect(function(dt)
-    if not gui.Parent then return end
-    if state.colorMode == "RGB" then
-        hue = (hue + dt * 0.12) % 1
-        local color = Color3.fromHSV(hue, 0.75, 1)
-        top.BackgroundColor3 = color
-        reopen.BackgroundColor3 = color
-    else
-        top.BackgroundColor3 = state.customColor
-        reopen.BackgroundColor3 = state.customColor
-    end
-end)
-
-showPage("Aim Bot")
