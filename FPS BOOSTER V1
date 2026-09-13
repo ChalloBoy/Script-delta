@@ -1,1 +1,1 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ChalloBoy/Script-delta/refs/heads/main/FPS%20BOOSTER%20V1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ChalloBoy/Script-delta/refs/heads/main/FPS%20BOOSTER"))()
