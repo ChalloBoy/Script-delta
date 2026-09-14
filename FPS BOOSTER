@@ -1,954 +1,290 @@
---// FPS BOOSTER SUPER LOW - CHALLO_BOY
---// TRUE FPS COUNTER - NO FAKE NUMBER
---// Character & animations protected
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
-local MaterialService = game:GetService("MaterialService")
-
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
-
---==================================================
--- CONFIG
---==================================================
-
-local INTRO_SOUND_ID = "rbxassetid://107089652181213"
+local Players = game:GetService("\080\108\097\121\101\114\115")local RunService = game:GetService("\082\117\110\083\101\114\118\105\099\101")local TweenService = game:GetService("\084\119\101\101\110\083\101\114\118\105\099\101")local Lighting = game:GetService("\076\105\103\104\116\105\110\103")local Workspace = game:GetService("\087\111\114\107\115\112\097\099\101")local MaterialService = game:GetService("\077\097\116\101\114\105\097\108\083\101\114\118\105\099\101")local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("\080\108\097\121\101\114\071\117\105")local INTRO_SOUND_ID = "\114\098\120\097\115\115\101\116\105\100\058\047\047\049\048\055\048\056\057\054\053\050\049\056\049\050\049\051"
 local FOLLOW_DELAY = 20
-
---==================================================
--- GUI
---==================================================
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ChalloBoyFPSBooster"
+local ScreenGui = Instance.new("\083\099\114\101\101\110\071\117\105")ScreenGui.Name = "\067\104\097\108\108\111\066\111\121\070\080\083\066\111\111\115\116\101\114"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = PlayerGui
-
---==================================================
--- RGB
---==================================================
-
-local RGBObjects = {}
-
-local function addRGB(object, property)
-	table.insert(RGBObjects, {
-		Object = object,
-		Property = property
-	})
-end
-
-RunService.RenderStepped:Connect(function()
-	local hue = (os.clock() * 0.15) % 1
-	local color = Color3.fromHSV(hue, 0.9, 1)
-
-	for _, data in ipairs(RGBObjects) do
-		if data.Object and data.Object.Parent then
-			pcall(function()
-				data.Object[data.Property] = color
-			end)
-		end
-	end
-end)
-
---==================================================
--- DRAG FUNCTION
---==================================================
-
-local function makeDraggable(frame)
-	local dragging = false
-	local dragStart
-	local startPos
-
-	frame.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
-
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
-	end)
-
-	frame.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dragStart = dragStart or input.Position
-		end
-	end)
-
-	game:GetService("UserInputService").InputChanged:Connect(function(input)
-		if not dragging then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
-
-			local delta = input.Position - dragStart
-
-			frame.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-		end
-	end)
-end
-
---==================================================
--- INTRO
---==================================================
-
-local Intro = Instance.new("Frame")
-Intro.Size = UDim2.fromScale(1, 1)
-Intro.BackgroundColor3 = Color3.fromRGB(5, 5, 8)
-Intro.BackgroundTransparency = 1
+local RGBObjects ={}local function addRGB(object,property)table.insert(RGBObjects,{Object = object,Property = property})end
+RunService.RenderStepped:Connect(function()local hue =(os.clock()* 0.15)% 1
+ local color = Color3.fromHSV(hue,0.9,1)for _,data in ipairs(RGBObjects)do
+ if data.Object and data.Object.Parent then
+ pcall(function()data.Object[data.Property] = color
+ end)end
+ end
+end)local function makeDraggable(frame)local dragging = false
+ local dragStart
+ local startPos
+ frame.InputBegan:Connect(function(input)if input.UserInputType == Enum.UserInputType.MouseButton1
+ or input.UserInputType == Enum.UserInputType.Touch then
+ dragging = true
+ dragStart = input.Position
+ startPos = frame.Position
+ input.Changed:Connect(function()if input.UserInputState == Enum.UserInputState.End then
+ dragging = false
+ end
+ end)end
+ end)frame.InputChanged:Connect(function(input)if input.UserInputType == Enum.UserInputType.MouseMovement
+ or input.UserInputType == Enum.UserInputType.Touch then
+ dragStart = dragStart or input.Position
+ end
+ end)game:GetService("\085\115\101\114\073\110\112\117\116\083\101\114\118\105\099\101").InputChanged:Connect(function(input)if not dragging then
+ return
+ end
+ if input.UserInputType == Enum.UserInputType.MouseMovement
+ or input.UserInputType == Enum.UserInputType.Touch then
+ local delta = input.Position - dragStart
+ frame.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset + delta.X,startPos.Y.Scale,startPos.Y.Offset + delta.Y)end
+ end)end
+local Intro = Instance.new("\070\114\097\109\101")Intro.Size = UDim2.fromScale(1,1)Intro.BackgroundColor3 = Color3.fromRGB(5,5,8)Intro.BackgroundTransparency = 1
 Intro.Parent = ScreenGui
-
-local IntroGradient = Instance.new("UIGradient")
-IntroGradient.Rotation = 45
-IntroGradient.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(5, 5, 10)),
-	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(15, 15, 25)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 5, 10))
-})
-IntroGradient.Parent = Intro
-
-local Avatar = Instance.new("ImageLabel")
-Avatar.Size = UDim2.fromOffset(120, 120)
-Avatar.Position = UDim2.new(0.5, -60, 0.5, -115)
-Avatar.BackgroundTransparency = 1
+local IntroGradient = Instance.new("\085\073\071\114\097\100\105\101\110\116")IntroGradient.Rotation = 45
+IntroGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(5,5,10)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(15,15,25)),ColorSequenceKeypoint.new(1,Color3.fromRGB(5,5,10))})IntroGradient.Parent = Intro
+local Avatar = Instance.new("\073\109\097\103\101\076\097\098\101\108")Avatar.Size = UDim2.fromOffset(120,120)Avatar.Position = UDim2.new(0.5,-60,0.5,-115)Avatar.BackgroundTransparency = 1
 Avatar.ImageTransparency = 1
 Avatar.Parent = Intro
-
-local AvatarCorner = Instance.new("UICorner")
-AvatarCorner.CornerRadius = UDim.new(1, 0)
-AvatarCorner.Parent = Avatar
-
-local AvatarStroke = Instance.new("UIStroke")
-AvatarStroke.Thickness = 4
+local AvatarCorner = Instance.new("\085\073\067\111\114\110\101\114")AvatarCorner.CornerRadius = UDim.new(1,0)AvatarCorner.Parent = Avatar
+local AvatarStroke = Instance.new("\085\073\083\116\114\111\107\101")AvatarStroke.Thickness = 4
 AvatarStroke.Transparency = 0.05
 AvatarStroke.Parent = Avatar
-addRGB(AvatarStroke, "Color")
-
-local Welcome = Instance.new("TextLabel")
-Welcome.Size = UDim2.new(1, -30, 0, 50)
-Welcome.Position = UDim2.new(0, 15, 0.5, 15)
-Welcome.BackgroundTransparency = 1
+addRGB(AvatarStroke,"\067\111\108\111\114")local Welcome = Instance.new("\084\101\120\116\076\097\098\101\108")Welcome.Size = UDim2.new(1,-30,0,50)Welcome.Position = UDim2.new(0,15,0.5,15)Welcome.BackgroundTransparency = 1
 Welcome.Text = ""
 Welcome.TextScaled = true
 Welcome.Font = Enum.Font.GothamBold
-Welcome.TextColor3 = Color3.new(1, 1, 1)
-Welcome.Parent = Intro
-
-local Username = Instance.new("TextLabel")
-Username.Size = UDim2.new(1, -30, 0, 35)
-Username.Position = UDim2.new(0, 15, 0.5, 65)
-Username.BackgroundTransparency = 1
-Username.Text = "@" .. Player.Name
+Welcome.TextColor3 = Color3.new(1,1,1)Welcome.Parent = Intro
+local Username = Instance.new("\084\101\120\116\076\097\098\101\108")Username.Size = UDim2.new(1,-30,0,35)Username.Position = UDim2.new(0,15,0.5,65)Username.BackgroundTransparency = 1
+Username.Text = "\064" .. Player.Name
 Username.TextScaled = true
 Username.Font = Enum.Font.GothamMedium
 Username.TextTransparency = 1
 Username.Parent = Intro
-addRGB(Username, "TextColor3")
-
---==================================================
--- INTRO SOUND
---==================================================
-
-local IntroSound = Instance.new("Sound")
-IntroSound.Name = "IntroSound"
+addRGB(Username,"\084\101\120\116\067\111\108\111\114\051")local IntroSound = Instance.new("\083\111\117\110\100")IntroSound.Name = "\073\110\116\114\111\083\111\117\110\100"
 IntroSound.SoundId = INTRO_SOUND_ID
 IntroSound.Volume = 0.7
 IntroSound.Parent = ScreenGui
-
-pcall(function()
-	IntroSound:Play()
-end)
-
---==================================================
--- GET AVATAR
---==================================================
-
-task.spawn(function()
-	local success, image = pcall(function()
-		local content, ready = Players:GetUserThumbnailAsync(
-			Player.UserId,
-			Enum.ThumbnailType.HeadShot,
-			Enum.ThumbnailSize.Size420x420
-		)
-
-		return content
-	end)
-
-	if success and image then
-		Avatar.Image = image
-	end
-end)
-
---==================================================
--- INTRO EFFECT
---==================================================
-
-TweenService:Create(
-	Intro,
-	TweenInfo.new(0.8, Enum.EasingStyle.Quad),
-	{BackgroundTransparency = 0}
-):Play()
-
-task.wait(0.4)
-
-TweenService:Create(
-	Avatar,
-	TweenInfo.new(0.8, Enum.EasingStyle.Back),
-	{
-		ImageTransparency = 0,
-		Size = UDim2.fromOffset(140, 140),
-		Position = UDim2.new(0.5, -70, 0.5, -125)
-	}
-):Play()
-
-task.wait(0.5)
-
---==================================================
--- WELCOME TYPING
---==================================================
-
-local welcomeText = "WELCOME, " .. Player.Name
-
-for i = 1, #welcomeText do
-	Welcome.Text = string.sub(welcomeText, 1, i)
-	task.wait(0.035)
-end
-
-TweenService:Create(
-	Username,
-	TweenInfo.new(0.5),
-	{TextTransparency = 0}
-):Play()
-
-task.wait(1.7)
-
-TweenService:Create(
-	Intro,
-	TweenInfo.new(0.7),
-	{BackgroundTransparency = 1}
-):Play()
-
-TweenService:Create(
-	Avatar,
-	TweenInfo.new(0.5),
-	{ImageTransparency = 1}
-):Play()
-
-TweenService:Create(
-	Welcome,
-	TweenInfo.new(0.4),
-	{TextTransparency = 1}
-):Play()
-
-TweenService:Create(
-	Username,
-	TweenInfo.new(0.4),
-	{TextTransparency = 1}
-):Play()
-
-task.wait(0.8)
-Intro:Destroy()
-
---==================================================
--- MAIN FPS UI
---==================================================
-
-local Main = Instance.new("Frame")
-Main.Name = "MainFPSPanel"
-Main.Size = UDim2.fromOffset(300, 235)
-Main.Position = UDim2.new(0.5, -150, 0.5, -117)
-Main.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-Main.BackgroundTransparency = 0.08
+pcall(function()IntroSound:Play()end)task.spawn(function()local success,image = pcall(function()local content,ready = Players:GetUserThumbnailAsync(Player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size420x420)return content
+ end)if success and image then
+ Avatar.Image = image
+ end
+end)TweenService:Create(Intro,TweenInfo.new(0.8,Enum.EasingStyle.Quad),{BackgroundTransparency = 0}):Play()task.wait(0.4)TweenService:Create(Avatar,TweenInfo.new(0.8,Enum.EasingStyle.Back),{ImageTransparency = 0,Size = UDim2.fromOffset(140,140),Position = UDim2.new(0.5,-70,0.5,-125)}):Play()task.wait(0.5)local welcomeText = "\087\069\076\067\079\077\069\044\032" .. Player.Name
+for i = 1,#welcomeText do
+ Welcome.Text = string.sub(welcomeText,1,i)task.wait(0.035)end
+TweenService:Create(Username,TweenInfo.new(0.5),{TextTransparency = 0}):Play()task.wait(1.7)TweenService:Create(Intro,TweenInfo.new(0.7),{BackgroundTransparency = 1}):Play()TweenService:Create(Avatar,TweenInfo.new(0.5),{ImageTransparency = 1}):Play()TweenService:Create(Welcome,TweenInfo.new(0.4),{TextTransparency = 1}):Play()TweenService:Create(Username,TweenInfo.new(0.4),{TextTransparency = 1}):Play()task.wait(0.8)Intro:Destroy()local Main = Instance.new("\070\114\097\109\101")Main.Name = "\077\097\105\110\070\080\083\080\097\110\101\108"
+Main.Size = UDim2.fromOffset(300,235)Main.Position = UDim2.new(0.5,-150,0.5,-117)Main.BackgroundColor3 = Color3.fromRGB(10,10,15)Main.BackgroundTransparency = 0.08
 Main.Parent = ScreenGui
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 18)
-MainCorner.Parent = Main
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Thickness = 2
+local MainCorner = Instance.new("\085\073\067\111\114\110\101\114")MainCorner.CornerRadius = UDim.new(0,18)MainCorner.Parent = Main
+local MainStroke = Instance.new("\085\073\083\116\114\111\107\101")MainStroke.Thickness = 2
 MainStroke.Parent = Main
-addRGB(MainStroke, "Color")
-
-makeDraggable(Main)
-
---==================================================
--- PROFILE
---==================================================
-
-local Profile = Instance.new("ImageLabel")
-Profile.Size = UDim2.fromOffset(48, 48)
-Profile.Position = UDim2.fromOffset(18, 18)
-Profile.BackgroundTransparency = 1
+addRGB(MainStroke,"\067\111\108\111\114")makeDraggable(Main)local Profile = Instance.new("\073\109\097\103\101\076\097\098\101\108")Profile.Size = UDim2.fromOffset(48,48)Profile.Position = UDim2.fromOffset(18,18)Profile.BackgroundTransparency = 1
 Profile.Image = Avatar.Image
 Profile.Parent = Main
-
-local ProfileCorner = Instance.new("UICorner")
-ProfileCorner.CornerRadius = UDim.new(1, 0)
-ProfileCorner.Parent = Profile
-
-local ProfileStroke = Instance.new("UIStroke")
-ProfileStroke.Thickness = 2
+local ProfileCorner = Instance.new("\085\073\067\111\114\110\101\114")ProfileCorner.CornerRadius = UDim.new(1,0)ProfileCorner.Parent = Profile
+local ProfileStroke = Instance.new("\085\073\083\116\114\111\107\101")ProfileStroke.Thickness = 2
 ProfileStroke.Parent = Profile
-addRGB(ProfileStroke, "Color")
-
-local NameLabel = Instance.new("TextLabel")
-NameLabel.Size = UDim2.new(1, -85, 0, 28)
-NameLabel.Position = UDim2.fromOffset(78, 18)
-NameLabel.BackgroundTransparency = 1
+addRGB(ProfileStroke,"\067\111\108\111\114")local NameLabel = Instance.new("\084\101\120\116\076\097\098\101\108")NameLabel.Size = UDim2.new(1,-85,0,28)NameLabel.Position = UDim2.fromOffset(78,18)NameLabel.BackgroundTransparency = 1
 NameLabel.Text = Player.Name
 NameLabel.TextXAlignment = Enum.TextXAlignment.Left
 NameLabel.Font = Enum.Font.GothamBold
 NameLabel.TextSize = 19
-NameLabel.TextColor3 = Color3.new(1, 1, 1)
-NameLabel.Parent = Main
-
---==================================================
--- TRUE FPS DISPLAY
---==================================================
-
-local CurrentFPS = Instance.new("TextLabel")
-CurrentFPS.Size = UDim2.new(1, -36, 0, 45)
-CurrentFPS.Position = UDim2.fromOffset(18, 78)
-CurrentFPS.BackgroundTransparency = 1
-CurrentFPS.Text = "Current FPS: --"
+NameLabel.TextColor3 = Color3.new(1,1,1)NameLabel.Parent = Main
+local CurrentFPS = Instance.new("\084\101\120\116\076\097\098\101\108")CurrentFPS.Size = UDim2.new(1,-36,0,45)CurrentFPS.Position = UDim2.fromOffset(18,78)CurrentFPS.BackgroundTransparency = 1
+CurrentFPS.Text = "\067\117\114\114\101\110\116\032\070\080\083\058\032\045\045"
 CurrentFPS.TextScaled = true
 CurrentFPS.Font = Enum.Font.GothamBold
 CurrentFPS.Parent = Main
-addRGB(CurrentFPS, "TextColor3")
-
-local Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(1, -36, 0, 25)
-Status.Position = UDim2.fromOffset(18, 123)
-Status.BackgroundTransparency = 1
-Status.Text = "Waiting..."
+addRGB(CurrentFPS,"\084\101\120\116\067\111\108\111\114\051")local Status = Instance.new("\084\101\120\116\076\097\098\101\108")Status.Size = UDim2.new(1,-36,0,25)Status.Position = UDim2.fromOffset(18,123)Status.BackgroundTransparency = 1
+Status.Text = "\087\097\105\116\105\110\103\046\046\046"
 Status.TextScaled = true
 Status.Font = Enum.Font.GothamMedium
-Status.TextColor3 = Color3.fromRGB(190, 190, 190)
-Status.Parent = Main
-
---==================================================
--- BOOST BUTTON
---==================================================
-
-local BoostButton = Instance.new("TextButton")
-BoostButton.Size = UDim2.new(1, -36, 0, 52)
-BoostButton.Position = UDim2.fromOffset(18, 165)
-BoostButton.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-BoostButton.Text = "BOOST FPS"
+Status.TextColor3 = Color3.fromRGB(190,190,190)Status.Parent = Main
+local BoostButton = Instance.new("\084\101\120\116\066\117\116\116\111\110")BoostButton.Size = UDim2.new(1,-36,0,52)BoostButton.Position = UDim2.fromOffset(18,165)BoostButton.BackgroundColor3 = Color3.fromRGB(20,20,28)BoostButton.Text = "\066\079\079\083\084\032\070\080\083"
 BoostButton.TextScaled = true
 BoostButton.Font = Enum.Font.GothamBold
-BoostButton.TextColor3 = Color3.new(1, 1, 1)
-BoostButton.AutoButtonColor = false
+BoostButton.TextColor3 = Color3.new(1,1,1)BoostButton.AutoButtonColor = false
 BoostButton.Parent = Main
-
-local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 13)
-ButtonCorner.Parent = BoostButton
-
-local ButtonStroke = Instance.new("UIStroke")
-ButtonStroke.Thickness = 2
+local ButtonCorner = Instance.new("\085\073\067\111\114\110\101\114")ButtonCorner.CornerRadius = UDim.new(0,13)ButtonCorner.Parent = BoostButton
+local ButtonStroke = Instance.new("\085\073\083\116\114\111\107\101")ButtonStroke.Thickness = 2
 ButtonStroke.Parent = BoostButton
-addRGB(ButtonStroke, "Color")
-
---==================================================
--- HONEST FPS MEASUREMENT
---==================================================
-
-local currentFPSValue = 0
-
-local function startTrueFPS(label)
-	local frames = 0
-	local elapsed = 0
-
-	return RunService.RenderStepped:Connect(function(deltaTime)
-		if not label or not label.Parent then
-			return
-		end
-
-		frames += 1
-		elapsed += deltaTime
-
-		if elapsed >= 1 then
-			local realFPS = frames / elapsed
-
-			-- NO FAKE NUMBER
-			currentFPSValue = realFPS
-
-			label.Text = string.format(
-				"Current FPS: %.0f",
-				realFPS
-			)
-
-			frames = 0
-			elapsed = 0
-		end
-	end)
+addRGB(ButtonStroke,"\067\111\108\111\114")local currentFPSValue = 0
+local function startTrueFPS(label)local frames = 0
+ local elapsed = 0
+ return RunService.RenderStepped:Connect(function(deltaTime)if not label or not label.Parent then
+ return
+ end
+ frames += 1
+ elapsed += deltaTime
+ if elapsed >= 1 then
+ local realFPS = frames / elapsed
+ currentFPSValue = realFPS
+ label.Text = string.format("\067\117\114\114\101\110\116\032\070\080\083\058\032\037\046\048\102",realFPS)frames = 0
+ elapsed = 0
+ end
+ end)end
+local MainFPSConnection = startTrueFPS(CurrentFPS)local function isCharacterObject(instance)for _,plr in ipairs(Players:GetPlayers())do
+ if plr.Character and instance:IsDescendantOf(plr.Character)then
+ return true
+ end
+ end
+ return false
 end
-
-local MainFPSConnection = startTrueFPS(CurrentFPS)
-
---==================================================
--- CHARACTER PROTECTION
---==================================================
-
-local function isCharacterObject(instance)
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr.Character and instance:IsDescendantOf(plr.Character) then
-			return true
-		end
-	end
-
-	return false
+local function isPlayerCharacterModel(instance)if not instance:IsA("\077\111\100\101\108")then
+ return false
+ end
+ return instance:FindFirstChildOfClass("\072\117\109\097\110\111\105\100")~= nil
 end
-
-local function isPlayerCharacterModel(instance)
-	if not instance:IsA("Model") then
-		return false
-	end
-
-	return instance:FindFirstChildOfClass("Humanoid") ~= nil
+local function optimizeObject(instance)if not instance or not instance.Parent then
+ return
+ end
+ if isCharacterObject(instance)then
+ return
+ end
+ if instance:IsA("\080\097\114\116\105\099\108\101\069\109\105\116\116\101\114")or instance:IsA("\084\114\097\105\108")or instance:IsA("\066\101\097\109")or instance:IsA("\083\109\111\107\101")or instance:IsA("\070\105\114\101")or instance:IsA("\083\112\097\114\107\108\101\115")then
+ pcall(function()instance.Enabled = false
+ end)return
+ end
+ if instance:IsA("\080\111\105\110\116\076\105\103\104\116")or instance:IsA("\083\112\111\116\076\105\103\104\116")or instance:IsA("\083\117\114\102\097\099\101\076\105\103\104\116")then
+ pcall(function()instance.Enabled = false
+ instance.Shadows = false
+ end)return
+ end
+ if instance:IsA("\066\108\111\111\109\069\102\102\101\099\116")or instance:IsA("\066\108\117\114\069\102\102\101\099\116")or instance:IsA("\067\111\108\111\114\067\111\114\114\101\099\116\105\111\110\069\102\102\101\099\116")or instance:IsA("\068\101\112\116\104\079\102\070\105\101\108\100\069\102\102\101\099\116")or instance:IsA("\083\117\110\082\097\121\115\069\102\102\101\099\116")then
+ pcall(function()instance.Enabled = false
+ end)return
+ end
+ if instance:IsA("\083\117\114\102\097\099\101\065\112\112\101\097\114\097\110\099\101")then
+ pcall(function()instance:Destroy()end)return
+ end
+ if instance:IsA("\068\101\099\097\108")or instance:IsA("\084\101\120\116\117\114\101")then
+ pcall(function()instance.Transparency = 1
+ end)return
+ end
+ if instance:IsA("\066\097\115\101\080\097\114\116")then
+ pcall(function()instance.Material = Enum.Material.Plastic
+ instance.MaterialVariant = ""
+ instance.Reflectance = 0
+ instance.CastShadow = false
+ end)end
+ if instance:IsA("\077\101\115\104\080\097\114\116")then
+ pcall(function()instance.RenderFidelity = Enum.RenderFidelity.Performance
+ instance.Material = Enum.Material.Plastic
+ instance.MaterialVariant = ""
+ instance.Reflectance = 0
+ instance.CastShadow = false
+ end)return
+ end
+ if instance:IsA("\077\111\100\101\108")then
+ if isPlayerCharacterModel(instance)then
+ return
+ end
+ pcall(function()instance.LevelOfDetail = Enum.ModelLevelOfDetail.Streaming
+ end)return
+ end
 end
-
---==================================================
--- MAP OPTIMIZER
---==================================================
-
-local function optimizeObject(instance)
-	if not instance or not instance.Parent then
-		return
-	end
-
-	-- NEVER TOUCH CHARACTER
-	if isCharacterObject(instance) then
-		return
-	end
-
-	-- Particle effects
-	if instance:IsA("ParticleEmitter")
-		or instance:IsA("Trail")
-		or instance:IsA("Beam")
-		or instance:IsA("Smoke")
-		or instance:IsA("Fire")
-		or instance:IsA("Sparkles") then
-
-		pcall(function()
-			instance.Enabled = false
-		end)
-
-		return
-	end
-
-	-- Lights
-	if instance:IsA("PointLight")
-		or instance:IsA("SpotLight")
-		or instance:IsA("SurfaceLight") then
-
-		pcall(function()
-			instance.Enabled = false
-			instance.Shadows = false
-		end)
-
-		return
-	end
-
-	-- Post processing
-	if instance:IsA("BloomEffect")
-		or instance:IsA("BlurEffect")
-		or instance:IsA("ColorCorrectionEffect")
-		or instance:IsA("DepthOfFieldEffect")
-		or instance:IsA("SunRaysEffect") then
-
-		pcall(function()
-			instance.Enabled = false
-		end)
-
-		return
-	end
-
-	-- SurfaceAppearance
-	if instance:IsA("SurfaceAppearance") then
-		pcall(function()
-			instance:Destroy()
-		end)
-
-		return
-	end
-
-	-- Map decals/textures
-	if instance:IsA("Decal") or instance:IsA("Texture") then
-		pcall(function()
-			instance.Transparency = 1
-		end)
-
-		return
-	end
-
-	-- Base parts
-	if instance:IsA("BasePart") then
-		pcall(function()
-			instance.Material = Enum.Material.Plastic
-			instance.MaterialVariant = ""
-			instance.Reflectance = 0
-			instance.CastShadow = false
-		end)
-	end
-
-	-- MeshParts
-	if instance:IsA("MeshPart") then
-		pcall(function()
-			instance.RenderFidelity = Enum.RenderFidelity.Performance
-			instance.Material = Enum.Material.Plastic
-			instance.MaterialVariant = ""
-			instance.Reflectance = 0
-			instance.CastShadow = false
-		end)
-
-		return
-	end
-
-	-- Models
-	if instance:IsA("Model") then
-		if isPlayerCharacterModel(instance) then
-			return
-		end
-
-		pcall(function()
-			instance.LevelOfDetail = Enum.ModelLevelOfDetail.Streaming
-		end)
-
-		return
-	end
+local function optimizeTerrain()local terrain = Workspace:FindFirstChildOfClass("\084\101\114\114\097\105\110")if not terrain then
+ return
+ end
+ pcall(function()terrain.Decoration = false
+ end)pcall(function()terrain.WaterWaveSize = 0
+ terrain.WaterWaveSpeed = 0
+ terrain.WaterReflectance = 0
+ terrain.WaterTransparency = 0
+ end)end
+local function optimizeLighting()pcall(function()Lighting.GlobalShadows = false
+ end)pcall(function()Lighting.ShadowSoftness = 0
+ end)pcall(function()Lighting.FogEnd = 100000
+ end)pcall(function()Lighting.Brightness = 1
+ end)pcall(function()Lighting.EnvironmentDiffuseScale = 0
+ end)pcall(function()Lighting.EnvironmentSpecularScale = 0
+ end)for _,child in ipairs(Lighting:GetChildren())do
+ if child:IsA("\080\111\115\116\069\102\102\101\099\116")then
+ pcall(function()child.Enabled = false
+ end)end
+ end
 end
-
---==================================================
--- TERRAIN OPTIMIZATION
---==================================================
-
-local function optimizeTerrain()
-	local terrain = Workspace:FindFirstChildOfClass("Terrain")
-
-	if not terrain then
-		return
-	end
-
-	pcall(function()
-		terrain.Decoration = false
-	end)
-
-	pcall(function()
-		terrain.WaterWaveSize = 0
-		terrain.WaterWaveSpeed = 0
-		terrain.WaterReflectance = 0
-		terrain.WaterTransparency = 0
-	end)
+local function optimizeMaterials()for _,object in ipairs(MaterialService:GetChildren())do
+ pcall(function()object:Destroy()end)end
+ pcall(function()MaterialService.Use2022Materials = false
+ end)end
+local function tryLowGraphics()pcall(function()settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+ end)pcall(function()settings().Rendering.QualityLevel = 1
+ end)pcall(function()settings().Rendering.MeshPartDetailLevel =
+ Enum.MeshPartDetailLevel.Level04
+ end)end
+local function optimizeEverything()Status.Text = "\079\112\116\105\109\105\122\105\110\103\032\109\097\112\046\046\046"
+ optimizeLighting()optimizeTerrain()optimizeMaterials()tryLowGraphics()local descendants = Workspace:GetDescendants()for i,instance in ipairs(descendants)do
+ optimizeObject(instance)if i % 250 == 0 then
+ task.wait()end
+ end
+ Status.Text = "\079\112\116\105\109\105\122\097\116\105\111\110\032\099\111\109\112\108\101\116\101"
 end
-
---==================================================
--- LIGHTING OPTIMIZATION
---==================================================
-
-local function optimizeLighting()
-	pcall(function()
-		Lighting.GlobalShadows = false
-	end)
-
-	pcall(function()
-		Lighting.ShadowSoftness = 0
-	end)
-
-	pcall(function()
-		Lighting.FogEnd = 100000
-	end)
-
-	pcall(function()
-		Lighting.Brightness = 1
-	end)
-
-	pcall(function()
-		Lighting.EnvironmentDiffuseScale = 0
-	end)
-
-	pcall(function()
-		Lighting.EnvironmentSpecularScale = 0
-	end)
-
-	for _, child in ipairs(Lighting:GetChildren()) do
-		if child:IsA("PostEffect") then
-			pcall(function()
-				child.Enabled = false
-			end)
-		end
-	end
-end
-
---==================================================
--- MATERIAL OPTIMIZATION
---==================================================
-
-local function optimizeMaterials()
-	for _, object in ipairs(MaterialService:GetChildren()) do
-		pcall(function()
-			object:Destroy()
-		end)
-	end
-
-	pcall(function()
-		MaterialService.Use2022Materials = false
-	end)
-end
-
---==================================================
--- LOW GRAPHICS SETTINGS
---==================================================
-
-local function tryLowGraphics()
-	-- These are optional and may not be available
-	-- in a normal Roblox LocalScript.
-
-	pcall(function()
-		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-	end)
-
-	pcall(function()
-		settings().Rendering.QualityLevel = 1
-	end)
-
-	pcall(function()
-		settings().Rendering.MeshPartDetailLevel =
-			Enum.MeshPartDetailLevel.Level04
-	end)
-end
-
---==================================================
--- OPTIMIZE ALL
---==================================================
-
-local function optimizeEverything()
-	Status.Text = "Optimizing map..."
-
-	optimizeLighting()
-	optimizeTerrain()
-	optimizeMaterials()
-	tryLowGraphics()
-
-	local descendants = Workspace:GetDescendants()
-
-	for i, instance in ipairs(descendants) do
-		optimizeObject(instance)
-
-		-- Prevent one giant frame spike while scanning huge maps
-		if i % 250 == 0 then
-			task.wait()
-		end
-	end
-
-	Status.Text = "Optimization complete"
-end
-
---==================================================
--- AUTO OPTIMIZE NEW OBJECTS
---==================================================
-
-Workspace.DescendantAdded:Connect(function(instance)
-	task.defer(function()
-		if instance and instance.Parent then
-			optimizeObject(instance)
-		end
-	end)
-end)
-
---==================================================
--- NOTIFICATION SYSTEM
---==================================================
-
-local function createNotification(text, duration)
-	local Notification = Instance.new("Frame")
-	Notification.Size = UDim2.fromOffset(330, 70)
-	Notification.Position = UDim2.new(0.5, -165, 0, -90)
-	Notification.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-	Notification.BackgroundTransparency = 0.05
-	Notification.Parent = ScreenGui
-
-	local Corner = Instance.new("UICorner")
-	Corner.CornerRadius = UDim.new(0, 15)
-	Corner.Parent = Notification
-
-	local Stroke = Instance.new("UIStroke")
-	Stroke.Thickness = 2
-	Stroke.Parent = Notification
-	addRGB(Stroke, "Color")
-
-	local Label = Instance.new("TextLabel")
-	Label.Size = UDim2.new(1, -20, 1, -10)
-	Label.Position = UDim2.fromOffset(10, 5)
-	Label.BackgroundTransparency = 1
-	Label.Text = text
-	Label.TextScaled = true
-	Label.Font = Enum.Font.GothamBold
-	Label.TextColor3 = Color3.new(1, 1, 1)
-	Label.Parent = Notification
-
-	local showTween = TweenService:Create(
-		Notification,
-		TweenInfo.new(0.45, Enum.EasingStyle.Back),
-		{
-			Position = UDim2.new(0.5, -165, 0, 25)
-		}
-	)
-
-	showTween:Play()
-
-	task.wait(duration or 3)
-
-	local hideTween = TweenService:Create(
-		Notification,
-		TweenInfo.new(0.4, Enum.EasingStyle.Quad),
-		{
-			Position = UDim2.new(0.5, -165, 0, -90)
-		}
-	)
-
-	hideTween:Play()
-	hideTween.Completed:Wait()
-
-	Notification:Destroy()
-end
-
---==================================================
--- BOOST PROCESS
---==================================================
-
+Workspace.DescendantAdded:Connect(function(instance)task.defer(function()if instance and instance.Parent then
+ optimizeObject(instance)end
+ end)end)local function createNotification(text,duration)local Notification = Instance.new("\070\114\097\109\101")Notification.Size = UDim2.fromOffset(330,70)Notification.Position = UDim2.new(0.5,-165,0,-90)Notification.BackgroundColor3 = Color3.fromRGB(10,10,15)Notification.BackgroundTransparency = 0.05
+ Notification.Parent = ScreenGui
+ local Corner = Instance.new("\085\073\067\111\114\110\101\114")Corner.CornerRadius = UDim.new(0,15)Corner.Parent = Notification
+ local Stroke = Instance.new("\085\073\083\116\114\111\107\101")Stroke.Thickness = 2
+ Stroke.Parent = Notification
+ addRGB(Stroke,"\067\111\108\111\114")local Label = Instance.new("\084\101\120\116\076\097\098\101\108")Label.Size = UDim2.new(1,-20,1,-10)Label.Position = UDim2.fromOffset(10,5)Label.BackgroundTransparency = 1
+ Label.Text = text
+ Label.TextScaled = true
+ Label.Font = Enum.Font.GothamBold
+ Label.TextColor3 = Color3.new(1,1,1)Label.Parent = Notification
+ local showTween = TweenService:Create(Notification,TweenInfo.new(0.45,Enum.EasingStyle.Back),{Position = UDim2.new(0.5,-165,0,25)})showTween:Play()task.wait(duration or 3)local hideTween = TweenService:Create(Notification,TweenInfo.new(0.4,Enum.EasingStyle.Quad),{Position = UDim2.new(0.5,-165,0,-90)})hideTween:Play()hideTween.Completed:Wait()Notification:Destroy()end
 local boosting = false
-
-BoostButton.MouseButton1Click:Connect(function()
-	if boosting then
-		return
-	end
-
-	boosting = true
-	BoostButton.Active = false
-	BoostButton.Text = "BOOSTING..."
-
-	-- Remove main UI immediately after click
-	Main.Visible = false
-
-	task.spawn(function()
-		local loading = Instance.new("Frame")
-		loading.Size = UDim2.fromOffset(340, 95)
-		loading.Position = UDim2.new(0.5, -170, 0, -120)
-		loading.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-		loading.Parent = ScreenGui
-
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 18)
-		corner.Parent = loading
-
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 2
-		stroke.Parent = loading
-		addRGB(stroke, "Color")
-
-		local text = Instance.new("TextLabel")
-		text.Size = UDim2.new(1, -20, 0, 40)
-		text.Position = UDim2.fromOffset(10, 10)
-		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.GothamBold
-		text.TextSize = 22
-		text.TextColor3 = Color3.new(1, 1, 1)
-		text.Text = "Loading FPS Booster"
-		text.Parent = loading
-
-		local barBackground = Instance.new("Frame")
-		barBackground.Size = UDim2.new(1, -30, 0, 10)
-		barBackground.Position = UDim2.fromOffset(15, 65)
-		barBackground.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-		barBackground.Parent = loading
-
-		local barCorner = Instance.new("UICorner")
-		barCorner.CornerRadius = UDim.new(1, 0)
-		barCorner.Parent = barBackground
-
-		local bar = Instance.new("Frame")
-		bar.Size = UDim2.new(0, 0, 1, 0)
-		bar.BackgroundColor3 = Color3.new(1, 1, 1)
-		bar.Parent = barBackground
-
-		local barCorner2 = Instance.new("UICorner")
-		barCorner2.CornerRadius = UDim.new(1, 0)
-		barCorner2.Parent = bar
-
-		-- Animated loading text
-		local loadingRunning = true
-
-		task.spawn(function()
-			local dots = 0
-
-			while loadingRunning and loading.Parent do
-				dots = dots + 1
-
-				if dots > 3 then
-					dots = 0
-				end
-
-				text.Text = "Loading FPS Booster" .. string.rep(".", dots)
-
-				task.wait(0.35)
-			end
-		end)
-
-		TweenService:Create(
-			loading,
-			TweenInfo.new(0.45, Enum.EasingStyle.Back),
-			{
-				Position = UDim2.new(0.5, -170, 0, 30)
-			}
-		):Play()
-
-		task.wait(0.3)
-
-		-- REAL optimization work
-		optimizeEverything()
-
-		-- Animate progress
-		TweenService:Create(
-			bar,
-			TweenInfo.new(1, Enum.EasingStyle.Quad),
-			{
-				Size = UDim2.new(1, 0, 1, 0)
-			}
-		):Play()
-
-		task.wait(1)
-
-		loadingRunning = false
-
-		-- Success
-		text.Text = "Success ☑️ SUPER LOW"
-
-		task.wait(1.2)
-
-		local hide = TweenService:Create(
-			loading,
-			TweenInfo.new(0.4, Enum.EasingStyle.Quad),
-			{
-				Position = UDim2.new(0.5, -170, 0, -120)
-			}
-		)
-
-		hide:Play()
-		hide.Completed:Wait()
-
-		loading:Destroy()
-
-		-- Success notification
-		createNotification(
-			"Success ☑️ SUPER LOW",
-			2.5
-		)
-
-		--==================================================
-		-- FINAL FPS COUNTER
-		--==================================================
-
-		local FPSFrame = Instance.new("Frame")
-		FPSFrame.Name = "TrueFPSCounter"
-		FPSFrame.Size = UDim2.fromOffset(175, 58)
-		FPSFrame.Position = UDim2.new(0, 20, 0, 20)
-		FPSFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
-		FPSFrame.BackgroundTransparency = 0.08
-		FPSFrame.Parent = ScreenGui
-
-		local FPSCorner = Instance.new("UICorner")
-		FPSCorner.CornerRadius = UDim.new(0, 15)
-		FPSCorner.Parent = FPSFrame
-
-		local FPSStroke = Instance.new("UIStroke")
-		FPSStroke.Thickness = 2
-		FPSStroke.Parent = FPSFrame
-		addRGB(FPSStroke, "Color")
-
-		local FPSLabel = Instance.new("TextLabel")
-		FPSLabel.Size = UDim2.new(1, -12, 1, -8)
-		FPSLabel.Position = UDim2.fromOffset(6, 4)
-		FPSLabel.BackgroundTransparency = 1
-		FPSLabel.Text = "FPS: --"
-		FPSLabel.TextScaled = true
-		FPSLabel.Font = Enum.Font.GothamBold
-		FPSLabel.Parent = FPSFrame
-		addRGB(FPSLabel, "TextColor3")
-
-		makeDraggable(FPSFrame)
-
-		--==================================================
-		-- TRUE FPS LOOP
-		--==================================================
-
-		local frames = 0
-		local timer = 0
-
-		RunService.RenderStepped:Connect(function(deltaTime)
-			if not FPSFrame.Parent then
-				return
-			end
-
-			frames += 1
-			timer += deltaTime
-
-			if timer >= 1 then
-				local realFPS = frames / timer
-
-				-- IMPORTANT:
-				-- This is the measured RenderStepped FPS.
-				-- No artificial number is added.
-
-				FPSLabel.Text = string.format(
-					"FPS: %.0f",
-					realFPS
-				)
-
-				frames = 0
-				timer = 0
-			end
-		end)
-
-		--==================================================
-		-- FOLLOW NOTIFICATION
-		--==================================================
-
-		task.delay(FOLLOW_DELAY, function()
-			if ScreenGui.Parent then
-				createNotification(
-					"Jangan lupa follow: @challo_boy",
-					3.5
-				)
-			end
-		end)
-	end)
-end)
-
---==================================================
--- START
---==================================================
-
--- Small initial notification is intentionally NOT used.
--- The first screen directly shows the player's REAL FPS.
+BoostButton.MouseButton1Click:Connect(function()if boosting then
+ return
+ end
+ boosting = true
+ BoostButton.Active = false
+ BoostButton.Text = "\066\079\079\083\084\073\078\071\046\046\046"
+ Main.Visible = false
+ task.spawn(function()local loading = Instance.new("\070\114\097\109\101")loading.Size = UDim2.fromOffset(340,95)loading.Position = UDim2.new(0.5,-170,0,-120)loading.BackgroundColor3 = Color3.fromRGB(10,10,15)loading.Parent = ScreenGui
+ local corner = Instance.new("\085\073\067\111\114\110\101\114")corner.CornerRadius = UDim.new(0,18)corner.Parent = loading
+ local stroke = Instance.new("\085\073\083\116\114\111\107\101")stroke.Thickness = 2
+ stroke.Parent = loading
+ addRGB(stroke,"\067\111\108\111\114")local text = Instance.new("\084\101\120\116\076\097\098\101\108")text.Size = UDim2.new(1,-20,0,40)text.Position = UDim2.fromOffset(10,10)text.BackgroundTransparency = 1
+ text.Font = Enum.Font.GothamBold
+ text.TextSize = 22
+ text.TextColor3 = Color3.new(1,1,1)text.Text = "\076\111\097\100\105\110\103\032\070\080\083\032\066\111\111\115\116\101\114"
+ text.Parent = loading
+ local barBackground = Instance.new("\070\114\097\109\101")barBackground.Size = UDim2.new(1,-30,0,10)barBackground.Position = UDim2.fromOffset(15,65)barBackground.BackgroundColor3 = Color3.fromRGB(35,35,45)barBackground.Parent = loading
+ local barCorner = Instance.new("\085\073\067\111\114\110\101\114")barCorner.CornerRadius = UDim.new(1,0)barCorner.Parent = barBackground
+ local bar = Instance.new("\070\114\097\109\101")bar.Size = UDim2.new(0,0,1,0)bar.BackgroundColor3 = Color3.new(1,1,1)bar.Parent = barBackground
+ local barCorner2 = Instance.new("\085\073\067\111\114\110\101\114")barCorner2.CornerRadius = UDim.new(1,0)barCorner2.Parent = bar
+ local loadingRunning = true
+ task.spawn(function()local dots = 0
+ while loadingRunning and loading.Parent do
+ dots = dots + 1
+ if dots > 3 then
+ dots = 0
+ end
+ text.Text = "\076\111\097\100\105\110\103\032\070\080\083\032\066\111\111\115\116\101\114" .. string.rep("\046",dots)task.wait(0.35)end
+ end)TweenService:Create(loading,TweenInfo.new(0.45,Enum.EasingStyle.Back),{Position = UDim2.new(0.5,-170,0,30)}):Play()task.wait(0.3)optimizeEverything()TweenService:Create(bar,TweenInfo.new(1,Enum.EasingStyle.Quad),{Size = UDim2.new(1,0,1,0)}):Play()task.wait(1)loadingRunning = false
+ text.Text = "\083\117\099\099\101\115\115\032☑️\032\083\085\080\069\082\032\076\079\087"
+ task.wait(1.2)local hide = TweenService:Create(loading,TweenInfo.new(0.4,Enum.EasingStyle.Quad),{Position = UDim2.new(0.5,-170,0,-120)})hide:Play()hide.Completed:Wait()loading:Destroy()createNotification("\083\117\099\099\101\115\115\032☑️\032\083\085\080\069\082\032\076\079\087",2.5)local FPSFrame = Instance.new("\070\114\097\109\101")FPSFrame.Name = "\084\114\117\101\070\080\083\067\111\117\110\116\101\114"
+ FPSFrame.Size = UDim2.fromOffset(175,58)FPSFrame.Position = UDim2.new(0,20,0,20)FPSFrame.BackgroundColor3 = Color3.fromRGB(8,8,12)FPSFrame.BackgroundTransparency = 0.08
+ FPSFrame.Parent = ScreenGui
+ local FPSCorner = Instance.new("\085\073\067\111\114\110\101\114")FPSCorner.CornerRadius = UDim.new(0,15)FPSCorner.Parent = FPSFrame
+ local FPSStroke = Instance.new("\085\073\083\116\114\111\107\101")FPSStroke.Thickness = 2
+ FPSStroke.Parent = FPSFrame
+ addRGB(FPSStroke,"\067\111\108\111\114")local FPSLabel = Instance.new("\084\101\120\116\076\097\098\101\108")FPSLabel.Size = UDim2.new(1,-12,1,-8)FPSLabel.Position = UDim2.fromOffset(6,4)FPSLabel.BackgroundTransparency = 1
+ FPSLabel.Text = "\070\080\083\058\032\045\045"
+ FPSLabel.TextScaled = true
+ FPSLabel.Font = Enum.Font.GothamBold
+ FPSLabel.Parent = FPSFrame
+ addRGB(FPSLabel,"\084\101\120\116\067\111\108\111\114\051")makeDraggable(FPSFrame)local frames = 0
+ local timer = 0
+ RunService.RenderStepped:Connect(function(deltaTime)if not FPSFrame.Parent then
+ return
+ end
+ frames += 1
+ timer += deltaTime
+ if timer >= 1 then
+ local realFPS = frames / timer
+ FPSLabel.Text = string.format("\070\080\083\058\032\037\046\048\102",realFPS)frames = 0
+ timer = 0
+ end
+ end)task.delay(FOLLOW_DELAY,function()if ScreenGui.Parent then
+ createNotification("\074\097\110\103\097\110\032\108\117\112\097\032\102\111\108\108\111\119\058\032\064\099\104\097\108\108\111\095\098\111\121",3.5)end
+ end)end)end)
