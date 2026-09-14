@@ -1,35 +1,54 @@
---// AUTO TELEPORT SYSTEM
---// 1 LocalScript - untuk game Roblox milik sendiri
---// Taruh di StarterPlayer > StarterPlayerScripts
+--========================================================
+-- AUTO TELEPORT 16:9 + INVISIBLE
+-- Untuk game Roblox milik sendiri
+-- LocalScript
+-- Taruh di StarterPlayer > StarterPlayerScripts
+--========================================================
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
---==================================================
+--========================================================
 -- SETTINGS
---==================================================
+--========================================================
 
 local MAX_POSITIONS = 50
-local AUTO_TELEPORT_DELAY = 2 -- detik antar teleport
+
+local teleportSpeed = 1.0
+local MIN_SPEED = 0.1
+local MAX_SPEED = 10.0
+local SPEED_STEP = 0.1
 
 local savedPositions = {}
 local autoTeleport = false
 local autoThread = nil
-
---==================================================
--- CHARACTER
---==================================================
+local invisible = false
 
 local character
 local humanoidRootPart
 
+--========================================================
+-- CHARACTER
+--========================================================
+
 local function updateCharacter()
 	character = player.Character or player.CharacterAdded:Wait()
 	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+	if invisible then
+		for _, obj in ipairs(character:GetDescendants()) do
+			if obj:IsA("BasePart") then
+				obj.LocalTransparencyModifier = 1
+			elseif obj:IsA("Decal") then
+				obj.Transparency = 1
+			end
+		end
+	end
 end
 
 updateCharacter()
@@ -39,9 +58,9 @@ player.CharacterAdded:Connect(function()
 	updateCharacter()
 end)
 
---==================================================
+--========================================================
 -- GUI
---==================================================
+--========================================================
 
 local oldGui = playerGui:FindFirstChild("AutoTeleportUI")
 if oldGui then
@@ -54,22 +73,24 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = playerGui
 
---==================================================
+--========================================================
 -- COLORS
---==================================================
+--========================================================
 
-local BG = Color3.fromRGB(18, 20, 27)
+local BG = Color3.fromRGB(17, 19, 26)
 local PANEL = Color3.fromRGB(25, 28, 38)
-local PANEL2 = Color3.fromRGB(31, 35, 47)
+local PANEL2 = Color3.fromRGB(33, 37, 49)
+
 local WHITE = Color3.fromRGB(245, 245, 250)
 local GREY = Color3.fromRGB(165, 170, 185)
-local GREEN = Color3.fromRGB(70, 220, 130)
-local RED = Color3.fromRGB(235, 75, 85)
-local BLUE = Color3.fromRGB(80, 145, 255)
 
---==================================================
+local BLUE = Color3.fromRGB(75, 140, 255)
+local GREEN = Color3.fromRGB(65, 215, 125)
+local RED = Color3.fromRGB(235, 75, 85)
+
+--========================================================
 -- HELPERS
---==================================================
+--========================================================
 
 local function corner(object, radius)
 	local c = Instance.new("UICorner")
@@ -78,7 +99,7 @@ local function corner(object, radius)
 	return c
 end
 
-local function stroke(object, color, transparency, thickness)
+local function addStroke(object, color, transparency, thickness)
 	local s = Instance.new("UIStroke")
 	s.Color = color
 	s.Transparency = transparency or 0
@@ -107,34 +128,19 @@ local function createButton(parent, text)
 	button.TextSize = 13
 	button.Font = Enum.Font.GothamBold
 	button.Parent = parent
+
 	corner(button, 10)
-
-	button.MouseEnter:Connect(function()
-		TweenService:Create(
-			button,
-			TweenInfo.new(0.15),
-			{BackgroundColor3 = Color3.fromRGB(42, 47, 62)}
-		):Play()
-	end)
-
-	button.MouseLeave:Connect(function()
-		TweenService:Create(
-			button,
-			TweenInfo.new(0.15),
-			{BackgroundColor3 = PANEL2}
-		):Play()
-	end)
 
 	return button
 end
 
---==================================================
--- FLOATING OPEN BUTTON
---==================================================
+--========================================================
+-- OPEN BUTTON
+--========================================================
 
 local openButton = Instance.new("TextButton")
 openButton.Name = "OpenButton"
-openButton.Size = UDim2.fromOffset(54, 54)
+openButton.Size = UDim2.fromOffset(55, 55)
 openButton.Position = UDim2.new(0, 18, 0.5, -27)
 openButton.BackgroundColor3 = PANEL
 openButton.Text = "TP"
@@ -143,74 +149,88 @@ openButton.TextSize = 18
 openButton.Font = Enum.Font.GothamBold
 openButton.Visible = false
 openButton.Parent = gui
-corner(openButton, 18)
-stroke(openButton, BLUE, 0.25, 1.5)
 
---==================================================
--- MAIN WINDOW
---==================================================
+corner(openButton, 18)
+addStroke(openButton, BLUE, 0.2, 1.5)
+
+--========================================================
+-- MAIN WINDOW 16:9
+--========================================================
+
+local MAIN_WIDTH = 480
+local MAIN_HEIGHT = 270
 
 local main = Instance.new("Frame")
 main.Name = "Main"
-main.Size = UDim2.fromOffset(390, 430)
-main.Position = UDim2.new(0.5, -195, 0.5, -215)
+main.Size = UDim2.fromOffset(MAIN_WIDTH, MAIN_HEIGHT)
+main.Position = UDim2.new(
+	0.5,
+	-MAIN_WIDTH / 2,
+	0.5,
+	-MAIN_HEIGHT / 2
+)
 main.BackgroundColor3 = BG
 main.Parent = gui
-corner(main, 18)
-stroke(main, Color3.fromRGB(65, 72, 95), 0.2, 1.5)
 
---==================================================
+corner(main, 18)
+addStroke(main, Color3.fromRGB(65, 72, 95), 0.2, 1.5)
+
+--========================================================
 -- HEADER
---==================================================
+--========================================================
 
 local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 62)
+header.Size = UDim2.new(1, 0, 0, 55)
 header.BackgroundTransparency = 1
 header.Parent = main
 
 local title = createText(
 	header,
 	"AUTO TELEPORT",
-	19,
+	18,
 	WHITE,
 	Enum.Font.GothamBold
 )
-title.Position = UDim2.fromOffset(20, 9)
-title.Size = UDim2.new(1, -80, 0, 25)
+
+title.Position = UDim2.fromOffset(18, 7)
+title.Size = UDim2.new(1, -70, 0, 24)
 title.TextXAlignment = Enum.TextXAlignment.Left
 
 local subtitle = createText(
 	header,
-	"Position Manager",
-	11,
+	"Position Manager • 16:9",
+	10,
 	GREY,
 	Enum.Font.Gotham
 )
-subtitle.Position = UDim2.fromOffset(21, 34)
-subtitle.Size = UDim2.new(1, -80, 0, 18)
+
+subtitle.Position = UDim2.fromOffset(19, 31)
+subtitle.Size = UDim2.new(1, -70, 0, 17)
 subtitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.fromOffset(38, 38)
-closeButton.Position = UDim2.new(1, -50, 0, 12)
+closeButton.Size = UDim2.fromOffset(36, 36)
+closeButton.Position = UDim2.new(1, -48, 0, 10)
 closeButton.BackgroundColor3 = PANEL2
 closeButton.Text = "×"
 closeButton.TextColor3 = WHITE
-closeButton.TextSize = 24
+closeButton.TextSize = 22
 closeButton.Font = Enum.Font.GothamBold
 closeButton.Parent = header
-corner(closeButton, 12)
 
---==================================================
+corner(closeButton, 11)
+
+--========================================================
 -- TABS
---==================================================
+--========================================================
 
 local tabs = Instance.new("Frame")
-tabs.Size = UDim2.new(1, -30, 0, 42)
-tabs.Position = UDim2.fromOffset(15, 66)
+tabs.Size = UDim2.new(1, -30, 0, 38)
+tabs.Position = UDim2.fromOffset(15, 57)
 tabs.BackgroundColor3 = PANEL
 tabs.Parent = main
-corner(tabs, 12)
+
+corner(tabs, 11)
 
 local positionTab = createButton(tabs, "📍  POSITION")
 positionTab.Size = UDim2.new(0.5, -5, 1, -8)
@@ -220,19 +240,19 @@ local savedTab = createButton(tabs, "📂  SAVED")
 savedTab.Size = UDim2.new(0.5, -5, 1, -8)
 savedTab.Position = UDim2.new(0.5, 1, 0, 4)
 
---==================================================
+--========================================================
 -- CONTENT
---==================================================
+--========================================================
 
 local content = Instance.new("Frame")
-content.Size = UDim2.new(1, -30, 1, -125)
-content.Position = UDim2.fromOffset(15, 116)
+content.Size = UDim2.new(1, -30, 1, -105)
+content.Position = UDim2.fromOffset(15, 100)
 content.BackgroundTransparency = 1
 content.Parent = main
 
---==================================================
+--========================================================
 -- POSITION PAGE
---==================================================
+--========================================================
 
 local positionPage = Instance.new("Frame")
 positionPage.Size = UDim2.fromScale(1, 1)
@@ -242,56 +262,134 @@ positionPage.Parent = content
 local coordinateTitle = createText(
 	positionPage,
 	"CURRENT COORDINATES",
-	12,
+	10,
 	GREY,
 	Enum.Font.GothamBold
 )
-coordinateTitle.Size = UDim2.new(1, 0, 0, 22)
+
+coordinateTitle.Size = UDim2.new(0.48, 0, 0, 18)
 coordinateTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local coordinates = Instance.new("TextLabel")
-coordinates.Size = UDim2.new(1, 0, 0, 95)
-coordinates.Position = UDim2.fromOffset(0, 28)
+coordinates.Size = UDim2.new(0.48, 0, 0, 80)
+coordinates.Position = UDim2.fromOffset(0, 22)
 coordinates.BackgroundColor3 = PANEL
 coordinates.TextColor3 = WHITE
-coordinates.TextSize = 15
+coordinates.TextSize = 14
 coordinates.Font = Enum.Font.Code
 coordinates.TextWrapped = true
 coordinates.Parent = positionPage
-corner(coordinates, 14)
-stroke(coordinates, Color3.fromRGB(55, 61, 80), 0.3, 1)
 
-local saveButton = createButton(positionPage, "＋  SAVE CURRENT POSITION")
-saveButton.Size = UDim2.new(1, 0, 0, 48)
-saveButton.Position = UDim2.fromOffset(0, 138)
+corner(coordinates, 13)
+addStroke(coordinates, Color3.fromRGB(55, 61, 80), 0.3, 1)
+
+--========================================================
+-- SAVE BUTTON
+--========================================================
+
+local saveButton = createButton(
+	positionPage,
+	"＋  SAVE POSITION"
+)
+
+saveButton.Size = UDim2.new(0.48, 0, 0, 38)
+saveButton.Position = UDim2.fromOffset(0, 109)
 saveButton.BackgroundColor3 = BLUE
 
 local countLabel = createText(
 	positionPage,
 	"Saved: 0 / 50",
-	12,
+	10,
 	GREY,
 	Enum.Font.GothamBold
 )
-countLabel.Size = UDim2.new(1, 0, 0, 25)
-countLabel.Position = UDim2.fromOffset(0, 196)
+
+countLabel.Size = UDim2.new(0.48, 0, 0, 18)
+countLabel.Position = UDim2.fromOffset(0, 151)
 countLabel.TextXAlignment = Enum.TextXAlignment.Center
 
-local info = createText(
+--========================================================
+-- INVISIBLE BUTTON
+--========================================================
+
+local invisibleButton = createButton(
 	positionPage,
-	"Save up to 50 locations, then manage them\nfrom the SAVED menu.",
-	12,
+	"👻  INVISIBLE : OFF"
+)
+
+invisibleButton.Size = UDim2.new(0.48, 0, 0, 38)
+invisibleButton.Position = UDim2.fromOffset(0, 177)
+invisibleButton.BackgroundColor3 = RED
+
+--========================================================
+-- SPEED PANEL
+--========================================================
+
+local speedPanel = Instance.new("Frame")
+
+speedPanel.Size = UDim2.new(0.48, 0, 0, 193)
+speedPanel.Position = UDim2.new(0.52, 0, 0, 22)
+speedPanel.BackgroundColor3 = PANEL
+speedPanel.Parent = positionPage
+
+corner(speedPanel, 13)
+addStroke(speedPanel, Color3.fromRGB(55, 61, 80), 0.3, 1)
+
+local speedTitle = createText(
+	speedPanel,
+	"⚡ TELEPORT SPEED",
+	11,
+	GREY,
+	Enum.Font.GothamBold
+)
+
+speedTitle.Size = UDim2.new(1, -20, 0, 22)
+speedTitle.Position = UDim2.fromOffset(10, 8)
+speedTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local speedValue = createText(
+	speedPanel,
+	"1.0s",
+	25,
+	WHITE,
+	Enum.Font.GothamBold
+)
+
+speedValue.Size = UDim2.new(1, 0, 0, 42)
+speedValue.Position = UDim2.fromOffset(0, 32)
+speedValue.TextXAlignment = Enum.TextXAlignment.Center
+
+local minusButton = createButton(
+	speedPanel,
+	"−"
+)
+
+minusButton.Size = UDim2.fromOffset(48, 36)
+minusButton.Position = UDim2.new(0, 12, 1, -58)
+
+local plusButton = createButton(
+	speedPanel,
+	"+"
+)
+
+plusButton.Size = UDim2.fromOffset(48, 36)
+plusButton.Position = UDim2.new(1, -60, 1, -58)
+
+local speedInfo = createText(
+	speedPanel,
+	"0.1s - 10.0s",
+	9,
 	GREY,
 	Enum.Font.Gotham
 )
-info.Size = UDim2.new(1, 0, 0, 55)
-info.Position = UDim2.fromOffset(0, 235)
-info.TextWrapped = true
-info.TextXAlignment = Enum.TextXAlignment.Center
 
---==================================================
+speedInfo.Size = UDim2.new(1, 0, 0, 18)
+speedInfo.Position = UDim2.new(0, 0, 1, -24)
+speedInfo.TextXAlignment = Enum.TextXAlignment.Center
+
+--========================================================
 -- SAVED PAGE
---==================================================
+--========================================================
 
 local savedPage = Instance.new("Frame")
 savedPage.Size = UDim2.fromScale(1, 1)
@@ -302,52 +400,61 @@ savedPage.Parent = content
 local savedHeader = createText(
 	savedPage,
 	"SAVED LOCATIONS",
-	12,
+	10,
 	GREY,
 	Enum.Font.GothamBold
 )
-savedHeader.Size = UDim2.new(1, 0, 0, 22)
+
+savedHeader.Size = UDim2.new(1, 0, 0, 18)
 savedHeader.TextXAlignment = Enum.TextXAlignment.Left
 
 local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, 0, 1, -105)
-scroll.Position = UDim2.fromOffset(0, 28)
+
+scroll.Size = UDim2.new(1, 0, 1, -54)
+scroll.Position = UDim2.fromOffset(0, 22)
 scroll.BackgroundColor3 = PANEL
 scroll.BorderSizePixel = 0
 scroll.ScrollBarThickness = 4
 scroll.ScrollBarImageColor3 = BLUE
 scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 scroll.Parent = savedPage
-corner(scroll, 14)
+
+corner(scroll, 13)
 
 local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 7)
+listLayout.Padding = UDim.new(0, 6)
 listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = scroll
 
 local listPadding = Instance.new("UIPadding")
-listPadding.PaddingTop = UDim.new(0, 8)
-listPadding.PaddingBottom = UDim.new(0, 8)
-listPadding.PaddingLeft = UDim.new(0, 8)
-listPadding.PaddingRight = UDim.new(0, 8)
+listPadding.PaddingTop = UDim.new(0, 7)
+listPadding.PaddingBottom = UDim.new(0, 7)
+listPadding.PaddingLeft = UDim.new(0, 7)
+listPadding.PaddingRight = UDim.new(0, 7)
 listPadding.Parent = scroll
 
---==================================================
--- AUTO TELEPORT
---==================================================
+--========================================================
+-- AUTO TELEPORT BUTTON
+--========================================================
 
-local autoButton = createButton(savedPage, "AUTO TELEPORT : OFF")
-autoButton.Size = UDim2.new(1, 0, 0, 48)
-autoButton.Position = UDim2.new(0, 0, 1, -50)
+local autoButton = createButton(
+	savedPage,
+	"AUTO TELEPORT : OFF"
+)
+
+autoButton.Size = UDim2.new(1, 0, 0, 42)
+autoButton.Position = UDim2.new(0, 0, 1, -43)
 autoButton.BackgroundColor3 = RED
 
---==================================================
+--========================================================
 -- COORDINATE UPDATE
---==================================================
+--========================================================
 
 local function updateCoordinates()
+
 	if humanoidRootPart and humanoidRootPart.Parent then
+
 		local p = humanoidRootPart.Position
 
 		coordinates.Text = string.format(
@@ -356,41 +463,108 @@ local function updateCoordinates()
 			p.Y,
 			p.Z
 		)
+
 	else
+
 		coordinates.Text = "Character belum siap..."
+
 	end
 end
 
 RunService.RenderStepped:Connect(updateCoordinates)
 
---==================================================
--- REFRESH SAVED LIST
---==================================================
+--========================================================
+-- INVISIBLE
+--========================================================
 
-local function refreshList()
-	for _, child in ipairs(scroll:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
+local function setInvisible(state)
+
+	invisible = state
+
+	if not character or not character.Parent then
+		return
+	end
+
+	for _, obj in ipairs(character:GetDescendants()) do
+
+		if obj:IsA("BasePart") then
+
+			if obj.Name ~= "HumanoidRootPart" then
+				obj.LocalTransparencyModifier =
+					state and 1 or 0
+			end
+
+		elseif obj:IsA("Decal") then
+
+			obj.Transparency =
+				state and 1 or 0
+
 		end
 	end
 
+	if state then
+
+		invisibleButton.Text =
+			"👻  INVISIBLE : ON"
+
+		invisibleButton.BackgroundColor3 =
+			GREEN
+
+	else
+
+		invisibleButton.Text =
+			"👻  INVISIBLE : OFF"
+
+		invisibleButton.BackgroundColor3 =
+			RED
+
+	end
+end
+
+invisibleButton.MouseButton1Click:Connect(function()
+	setInvisible(not invisible)
+end)
+
+--========================================================
+-- REFRESH SAVED LIST
+--========================================================
+
+local function refreshList()
+
+	for _, child in ipairs(scroll:GetChildren()) do
+
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+
+	end
+
 	for index, data in ipairs(savedPositions) do
+
 		local item = Instance.new("Frame")
-		item.Size = UDim2.new(1, -4, 0, 72)
+
+		item.Size = UDim2.new(1, -4, 0, 65)
 		item.BackgroundColor3 = PANEL2
 		item.Parent = scroll
-		corner(item, 12)
+
+		corner(item, 11)
 
 		local nameLabel = createText(
 			item,
 			"Teleport " .. index,
-			13,
+			12,
 			WHITE,
 			Enum.Font.GothamBold
 		)
-		nameLabel.Position = UDim2.fromOffset(12, 8)
-		nameLabel.Size = UDim2.new(1, -150, 0, 20)
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+		nameLabel.Position =
+			UDim2.fromOffset(10, 7)
+
+		nameLabel.Size =
+			UDim2.new(1, -150, 0, 18)
+
+		nameLabel.TextXAlignment =
+			Enum.TextXAlignment.Left
 
 		local posLabel = createText(
 			item,
@@ -400,198 +574,367 @@ local function refreshList()
 				data.Y,
 				data.Z
 			),
-			10,
+			9,
 			GREY,
 			Enum.Font.Code
 		)
-		posLabel.Position = UDim2.fromOffset(12, 31)
-		posLabel.Size = UDim2.new(1, -150, 0, 18)
-		posLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+		posLabel.Position =
+			UDim2.fromOffset(10, 29)
+
+		posLabel.Size =
+			UDim2.new(1, -150, 0, 17)
+
+		posLabel.TextXAlignment =
+			Enum.TextXAlignment.Left
 
 		local tpButton = createButton(item, "TP")
-		tpButton.Size = UDim2.fromOffset(52, 32)
-		tpButton.Position = UDim2.new(1, -112, 0.5, -16)
-		tpButton.BackgroundColor3 = GREEN
+
+		tpButton.Size =
+			UDim2.fromOffset(48, 30)
+
+		tpButton.Position =
+			UDim2.new(1, -105, 0.5, -15)
+
+		tpButton.BackgroundColor3 =
+			GREEN
 
 		local delButton = createButton(item, "DEL")
-		delButton.Size = UDim2.fromOffset(52, 32)
-		delButton.Position = UDim2.new(1, -56, 0.5, -16)
-		delButton.BackgroundColor3 = RED
+
+		delButton.Size =
+			UDim2.fromOffset(48, 30)
+
+		delButton.Position =
+			UDim2.new(1, -53, 0.5, -15)
+
+		delButton.BackgroundColor3 =
+			RED
 
 		tpButton.MouseButton1Click:Connect(function()
-			if humanoidRootPart and humanoidRootPart.Parent then
+
+			if humanoidRootPart
+				and humanoidRootPart.Parent then
+
 				humanoidRootPart.CFrame =
-					CFrame.new(data.X, data.Y, data.Z)
+					CFrame.new(
+						data.X,
+						data.Y,
+						data.Z
+					)
+
 			end
 		end)
 
 		delButton.MouseButton1Click:Connect(function()
-			table.remove(savedPositions, index)
+
+			table.remove(
+				savedPositions,
+				index
+			)
+
 			refreshList()
-			countLabel.Text = "Saved: " .. #savedPositions .. " / " .. MAX_POSITIONS
+
+			countLabel.Text =
+				"Saved: "
+				.. #savedPositions
+				.. " / "
+				.. MAX_POSITIONS
+
 		end)
 	end
 
 	task.wait()
-	scroll.CanvasSize = UDim2.new(
-		0,
-		0,
-		0,
-		listLayout.AbsoluteContentSize.Y + 16
-	)
+
+	scroll.CanvasSize =
+		UDim2.new(
+			0,
+			0,
+			0,
+			listLayout.AbsoluteContentSize.Y + 14
+		)
 end
 
---==================================================
+--========================================================
 -- SAVE POSITION
---==================================================
+--========================================================
 
 saveButton.MouseButton1Click:Connect(function()
+
 	if #savedPositions >= MAX_POSITIONS then
-		saveButton.Text = "MAXIMUM 50 POSITIONS"
-		task.delay(1.5, function()
-			saveButton.Text = "＋  SAVE CURRENT POSITION"
+
+		saveButton.Text =
+			"MAX 50 POSITIONS"
+
+		task.delay(1.3, function()
+			saveButton.Text =
+				"＋  SAVE POSITION"
 		end)
+
 		return
 	end
 
-	if not humanoidRootPart or not humanoidRootPart.Parent then
+	if not humanoidRootPart
+		or not humanoidRootPart.Parent then
 		return
 	end
 
 	local p = humanoidRootPart.Position
 
-	table.insert(savedPositions, {
-		X = p.X,
-		Y = p.Y,
-		Z = p.Z
-	})
+	table.insert(
+		savedPositions,
+		{
+			X = p.X,
+			Y = p.Y,
+			Z = p.Z
+		}
+	)
 
-	countLabel.Text = "Saved: " .. #savedPositions .. " / " .. MAX_POSITIONS
+	countLabel.Text =
+		"Saved: "
+		.. #savedPositions
+		.. " / "
+		.. MAX_POSITIONS
 
-	saveButton.Text = "✓  POSITION SAVED"
+	saveButton.Text =
+		"✓  SAVED!"
 
-	TweenService:Create(
-		saveButton,
-		TweenInfo.new(0.2),
-		{BackgroundColor3 = GREEN}
-	):Play()
+	saveButton.BackgroundColor3 =
+		GREEN
 
 	task.delay(0.8, function()
-		saveButton.Text = "＋  SAVE CURRENT POSITION"
 
-		TweenService:Create(
-			saveButton,
-			TweenInfo.new(0.2),
-			{BackgroundColor3 = BLUE}
-		):Play()
+		saveButton.Text =
+			"＋  SAVE POSITION"
+
+		saveButton.BackgroundColor3 =
+			BLUE
+
 	end)
 
 	refreshList()
+
 end)
 
---==================================================
--- AUTO TELEPORT
---==================================================
+--========================================================
+-- SPEED
+--========================================================
 
-local function stopAutoTeleport()
-	autoTeleport = false
+local function updateSpeedDisplay()
 
-	autoButton.Text = "AUTO TELEPORT : OFF"
-	autoButton.BackgroundColor3 = RED
+	speedValue.Text =
+		string.format(
+			"%.1fs",
+			teleportSpeed
+		)
+
 end
 
+minusButton.MouseButton1Click:Connect(function()
+
+	teleportSpeed =
+		math.max(
+			MIN_SPEED,
+			teleportSpeed - SPEED_STEP
+		)
+
+	teleportSpeed =
+		math.round(
+			teleportSpeed * 10
+		) / 10
+
+	updateSpeedDisplay()
+
+end)
+
+plusButton.MouseButton1Click:Connect(function()
+
+	teleportSpeed =
+		math.min(
+			MAX_SPEED,
+			teleportSpeed + SPEED_STEP
+		)
+
+	teleportSpeed =
+		math.round(
+			teleportSpeed * 10
+		) / 10
+
+	updateSpeedDisplay()
+
+end)
+
+--========================================================
+-- STOP AUTO TELEPORT
+--========================================================
+
+local function stopAutoTeleport()
+
+	autoTeleport = false
+
+	autoButton.Text =
+		"AUTO TELEPORT : OFF"
+
+	autoButton.BackgroundColor3 =
+		RED
+end
+
+--========================================================
+-- START AUTO TELEPORT
+--========================================================
+
 local function startAutoTeleport()
+
 	if #savedPositions == 0 then
-		autoButton.Text = "SAVE POSITION DULU"
+
+		autoButton.Text =
+			"SAVE POSITION DULU"
 
 		task.delay(1.5, function()
+
 			if not autoTeleport then
-				autoButton.Text = "AUTO TELEPORT : OFF"
+				autoButton.Text =
+					"AUTO TELEPORT : OFF"
 			end
+
 		end)
 
 		return
 	end
 
 	autoTeleport = true
-	autoButton.Text = "AUTO TELEPORT : ON"
-	autoButton.BackgroundColor3 = GREEN
+
+	autoButton.Text =
+		"AUTO TELEPORT : ON"
+
+	autoButton.BackgroundColor3 =
+		GREEN
 
 	if autoThread then
 		return
 	end
 
 	autoThread = task.spawn(function()
+
+		local currentIndex = 1
+
 		while autoTeleport do
-			for index, data in ipairs(savedPositions) do
-				if not autoTeleport then
-					break
-				end
 
-				if humanoidRootPart and humanoidRootPart.Parent then
-					humanoidRootPart.CFrame =
-						CFrame.new(data.X, data.Y, data.Z)
-				end
+			if #savedPositions == 0 then
 
-				task.wait(AUTO_TELEPORT_DELAY)
+				stopAutoTeleport()
+				break
+
 			end
 
-			-- Setelah posisi terakhir, berhenti.
-			-- Jika ingin mengulang terus, bagian ini bisa diubah.
-			break
+			if currentIndex > #savedPositions then
+				currentIndex = 1
+			end
+
+			local data =
+				savedPositions[currentIndex]
+
+			if data
+				and humanoidRootPart
+				and humanoidRootPart.Parent then
+
+				humanoidRootPart.CFrame =
+					CFrame.new(
+						data.X,
+						data.Y,
+						data.Z
+					)
+			end
+
+			-- Tunggu sesuai speed yang dipilih
+			local waited = 0
+
+			while waited < teleportSpeed
+				and autoTeleport do
+
+				local step =
+					math.min(
+						0.05,
+						teleportSpeed - waited
+					)
+
+				task.wait(step)
+
+				waited += step
+			end
+
+			currentIndex += 1
+
+			-- Setelah posisi terakhir,
+			-- kembali lagi ke posisi 1.
+			if currentIndex > #savedPositions then
+				currentIndex = 1
+			end
+
 		end
 
 		autoThread = nil
 
-		if autoTeleport then
-			stopAutoTeleport()
-		end
 	end)
 end
 
 autoButton.MouseButton1Click:Connect(function()
+
 	if autoTeleport then
 		stopAutoTeleport()
 	else
 		startAutoTeleport()
 	end
+
 end)
 
---==================================================
+--========================================================
 -- TABS
---==================================================
+--========================================================
 
 positionTab.MouseButton1Click:Connect(function()
+
 	positionPage.Visible = true
 	savedPage.Visible = false
 
-	positionTab.BackgroundColor3 = BLUE
-	savedTab.BackgroundColor3 = PANEL2
+	positionTab.BackgroundColor3 =
+		BLUE
+
+	savedTab.BackgroundColor3 =
+		PANEL2
+
 end)
 
 savedTab.MouseButton1Click:Connect(function()
+
 	positionPage.Visible = false
 	savedPage.Visible = true
 
-	positionTab.BackgroundColor3 = PANEL2
-	savedTab.BackgroundColor3 = BLUE
+	positionTab.BackgroundColor3 =
+		PANEL2
+
+	savedTab.BackgroundColor3 =
+		BLUE
 
 	refreshList()
+
 end)
 
 positionTab.BackgroundColor3 = BLUE
 
---==================================================
--- OPEN / CLOSE ANIMATION
---==================================================
-
-local mainSize = UDim2.fromOffset(390, 430)
+--========================================================
+-- OPEN / CLOSE
+--========================================================
 
 local function showMain()
+
 	openButton.Visible = false
 	main.Visible = true
 
-	main.Size = UDim2.fromOffset(340, 380)
+	main.Size =
+		UDim2.fromOffset(
+			430,
+			242
+		)
 
 	TweenService:Create(
 		main,
@@ -600,82 +943,113 @@ local function showMain()
 			Enum.EasingStyle.Back,
 			Enum.EasingDirection.Out
 		),
-		{Size = mainSize}
+		{
+			Size =
+				UDim2.fromOffset(
+					MAIN_WIDTH,
+					MAIN_HEIGHT
+				)
+		}
 	):Play()
+
 end
 
 local function hideMain()
+
 	TweenService:Create(
 		main,
-		TweenInfo.new(0.18, Enum.EasingStyle.Quad),
-		{Size = UDim2.fromOffset(340, 380)}
+		TweenInfo.new(
+			0.18,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.In
+		),
+		{
+			Size =
+				UDim2.fromOffset(
+					430,
+					242
+				)
+		}
 	):Play()
 
 	task.delay(0.18, function()
+
 		main.Visible = false
 		openButton.Visible = true
+
 	end)
+
 end
 
 closeButton.MouseButton1Click:Connect(hideMain)
 openButton.MouseButton1Click:Connect(showMain)
 
---==================================================
--- DRAG SUPPORT
---==================================================
+--========================================================
+-- DRAG SYSTEM
+--========================================================
 
 local dragging = false
 local dragStart
 local startPosition
 
 header.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
 
 		dragging = true
 		dragStart = input.Position
 		startPosition = main.Position
 
 		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
+
+			if input.UserInputState ==
+				Enum.UserInputState.End then
+
 				dragging = false
+
 			end
+
 		end)
+
 	end
+
 end)
 
-header.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch then
+UserInputService.InputChanged:Connect(function(input)
 
-		-- handled by UserInputService below
-	end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
 	if not dragging then
 		return
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType ==
+		Enum.UserInputType.MouseMovement
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
 
-		local delta = input.Position - dragStart
+		local delta =
+			input.Position - dragStart
 
-		main.Position = UDim2.new(
-			startPosition.X.Scale,
-			startPosition.X.Offset + delta.X,
-			startPosition.Y.Scale,
-			startPosition.Y.Offset + delta.Y
-		)
+		main.Position =
+			UDim2.new(
+				startPosition.X.Scale,
+				startPosition.X.Offset + delta.X,
+				startPosition.Y.Scale,
+				startPosition.Y.Offset + delta.Y
+			)
+
 	end
+
 end)
 
---==================================================
--- START
---==================================================
+--========================================================
+-- INITIALIZE
+--========================================================
 
 updateCoordinates()
+updateSpeedDisplay()
 refreshList()
 
-print("[Auto Teleport] System loaded successfully.")
+print("[Auto Teleport] 16:9 + Invisible loaded.")
