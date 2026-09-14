@@ -1,21 +1,19 @@
---[[
-    MOBILE VR CONTROLLER
-    Untuk game Roblox milik sendiri.
-    
-    Fitur:
-    - Kamera touch HP
-    - Tangan kiri & kanan virtual
-    - Joystick kiri untuk bergerak
-    - Joystick kanan untuk menggerakkan tangan
-    - Tangan mengikuti arah kamera secara terbatas
-    - Melihat ke belakang tidak membuat tangan ikut berputar 180°
-    - Grip / Release
-    - Recenter
-    - Sensitivitas dapat diatur
-
-    Pasang sebagai LocalScript:
-    StarterPlayer > StarterPlayerScripts
-]]
+--========================================================--
+-- MOBILE VR + NORMAL CAMERA CONTROLLER
+-- Roblox - LocalScript
+-- StarterPlayer > StarterPlayerScripts
+--
+-- FITUR:
+-- 1. Normal Camera
+-- 2. VR Camera
+-- 3. VR system tetap aktif pada kedua mode
+-- 4. Tangan kiri dan kanan bisa digerakkan
+-- 5. Tangan bisa digoyangkan/swing
+-- 6. VR Camera dibatasi agar tidak melihat ke belakang
+-- 7. Recenter
+-- 8. Grip / Release
+-- 9. UI bisa disembunyikan
+--========================================================--
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -24,52 +22,76 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
---==================================================
+--========================================================--
 -- SETTINGS
---==================================================
+--========================================================--
 
 local Settings = {
-    CameraSensitivity = 0.008,
-    HandSensitivity = 0.012,
 
-    HandDistance = 2.2,
-    HandHeight = -0.4,
-    HandSide = 1.15,
+	-- Kamera normal
+	NormalSensitivity = 0.008,
 
-    MaxHandYaw = math.rad(75),
-    MaxHandPitch = math.rad(65),
+	-- Kamera VR
+	VRSensitivity = 0.006,
 
-    HandSmoothness = 0.18,
-    CameraSmoothness = 0.15,
+	-- Batas kamera VR
+	VRMaxYaw = math.rad(80),
+	VRMinPitch = math.rad(-65),
+	VRMaxPitch = math.rad(65),
 
-    ShowUI = true
+	-- Tangan
+	HandSensitivity = 0.012,
+
+	HandSide = 1.15,
+	HandHeight = -0.35,
+	HandDistance = 2.1,
+
+	-- Batas tangan
+	MaxHandYaw = math.rad(75),
+	MaxHandPitch = math.rad(60),
+
+	-- Smooth
+	CameraSmooth = 0.16,
+	HandSmooth = 0.18,
+
+	-- Goyangan tangan
+	SwingPower = 0.25,
+	SwingSpeed = 8,
+
+	-- Tampilan UI
+	ShowUI = true
 }
 
---==================================================
+--========================================================--
 -- CHARACTER
---==================================================
+--========================================================--
 
 local character
 local humanoid
 local root
 
 local function setupCharacter(char)
-    character = char
-    humanoid = char:WaitForChild("Humanoid")
-    root = char:WaitForChild("HumanoidRootPart")
+
+	character = char
+
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+
 end
 
 setupCharacter(player.Character or player.CharacterAdded:Wait())
 
 player.CharacterAdded:Connect(function(char)
-    setupCharacter(char)
+
+	setupCharacter(char)
+
 end)
 
---==================================================
--- CAMERA
---==================================================
+--========================================================--
+-- CAMERA STATE
+--========================================================--
 
-camera.CameraType = Enum.CameraType.Scriptable
+local CameraMode = "Normal"
 
 local cameraYaw = 0
 local cameraPitch = 0
@@ -77,58 +99,84 @@ local cameraPitch = 0
 local targetYaw = 0
 local targetPitch = 0
 
-local baseBodyYaw = 0
+local function getBodyYaw()
+
+	if not root then
+		return 0
+	end
+
+	local _, yaw, _ = root.CFrame:ToOrientation()
+
+	return yaw
+end
+
+local function normalizeAngle(angle)
+
+	return math.atan2(
+		math.sin(angle),
+		math.cos(angle)
+	)
+
+end
+
+--========================================================--
+-- RECENTER
+--========================================================--
 
 local function recenter()
-    if not root then return end
 
-    local _, bodyYaw, _ = root.CFrame:ToOrientation()
+	local bodyYaw = getBodyYaw()
 
-    cameraYaw = bodyYaw
-    targetYaw = bodyYaw
+	cameraYaw = bodyYaw
+	targetYaw = bodyYaw
 
-    cameraPitch = 0
-    targetPitch = 0
+	cameraPitch = 0
+	targetPitch = 0
+
 end
 
 recenter()
 
---==================================================
--- VIRTUAL HANDS
---==================================================
+--========================================================--
+-- HANDS
+--========================================================--
 
 local handFolder = Instance.new("Folder")
+
 handFolder.Name = "MobileVRHands"
 handFolder.Parent = workspace
 
 local function createHand(name)
-    local hand = Instance.new("Part")
 
-    hand.Name = name
-    hand.Size = Vector3.new(0.35, 0.35, 0.65)
+	local hand = Instance.new("Part")
 
-    hand.Shape = Enum.PartType.Block
-    hand.Anchored = true
-    hand.CanCollide = false
-    hand.CanTouch = false
-    hand.CanQuery = false
+	hand.Name = name
 
-    hand.Material = Enum.Material.SmoothPlastic
+	hand.Size = Vector3.new(
+		0.35,
+		0.35,
+		0.65
+	)
 
-    hand.Parent = handFolder
+	hand.Anchored = true
+	hand.CanCollide = false
+	hand.CanTouch = false
+	hand.CanQuery = false
 
-    return hand
+	hand.Material = Enum.Material.SmoothPlastic
+
+	hand.Parent = handFolder
+
+	return hand
+
 end
 
 local leftHand = createHand("LeftHand")
 local rightHand = createHand("RightHand")
 
-local leftGrip = false
-local rightGrip = false
-
---==================================================
--- HAND CONTROL
---==================================================
+--========================================================--
+-- HAND VARIABLES
+--========================================================--
 
 local leftX = 0
 local leftY = 0
@@ -142,578 +190,1170 @@ local targetLeftY = 0
 local targetRightX = 0
 local targetRightY = 0
 
---==================================================
--- TOUCH STATE
---==================================================
+local leftGrip = false
+local rightGrip = false
 
-local movementTouch = nil
-local cameraTouch = nil
-local leftHandTouch = nil
-local rightHandTouch = nil
+--========================================================--
+-- SWING SYSTEM
+--========================================================--
 
-local movementStart = nil
-local cameraStart = nil
-local leftHandStart = nil
-local rightHandStart = nil
+local leftSwing = 0
+local rightSwing = 0
 
---==================================================
+local lastLeftX = 0
+local lastLeftY = 0
+
+local lastRightX = 0
+local lastRightY = 0
+
+local function updateSwing()
+
+	local leftMovement =
+		math.abs(leftX - lastLeftX) +
+		math.abs(leftY - lastLeftY)
+
+	local rightMovement =
+		math.abs(rightX - lastRightX) +
+		math.abs(rightY - lastRightY)
+
+	leftSwing = math.clamp(
+		leftMovement * 12,
+		0,
+		1
+	)
+
+	rightSwing = math.clamp(
+		rightMovement * 12,
+		0,
+		1
+	)
+
+	lastLeftX = leftX
+	lastLeftY = leftY
+
+	lastRightX = rightX
+	lastRightY = rightY
+
+end
+
+--========================================================--
 -- UI
---==================================================
+--========================================================--
 
 local gui = Instance.new("ScreenGui")
+
 gui.Name = "MobileVRUI"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
+
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local function makeButton(name, text, size, position)
-    local button = Instance.new("TextButton")
+--========================================================--
+-- BUTTON CREATOR
+--========================================================--
 
-    button.Name = name
-    button.Text = text
+local function createButton(
+	name,
+	text,
+	size,
+	position
+)
 
-    button.Size = size
-    button.Position = position
+	local button = Instance.new("TextButton")
 
-    button.BackgroundTransparency = 0.25
-    button.TextScaled = true
-    button.TextColor3 = Color3.new(1,1,1)
+	button.Name = name
+	button.Text = text
 
-    button.BackgroundColor3 = Color3.fromRGB(25,25,25)
+	button.Size = size
+	button.Position = position
 
-    button.BorderSizePixel = 0
-    button.AutoButtonColor = true
+	button.BackgroundColor3 =
+		Color3.fromRGB(25,25,25)
 
-    button.Parent = gui
+	button.BackgroundTransparency = 0.25
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0,12)
-    corner.Parent = button
+	button.TextColor3 =
+		Color3.new(1,1,1)
 
-    return button
+	button.TextScaled = true
+
+	button.BorderSizePixel = 0
+
+	button.Parent = gui
+
+	local corner = Instance.new("UICorner")
+
+	corner.CornerRadius =
+		UDim.new(0,12)
+
+	corner.Parent = button
+
+	return button
+
 end
 
-local leftZone = makeButton(
-    "LeftHandControl",
-    "L",
-    UDim2.fromOffset(120,120),
-    UDim2.new(0,25,1,-150)
+--========================================================--
+-- CAMERA MODE BUTTON
+--========================================================--
+
+local cameraButton = createButton(
+
+	"CameraMode",
+
+	"CAM: NORMAL",
+
+	UDim2.fromOffset(145,50),
+
+	UDim2.new(0.5,-72,0,20)
+
 )
 
-local rightZone = makeButton(
-    "RightHandControl",
-    "R",
-    UDim2.fromOffset(120,120),
-    UDim2.new(1,-145,1,-150)
+--========================================================--
+-- RECENTER
+--========================================================--
+
+local recenterButton = createButton(
+
+	"Recenter",
+
+	"⟳",
+
+	UDim2.fromOffset(55,55),
+
+	UDim2.new(0.5,-27,1,-80)
+
 )
 
-local gripLeft = makeButton(
-    "GripLeft",
-    "GRIP",
-    UDim2.fromOffset(85,45),
-    UDim2.new(0,155,1,-100)
+--========================================================--
+-- HIDE UI
+--========================================================--
+
+local hideButton = createButton(
+
+	"HideUI",
+
+	"UI",
+
+	UDim2.fromOffset(50,45),
+
+	UDim2.new(1,-65,0,20)
+
 )
 
-local gripRight = makeButton(
-    "GripRight",
-    "GRIP",
-    UDim2.fromOffset(85,45),
-    UDim2.new(1,-240,1,-100)
+--========================================================--
+-- HAND BUTTONS
+--========================================================--
+
+local leftHandButton = createButton(
+
+	"LeftHand",
+
+	"L HAND",
+
+	UDim2.fromOffset(125,110),
+
+	UDim2.new(0,20,1,-145)
+
 )
 
-local recenterButton = makeButton(
-    "Recenter",
-    "⟳",
-    UDim2.fromOffset(55,55),
-    UDim2.new(0.5,-27,1,-80)
+local rightHandButton = createButton(
+
+	"RightHand",
+
+	"R HAND",
+
+	UDim2.fromOffset(125,110),
+
+	UDim2.new(1,-145,1,-145)
+
 )
 
-local hideButton = makeButton(
-    "HideUI",
-    "UI",
-    UDim2.fromOffset(50,45),
-    UDim2.new(0.5,-25,0,20)
+--========================================================--
+-- GRIP
+--========================================================--
+
+local gripLeftButton = createButton(
+
+	"GripLeft",
+
+	"GRIP",
+
+	UDim2.fromOffset(85,45),
+
+	UDim2.new(0,155,1,-95)
+
 )
 
---==================================================
+local gripRightButton = createButton(
+
+	"GripRight",
+
+	"GRIP",
+
+	UDim2.fromOffset(85,45),
+
+	UDim2.new(1,-240,1,-95)
+
+)
+
+--========================================================--
 -- MOVEMENT JOYSTICK
---==================================================
+--========================================================--
 
 local moveBase = Instance.new("Frame")
-moveBase.Name = "MovementBase"
 
-moveBase.Size = UDim2.fromOffset(130,130)
-moveBase.Position = UDim2.new(0,20,1,-290)
+moveBase.Name = "MovementJoystick"
+
+moveBase.Size = UDim2.fromOffset(
+	130,
+	130
+)
+
+moveBase.Position =
+	UDim2.new(0,20,1,-285)
+
+moveBase.BackgroundColor3 =
+	Color3.fromRGB(20,20,20)
 
 moveBase.BackgroundTransparency = 0.45
-moveBase.BackgroundColor3 = Color3.fromRGB(20,20,20)
 
 moveBase.BorderSizePixel = 0
+
 moveBase.Parent = gui
 
 local moveCorner = Instance.new("UICorner")
-moveCorner.CornerRadius = UDim.new(1,0)
+
+moveCorner.CornerRadius =
+	UDim.new(1,0)
+
 moveCorner.Parent = moveBase
 
 local moveStick = Instance.new("Frame")
-moveStick.Name = "Stick"
 
-moveStick.Size = UDim2.fromOffset(55,55)
-moveStick.Position = UDim2.new(0.5,-27,0.5,-27)
+moveStick.Size =
+	UDim2.fromOffset(55,55)
 
-moveStick.BackgroundTransparency = 0.1
-moveStick.BackgroundColor3 = Color3.fromRGB(80,80,80)
+moveStick.Position =
+	UDim2.new(0.5,-27,0.5,-27)
+
+moveStick.BackgroundColor3 =
+	Color3.fromRGB(80,80,80)
 
 moveStick.BorderSizePixel = 0
+
 moveStick.Parent = moveBase
 
 local stickCorner = Instance.new("UICorner")
-stickCorner.CornerRadius = UDim.new(1,0)
+
+stickCorner.CornerRadius =
+	UDim.new(1,0)
+
 stickCorner.Parent = moveStick
 
---==================================================
+--========================================================--
 -- MOVEMENT
---==================================================
+--========================================================--
 
+local movementTouch
 local moveVector = Vector2.zero
 
-local function updateMove(pos)
-    local center = moveBase.AbsolutePosition + moveBase.AbsoluteSize/2
-    local delta = pos - center
+local function updateMovement(position)
 
-    local radius = moveBase.AbsoluteSize.X/2
+	local center =
+		moveBase.AbsolutePosition +
+		moveBase.AbsoluteSize / 2
 
-    if delta.Magnitude > radius then
-        delta = delta.Unit * radius
-    end
+	local delta =
+		position - center
 
-    moveVector = Vector2.new(
-        delta.X/radius,
-        delta.Y/radius
-    )
+	local radius =
+		moveBase.AbsoluteSize.X / 2
 
-    moveStick.Position = UDim2.new(
-        0.5,
-        delta.X - moveStick.AbsoluteSize.X/2,
-        0.5,
-        delta.Y - moveStick.AbsoluteSize.Y/2
-    )
+	if delta.Magnitude > radius then
+
+		delta =
+			delta.Unit * radius
+
+	end
+
+	moveVector = Vector2.new(
+
+		delta.X / radius,
+
+		delta.Y / radius
+
+	)
+
+	moveStick.Position =
+		UDim2.new(
+
+			0.5,
+
+			delta.X - 27,
+
+			0.5,
+
+			delta.Y - 27
+
+		)
+
 end
 
 moveBase.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        movementTouch = input
-        updateMove(input.Position)
-    end
+
+	if input.UserInputType ==
+		Enum.UserInputType.Touch then
+
+		movementTouch = input
+
+		updateMovement(input.Position)
+
+	end
+
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == movementTouch then
-        updateMove(input.Position)
-    end
+
+	if input == movementTouch then
+
+		updateMovement(input.Position)
+
+	end
+
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input == movementTouch then
-        movementTouch = nil
-        moveVector = Vector2.zero
 
-        moveStick.Position = UDim2.new(
-            0.5,-27,
-            0.5,-27
-        )
-    end
+	if input == movementTouch then
+
+		movementTouch = nil
+
+		moveVector = Vector2.zero
+
+		moveStick.Position =
+			UDim2.new(
+				0.5,-27,
+				0.5,-27
+			)
+
+	end
+
 end)
 
---==================================================
+--========================================================--
 -- CAMERA TOUCH
---==================================================
+--========================================================--
+
+local cameraTouch
+local lastCameraPosition
 
 UserInputService.TouchStarted:Connect(function(input)
-    local pos = input.Position
 
-    if pos.X > workspace.CurrentCamera.ViewportSize.X * 0.35
-        and pos.X < workspace.CurrentCamera.ViewportSize.X * 0.75
-        and pos.Y < workspace.CurrentCamera.ViewportSize.Y * 0.8 then
+	if input.UserInputType ~=
+		Enum.UserInputType.Touch then
+		return
+	end
 
-        if not cameraTouch then
-            cameraTouch = input
-            cameraStart = pos
-        end
-    end
+	local viewport =
+		camera.ViewportSize
+
+	local x = input.Position.X
+	local y = input.Position.Y
+
+	-- Area tengah untuk kamera
+	if x > viewport.X * 0.30
+		and x < viewport.X * 0.78
+		and y < viewport.Y * 0.78 then
+
+		if not cameraTouch then
+
+			cameraTouch = input
+
+			lastCameraPosition =
+				input.Position
+
+		end
+
+	end
+
 end)
 
 UserInputService.TouchMoved:Connect(function(input)
-    if input == cameraTouch and cameraStart then
 
-        local delta = input.Position - cameraStart
+	if input ~= cameraTouch then
+		return
+	end
 
-        targetYaw -= delta.X * Settings.CameraSensitivity
-        targetPitch -= delta.Y * Settings.CameraSensitivity
+	if not lastCameraPosition then
+		return
+	end
 
-        targetPitch = math.clamp(
-            targetPitch,
-            math.rad(-75),
-            math.rad(75)
-        )
+	local delta =
+		input.Position -
+		lastCameraPosition
 
-        cameraStart = input.Position
-    end
+	local sensitivity
+
+	if CameraMode == "VR" then
+
+		sensitivity =
+			Settings.VRSensitivity
+
+	else
+
+		sensitivity =
+			Settings.NormalSensitivity
+
+	end
+
+	targetYaw -=
+		delta.X * sensitivity
+
+	targetPitch -=
+		delta.Y * sensitivity
+
+	--================================================--
+	-- NORMAL CAMERA
+	--================================================--
+
+	if CameraMode == "Normal" then
+
+		targetPitch =
+			math.clamp(
+
+				targetPitch,
+
+				math.rad(-80),
+
+				math.rad(80)
+
+			)
+
+	--================================================--
+	-- VR CAMERA
+	--================================================--
+
+	else
+
+		local bodyYaw =
+			getBodyYaw()
+
+		local relativeYaw =
+			normalizeAngle(
+				targetYaw - bodyYaw
+			)
+
+		-- Batasi pandangan kiri kanan.
+		relativeYaw =
+			math.clamp(
+
+				relativeYaw,
+
+				-Settings.VRMaxYaw,
+
+				Settings.VRMaxYaw
+
+			)
+
+		targetYaw =
+			bodyYaw + relativeYaw
+
+		targetPitch =
+			math.clamp(
+
+				targetPitch,
+
+				Settings.VRMinPitch,
+
+				Settings.VRMaxPitch
+
+			)
+
+	end
+
+	lastCameraPosition =
+		input.Position
+
 end)
 
 UserInputService.TouchEnded:Connect(function(input)
-    if input == cameraTouch then
-        cameraTouch = nil
-        cameraStart = nil
-    end
+
+	if input == cameraTouch then
+
+		cameraTouch = nil
+		lastCameraPosition = nil
+
+	end
+
 end)
 
---==================================================
+--========================================================--
 -- HAND TOUCH
---==================================================
+--========================================================--
 
-leftZone.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        leftHandTouch = input
-        leftHandStart = input.Position
-    end
+local leftTouch
+local rightTouch
+
+local leftStart
+local rightStart
+
+leftHandButton.InputBegan:Connect(function(input)
+
+	if input.UserInputType ==
+		Enum.UserInputType.Touch then
+
+		leftTouch = input
+		leftStart = input.Position
+
+	end
+
 end)
 
-rightZone.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        rightHandTouch = input
-        rightHandStart = input.Position
-    end
+rightHandButton.InputBegan:Connect(function(input)
+
+	if input.UserInputType ==
+		Enum.UserInputType.Touch then
+
+		rightTouch = input
+		rightStart = input.Position
+
+	end
+
 end)
 
 UserInputService.TouchMoved:Connect(function(input)
 
-    if input == leftHandTouch and leftHandStart then
+	-- LEFT HAND
+	if input == leftTouch then
 
-        local delta = input.Position - leftHandStart
+		if leftStart then
 
-        targetLeftX += delta.X * Settings.HandSensitivity
-        targetLeftY -= delta.Y * Settings.HandSensitivity
+			local delta =
+				input.Position - leftStart
 
-        targetLeftX = math.clamp(
-            targetLeftX,
-            -math.rad(70),
-            math.rad(70)
-        )
+			targetLeftX +=
+				delta.X *
+				Settings.HandSensitivity
 
-        targetLeftY = math.clamp(
-            targetLeftY,
-            -math.rad(55),
-            math.rad(55)
-        )
+			targetLeftY -=
+				delta.Y *
+				Settings.HandSensitivity
 
-        leftHandStart = input.Position
-    end
+			targetLeftX =
+				math.clamp(
 
-    if input == rightHandTouch and rightHandStart then
+					targetLeftX,
 
-        local delta = input.Position - rightHandStart
+					-math.rad(70),
 
-        targetRightX += delta.X * Settings.HandSensitivity
-        targetRightY -= delta.Y * Settings.HandSensitivity
+					math.rad(70)
 
-        targetRightX = math.clamp(
-            targetRightX,
-            -math.rad(70),
-            math.rad(70)
-        )
+				)
 
-        targetRightY = math.clamp(
-            targetRightY,
-            -math.rad(55),
-            math.rad(55)
-        )
+			targetLeftY =
+				math.clamp(
 
-        rightHandStart = input.Position
-    end
+					targetLeftY,
+
+					-math.rad(55),
+
+					math.rad(55)
+
+				)
+
+			leftStart =
+				input.Position
+
+		end
+
+	end
+
+	-- RIGHT HAND
+	if input == rightTouch then
+
+		if rightStart then
+
+			local delta =
+				input.Position - rightStart
+
+			targetRightX +=
+				delta.X *
+				Settings.HandSensitivity
+
+			targetRightY -=
+				delta.Y *
+				Settings.HandSensitivity
+
+			targetRightX =
+				math.clamp(
+
+					targetRightX,
+
+					-math.rad(70),
+
+					math.rad(70)
+
+				)
+
+			targetRightY =
+				math.clamp(
+
+					targetRightY,
+
+					-math.rad(55),
+
+					math.rad(55)
+
+				)
+
+			rightStart =
+				input.Position
+
+		end
+
+	end
+
 end)
 
 UserInputService.TouchEnded:Connect(function(input)
 
-    if input == leftHandTouch then
-        leftHandTouch = nil
-        leftHandStart = nil
-    end
+	if input == leftTouch then
 
-    if input == rightHandTouch then
-        rightHandTouch = nil
-        rightHandStart = nil
-    end
+		leftTouch = nil
+		leftStart = nil
+
+	end
+
+	if input == rightTouch then
+
+		rightTouch = nil
+		rightStart = nil
+
+	end
+
 end)
 
---==================================================
+--========================================================--
+-- CAMERA MODE SWITCH
+--========================================================--
+
+cameraButton.Activated:Connect(function()
+
+	if CameraMode == "Normal" then
+
+		CameraMode = "VR"
+
+		cameraButton.Text =
+			"CAM: VR"
+
+		-- Saat masuk VR,
+		-- arah kamera disesuaikan dengan badan
+		local bodyYaw =
+			getBodyYaw()
+
+		local relativeYaw =
+			normalizeAngle(
+				targetYaw - bodyYaw
+			)
+
+		relativeYaw =
+			math.clamp(
+
+				relativeYaw,
+
+				-Settings.VRMaxYaw,
+
+				Settings.VRMaxYaw
+
+			)
+
+		targetYaw =
+			bodyYaw + relativeYaw
+
+	else
+
+		CameraMode = "Normal"
+
+		cameraButton.Text =
+			"CAM: NORMAL"
+
+	end
+
+end)
+
+--========================================================--
 -- GRIP
---==================================================
+--========================================================--
 
-gripLeft.Activated:Connect(function()
-    leftGrip = not leftGrip
+gripLeftButton.Activated:Connect(function()
 
-    if leftGrip then
-        gripLeft.Text = "RELEASE"
-    else
-        gripLeft.Text = "GRIP"
-    end
+	leftGrip =
+		not leftGrip
+
+	if leftGrip then
+
+		gripLeftButton.Text =
+			"RELEASE"
+
+	else
+
+		gripLeftButton.Text =
+			"GRIP"
+
+	end
+
 end)
 
-gripRight.Activated:Connect(function()
-    rightGrip = not rightGrip
+gripRightButton.Activated:Connect(function()
 
-    if rightGrip then
-        gripRight.Text = "RELEASE"
-    else
-        gripRight.Text = "GRIP"
-    end
+	rightGrip =
+		not rightGrip
+
+	if rightGrip then
+
+		gripRightButton.Text =
+			"RELEASE"
+
+	else
+
+		gripRightButton.Text =
+			"GRIP"
+
+	end
+
 end)
 
---==================================================
+--========================================================--
 -- RECENTER
---==================================================
+--========================================================--
 
 recenterButton.Activated:Connect(function()
-    recenter()
 
-    targetLeftX = 0
-    targetLeftY = 0
+	recenter()
 
-    targetRightX = 0
-    targetRightY = 0
+	targetLeftX = 0
+	targetLeftY = 0
+
+	targetRightX = 0
+	targetRightY = 0
+
 end)
 
---==================================================
--- HIDE UI
---==================================================
+--========================================================--
+-- UI HIDE
+--========================================================--
 
 local uiVisible = true
 
 hideButton.Activated:Connect(function()
 
-    uiVisible = not uiVisible
+	uiVisible =
+		not uiVisible
 
-    for _, object in ipairs(gui:GetChildren()) do
-        if object ~= hideButton then
-            if object:IsA("GuiObject") then
-                object.Visible = uiVisible
-            end
-        end
-    end
+	for _, object in ipairs(gui:GetChildren()) do
 
-    if uiVisible then
-        hideButton.Text = "UI"
-    else
-        hideButton.Text = "☰"
-    end
+		if object ~= hideButton
+			and object:IsA("GuiObject") then
+
+			object.Visible =
+				uiVisible
+
+		end
+
+	end
+
+	if uiVisible then
+
+		hideButton.Text = "UI"
+
+	else
+
+		hideButton.Text = "☰"
+
+	end
+
 end)
 
---==================================================
--- CAMERA + HAND UPDATE
---==================================================
+--========================================================--
+-- MAIN UPDATE
+--========================================================--
 
 RunService.RenderStepped:Connect(function(dt)
 
-    if not character or not root then
-        return
-    end
+	if not character
+		or not root then
+		return
+	end
 
-    -- Smooth camera
-    cameraYaw += (targetYaw - cameraYaw) * Settings.CameraSmoothness
-    cameraPitch += (targetPitch - cameraPitch) * Settings.CameraSmoothness
+	--================================================--
+	-- CAMERA SMOOTH
+	--================================================--
 
-    -- Camera CFrame
-    local bodyPosition = root.Position + Vector3.new(
-        0,
-        1.6,
-        0
-    )
+	cameraYaw +=
+		(targetYaw - cameraYaw) *
+		Settings.CameraSmooth
 
-    local cameraRotation =
-        CFrame.Angles(0,cameraYaw,0) *
-        CFrame.Angles(cameraPitch,0,0)
+	cameraPitch +=
+		(targetPitch - cameraPitch) *
+		Settings.CameraSmooth
 
-    camera.CFrame =
-        CFrame.new(bodyPosition) *
-        cameraRotation
+	--================================================--
+	-- VR FINAL LIMIT
+	--================================================--
 
-    --==================================================
-    -- BODY DIRECTION
-    --==================================================
+	if CameraMode == "VR" then
 
-    local _, bodyYaw, _ = root.CFrame:ToOrientation()
+		local bodyYaw =
+			getBodyYaw()
 
-    -- Difference between camera and body
-    local relativeYaw = cameraYaw - bodyYaw
+		local relative =
+			normalizeAngle(
+				cameraYaw - bodyYaw
+			)
 
-    -- Normalize to -pi .. pi
-    relativeYaw = math.atan2(
-        math.sin(relativeYaw),
-        math.cos(relativeYaw)
-    )
+		relative =
+			math.clamp(
 
-    -- IMPORTANT:
-    -- Camera can look behind,
-    -- but hands DON'T rotate all the way behind.
-    local limitedYaw = math.clamp(
-        relativeYaw,
-        -Settings.MaxHandYaw,
-        Settings.MaxHandYaw
-    )
+				relative,
 
-    --==================================================
-    -- HAND SMOOTHING
-    --==================================================
+				-Settings.VRMaxYaw,
 
-    leftX += (targetLeftX - leftX) * Settings.HandSmoothness
-    leftY += (targetLeftY - leftY) * Settings.HandSmoothness
+				Settings.VRMaxYaw
 
-    rightX += (targetRightX - rightX) * Settings.HandSmoothness
-    rightY += (targetRightY - rightY) * Settings.HandSmoothness
+			)
 
-    --==================================================
-    -- LEFT HAND
-    --==================================================
+		cameraYaw =
+			bodyYaw + relative
 
-    local leftYaw =
-        limitedYaw + leftX
+	end
 
-    local leftPitch =
-        math.clamp(
-            leftY,
-            -Settings.MaxHandPitch,
-            Settings.MaxHandPitch
-        )
+	--================================================--
+	-- CAMERA
+	--================================================--
 
-    local leftRotation =
-        CFrame.Angles(0,leftYaw,0) *
-        CFrame.Angles(leftPitch,0,0)
+	local cameraPosition =
+		root.Position +
+		Vector3.new(0,1.6,0)
 
-    local leftOffset =
-        leftRotation:VectorToWorldSpace(
-            Vector3.new(
-                -Settings.HandSide,
-                Settings.HandHeight,
-                -Settings.HandDistance
-            )
-        )
+	local rotation =
 
-    local leftPosition =
-        root.Position + leftOffset
+		CFrame.Angles(
+			0,
+			cameraYaw,
+			0
+		) *
 
-    leftHand.CFrame =
-        CFrame.lookAt(
-            leftPosition,
-            leftPosition + leftRotation.LookVector
-        )
+		CFrame.Angles(
+			cameraPitch,
+			0,
+			0
+		)
 
-    --==================================================
-    -- RIGHT HAND
-    --==================================================
+	camera.CFrame =
+		CFrame.new(cameraPosition) *
+		rotation
 
-    local rightYaw =
-        limitedYaw + rightX
+	camera.CameraType =
+		Enum.CameraType.Scriptable
 
-    local rightPitch =
-        math.clamp(
-            rightY,
-            -Settings.MaxHandPitch,
-            Settings.MaxHandPitch
-        )
+	--================================================--
+	-- HAND SMOOTH
+	--================================================--
 
-    local rightRotation =
-        CFrame.Angles(0,rightYaw,0) *
-        CFrame.Angles(rightPitch,0,0)
+	leftX +=
+		(targetLeftX - leftX) *
+		Settings.HandSmooth
 
-    local rightOffset =
-        rightRotation:VectorToWorldSpace(
-            Vector3.new(
-                Settings.HandSide,
-                Settings.HandHeight,
-                -Settings.HandDistance
-            )
-        )
+	leftY +=
+		(targetLeftY - leftY) *
+		Settings.HandSmooth
 
-    local rightPosition =
-        root.Position + rightOffset
+	rightX +=
+		(targetRightX - rightX) *
+		Settings.HandSmooth
 
-    rightHand.CFrame =
-        CFrame.lookAt(
-            rightPosition,
-            rightPosition + rightRotation.LookVector
-        )
+	rightY +=
+		(targetRightY - rightY) *
+		Settings.HandSmooth
 
-    --==================================================
-    -- MOVEMENT
-    --==================================================
+	updateSwing()
 
-    if humanoid then
+	--================================================--
+	-- HAND DIRECTION
+	--================================================--
 
-        local forward =
-            Vector3.new(
-                math.sin(cameraYaw),
-                0,
-                math.cos(cameraYaw)
-            )
+	local bodyYaw =
+		getBodyYaw()
 
-        local right =
-            Vector3.new(
-                math.cos(cameraYaw),
-                0,
-                -math.sin(cameraYaw)
-            )
+	local cameraRelative =
+		normalizeAngle(
+			cameraYaw - bodyYaw
+		)
 
-        local moveDirection =
-            right * moveVector.X +
-            forward * (-moveVector.Y)
+	-- Tangan tidak mengikuti kamera
+	-- sampai ke belakang.
+	local handBaseYaw =
+		math.clamp(
 
-        if moveDirection.Magnitude > 0.05 then
-            humanoid:Move(
-                moveDirection.Unit,
-                false
-            )
-        else
-            humanoid:Move(Vector3.zero,false)
-        end
-    end
+			cameraRelative,
 
-    --==================================================
-    -- GRIP VISUAL STATE
-    --==================================================
+			-Settings.MaxHandYaw,
 
-    if leftGrip then
-        leftHand.Size =
-            Vector3.new(0.28,0.28,0.48)
-    else
-        leftHand.Size =
-            Vector3.new(0.35,0.35,0.65)
-    end
+			Settings.MaxHandYaw
 
-    if rightGrip then
-        rightHand.Size =
-            Vector3.new(0.28,0.28,0.48)
-    else
-        rightHand.Size =
-            Vector3.new(0.35,0.35,0.65)
-    end
+		)
+
+	--================================================--
+	-- LEFT HAND
+	--================================================--
+
+	local leftYaw =
+		handBaseYaw + leftX
+
+	local leftPitch =
+		math.clamp(
+
+			leftY,
+
+			-Settings.MaxHandPitch,
+
+			Settings.MaxHandPitch
+
+		)
+
+	-- Swing
+	local leftSwingOffset =
+		math.sin(
+			os.clock() *
+			Settings.SwingSpeed
+		) *
+		leftSwing *
+		Settings.SwingPower
+
+	local leftRotation =
+
+		CFrame.Angles(
+			0,
+			leftYaw,
+			0
+		) *
+
+		CFrame.Angles(
+			leftPitch +
+			leftSwingOffset,
+			0,
+			0
+		)
+
+	local leftOffset =
+		leftRotation:VectorToWorldSpace(
+
+			Vector3.new(
+
+				-Settings.HandSide,
+
+				Settings.HandHeight,
+
+				-Settings.HandDistance
+
+			)
+
+		)
+
+	local leftPosition =
+		root.Position +
+		leftOffset
+
+	leftHand.CFrame =
+		CFrame.lookAt(
+
+			leftPosition,
+
+			leftPosition +
+			leftRotation.LookVector
+
+		)
+
+	--================================================--
+	-- RIGHT HAND
+	--================================================--
+
+	local rightYaw =
+		handBaseYaw + rightX
+
+	local rightPitch =
+		math.clamp(
+
+			rightY,
+
+			-Settings.MaxHandPitch,
+
+			Settings.MaxHandPitch
+
+		)
+
+	local rightSwingOffset =
+		math.sin(
+			os.clock() *
+			Settings.SwingSpeed +
+			math.pi
+		) *
+		rightSwing *
+		Settings.SwingPower
+
+	local rightRotation =
+
+		CFrame.Angles(
+			0,
+			rightYaw,
+			0
+		) *
+
+		CFrame.Angles(
+			rightPitch +
+			rightSwingOffset,
+			0,
+			0
+		)
+
+	local rightOffset =
+		rightRotation:VectorToWorldSpace(
+
+			Vector3.new(
+
+				Settings.HandSide,
+
+				Settings.HandHeight,
+
+				-Settings.HandDistance
+
+			)
+
+		)
+
+	local rightPosition =
+		root.Position +
+		rightOffset
+
+	rightHand.CFrame =
+		CFrame.lookAt(
+
+			rightPosition,
+
+			rightPosition +
+			rightRotation.LookVector
+
+		)
+
+	--================================================--
+	-- GRIP SIZE
+	--================================================--
+
+	if leftGrip then
+
+		leftHand.Size =
+			Vector3.new(
+				0.28,
+				0.28,
+				0.48
+			)
+
+	else
+
+		leftHand.Size =
+			Vector3.new(
+				0.35,
+				0.35,
+				0.65
+			)
+
+	end
+
+	if rightGrip then
+
+		rightHand.Size =
+			Vector3.new(
+				0.28,
+				0.28,
+				0.48
+			)
+
+	else
+
+		rightHand.Size =
+			Vector3.new(
+				0.35,
+				0.35,
+				0.65
+			)
+
+	end
+
+	--================================================--
+	-- MOVEMENT
+	--================================================--
+
+	if humanoid then
+
+		local forward =
+			Vector3.new(
+
+				math.sin(cameraYaw),
+				0,
+				math.cos(cameraYaw)
+
+			)
+
+		local right =
+			Vector3.new(
+
+				math.cos(cameraYaw),
+				0,
+				-math.sin(cameraYaw)
+
+			)
+
+		local direction =
+
+			right * moveVector.X +
+
+			forward * (-moveVector.Y)
+
+		if direction.Magnitude > 0.05 then
+
+			humanoid:Move(
+				direction.Unit,
+				false
+			)
+
+		else
+
+			humanoid:Move(
+				Vector3.zero,
+				false
+			)
+
+		end
+
+	end
+
 end)
 
---==================================================
+--========================================================--
 -- CLEANUP
---==================================================
+--========================================================--
 
 script.Destroying:Connect(function()
 
-    if camera then
-        camera.CameraType = Enum.CameraType.Custom
-    end
+	camera.CameraType =
+		Enum.CameraType.Custom
 
-    if handFolder then
-        handFolder:Destroy()
-    end
+	if handFolder then
+		handFolder:Destroy()
+	end
 
-    if gui then
-        gui:Destroy()
-    end
+	if gui then
+		gui:Destroy()
+	end
+
 end)
