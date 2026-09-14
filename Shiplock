@@ -1,2 +1,228 @@
--- Obfuscated/minified client script.
-local Players=game:GetService("Players")local UserInputService=game:GetService("UserInputService")local RunService=game:GetService("RunService")local player=Players.LocalPlayer local playerGui=player:WaitForChild("PlayerGui")local DEFAULT_SIZE=58 local DEFAULT_POSITION=UDim2.new(0.922,0,0.552,0)local buttonSize=DEFAULT_SIZE local buttonPosition=DEFAULT_POSITION local character local humanoid local root local function setupCharacter(char)character=char humanoid=char:WaitForChild("Humanoid")root=char:WaitForChild("HumanoidRootPart")end setupCharacter(player.Character or player.CharacterAdded:Wait())player.CharacterAdded:Connect(function(char)setupCharacter(char)end)local gui=Instance.new("ScreenGui")gui.Name="MobileShiftLockUI"gui.ResetOnSpawn=false gui.IgnoreGuiInset=true gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling gui.Parent=playerGui local button=Instance.new("ImageButton")button.Name="ShiftLockButton"button.BackgroundTransparency=1 button.Size=UDim2.fromOffset(buttonSize,buttonSize)button.Position=buttonPosition button.AnchorPoint=Vector2.new(0.5,0.5)button.Image="rbxasset://textures/ui/mouseLock_off@2x.png"button.ScaleType=Enum.ScaleType.Fit button.AutoButtonColor=false button.Visible=UserInputService.TouchEnabled button.Parent=gui local settingsButton=Instance.new("TextButton")settingsButton.Name="SettingsButton"settingsButton.Size=UDim2.fromOffset(34,34)settingsButton.Position=UDim2.new(1,-48,1,-145)settingsButton.AnchorPoint=Vector2.new(0,0)settingsButton.BackgroundTransparency=0.15 settingsButton.Text="⚙"settingsButton.TextScaled=true settingsButton.Font=Enum.Font.GothamBold settingsButton.TextColor3=Color3.fromRGB(255,255,255)settingsButton.Parent=gui settingsButton.Visible=UserInputService.TouchEnabled local settingsCorner=Instance.new("UICorner")settingsCorner.CornerRadius=UDim.new(0,9)settingsCorner.Parent=settingsButton local panel=Instance.new("Frame")panel.Name="CompactSettings"panel.Size=UDim2.fromOffset(230,205)panel.Position=UDim2.new(1,-242,1,-360)panel.BackgroundTransparency=0.08 panel.Visible=false panel.Parent=gui local panelCorner=Instance.new("UICorner")panelCorner.CornerRadius=UDim.new(0,12)panelCorner.Parent=panel local stroke=Instance.new("UIStroke")stroke.Thickness=1 stroke.Transparency=0.35 stroke.Parent=panel local title=Instance.new("TextLabel")title.Size=UDim2.new(1,-20,0,30)title.Position=UDim2.fromOffset(10,7)title.BackgroundTransparency=1 title.Text="UI SETTINGS"title.TextSize=16 title.Font=Enum.Font.GothamBold title.TextColor3=Color3.fromRGB(255,255,255)title.TextXAlignment=Enum.TextXAlignment.Left title.Parent=panel local closeButton=Instance.new("TextButton")closeButton.Size=UDim2.fromOffset(28,28)closeButton.Position=UDim2.new(1,-36,0,8)closeButton.BackgroundTransparency=1 closeButton.Text="×"closeButton.TextSize=22 closeButton.Font=Enum.Font.GothamBold closeButton.TextColor3=Color3.fromRGB(255,255,255)closeButton.Parent=panel local sizeLabel=Instance.new("TextLabel")sizeLabel.Size=UDim2.new(1,-20,0,24)sizeLabel.Position=UDim2.fromOffset(10,43)sizeLabel.BackgroundTransparency=1 sizeLabel.Text="Ukuran: 58"sizeLabel.TextSize=13 sizeLabel.Font=Enum.Font.GothamMedium sizeLabel.TextColor3=Color3.fromRGB(235,235,235)sizeLabel.TextXAlignment=Enum.TextXAlignment.Left sizeLabel.Parent=panel local minusSize=Instance.new("TextButton")minusSize.Size=UDim2.fromOffset(46,30)minusSize.Position=UDim2.fromOffset(10,69)minusSize.Text="−"minusSize.TextSize=20 minusSize.Font=Enum.Font.GothamBold minusSize.TextColor3=Color3.fromRGB(255,255,255)minusSize.Parent=panel local plusSize=Instance.new("TextButton")plusSize.Size=UDim2.fromOffset(46,30)plusSize.Position=UDim2.fromOffset(174,69)plusSize.Text="+"plusSize.TextSize=20 plusSize.Font=Enum.Font.GothamBold plusSize.TextColor3=Color3.fromRGB(255,255,255)plusSize.Parent=panel local sizeValue=Instance.new("TextLabel")sizeValue.Size=UDim2.fromOffset(100,30)sizeValue.Position=UDim2.fromOffset(65,69)sizeValue.BackgroundTransparency=1 sizeValue.Text="58 px"sizeValue.TextSize=13 sizeValue.Font=Enum.Font.GothamBold sizeValue.TextColor3=Color3.fromRGB(255,255,255)sizeValue.Parent=panel local posLabel=Instance.new("TextLabel")posLabel.Size=UDim2.new(1,-20,0,24)posLabel.Position=UDim2.fromOffset(10,106)posLabel.BackgroundTransparency=1 posLabel.Text="Posisi tombol"posLabel.TextSize=13 posLabel.Font=Enum.Font.GothamMedium posLabel.TextColor3=Color3.fromRGB(235,235,235)posLabel.TextXAlignment=Enum.TextXAlignment.Left posLabel.Parent=panel local leftButton=Instance.new("TextButton")leftButton.Size=UDim2.fromOffset(42,30)leftButton.Position=UDim2.fromOffset(10,132)leftButton.Text="←"leftButton.TextSize=18 leftButton.Parent=panel local upButton=Instance.new("TextButton")upButton.Size=UDim2.fromOffset(42,30)upButton.Position=UDim2.fromOffset(58,132)upButton.Text="↑"upButton.TextSize=18 upButton.Parent=panel local downButton=Instance.new("TextButton")downButton.Size=UDim2.fromOffset(42,30)downButton.Position=UDim2.fromOffset(106,132)downButton.Text="↓"downButton.TextSize=18 downButton.Parent=panel local rightButton=Instance.new("TextButton")rightButton.Size=UDim2.fromOffset(42,30)rightButton.Position=UDim2.fromOffset(154,132)rightButton.Text="→"rightButton.TextSize=18 rightButton.Parent=panel local resetButton=Instance.new("TextButton")resetButton.Size=UDim2.fromOffset(66,30)resetButton.Position=UDim2.fromOffset(154,168)resetButton.Text="RESET"resetButton.TextSize=11 resetButton.Font=Enum.Font.GothamBold resetButton.TextColor3=Color3.fromRGB(255,255,255)resetButton.Parent=panel local hint=Instance.new("TextLabel")hint.Size=UDim2.fromOffset(135,30)hint.Position=UDim2.fromOffset(10,165)hint.BackgroundTransparency=1 hint.Text="Tip: tombol juga bisa di-drag"hint.TextSize=10 hint.Font=Enum.Font.Gotham hint.TextColor3=Color3.fromRGB(190,190,190)hint.TextWrapped=true hint.Parent=panel local function styleButton(btn)local corner=Instance.new("UICorner")corner.CornerRadius=UDim.new(0,7)corner.Parent=btn local s=Instance.new("UIStroke")s.Thickness=1 s.Transparency=0.5 s.Parent=btn end for _,b in ipairs({minusSize,plusSize,leftButton,upButton,downButton,rightButton,resetButton})do styleButton(b)end local function updateSize()button.Size=UDim2.fromOffset(buttonSize,buttonSize)sizeLabel.Text="Ukuran: "..buttonSize sizeValue.Text=buttonSize.." px"end local function updatePosition()button.Position=buttonPosition end local function changePosition(dx,dy)local x=math.clamp(buttonPosition.X.Scale+dx,0.04,0.96)local y=math.clamp(buttonPosition.Y.Scale+dy,0.08,0.92)buttonPosition=UDim2.new(x,buttonPosition.X.Offset,y,buttonPosition.Y.Offset)updatePosition()end minusSize.Activated:Connect(function()buttonSize=math.clamp(buttonSize-5,30,110)updateSize()end)plusSize.Activated:Connect(function()buttonSize=math.clamp(buttonSize+5,30,110)updateSize()end)local STEP=0.025 leftButton.Activated:Connect(function()changePosition(-STEP,0)end)rightButton.Activated:Connect(function()changePosition(STEP,0)end)upButton.Activated:Connect(function()changePosition(0,-STEP)end)downButton.Activated:Connect(function()changePosition(0,STEP)end)resetButton.Activated:Connect(function()buttonSize=DEFAULT_SIZE buttonPosition=DEFAULT_POSITION updateSize()updatePosition()end)settingsButton.Activated:Connect(function()panel.Visible=not panel.Visible end)closeButton.Activated:Connect(function()panel.Visible=false end)local dragging=false local dragStart local startPosition button.InputBegan:Connect(function(input)if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true dragStart=input.Position startPosition=button.Position input.Changed:Connect(function()if input.UserInputState==Enum.UserInputState.End then dragging=false end end)end end)UserInputService.InputChanged:Connect(function(input)if not dragging then return end if input.UserInputType~=Enum.UserInputType.Touch and input.UserInputType~=Enum.UserInputType.MouseMovement then return end local delta=input.Position-dragStart local camera=workspace.CurrentCamera if camera then local x=startPosition.X.Scale+(delta.X/camera.ViewportSize.X)local y=startPosition.Y.Scale+(delta.Y/camera.ViewportSize.Y)buttonPosition=UDim2.new(math.clamp(x,0.04,0.96),0,math.clamp(y,0.08,0.92),0)updatePosition()end end)local active=false local renderConnection local ENABLED_OFFSET=CFrame.new(1.7,0,0)local DISABLED_OFFSET=CFrame.new(-1.7,0,0)local MAX_LENGTH=900000 local states={ON="rbxasset://textures/ui/mouseLock_on@2x.png",OFF="rbxasset://textures/ui/mouseLock_off@2x.png"}local function updateImage(state)button.Image=states[state]end local function getRoot()if not character or not character.Parent then return nil end if not humanoid or humanoid.Health<=0 then return nil end root=character:FindFirstChild("HumanoidRootPart")return root end local function enableShiftlock()local currentRoot=getRoot()if not currentRoot or not humanoid then return end local camera=workspace.CurrentCamera if not camera then return end humanoid.AutoRotate=false updateImage("ON")local look=camera.CFrame.LookVector local target=Vector3.new(look.X*MAX_LENGTH,currentRoot.Position.Y,look.Z*MAX_LENGTH)currentRoot.CFrame=CFrame.new(currentRoot.Position,target)camera.CFrame=camera.CFrame*ENABLED_OFFSET end local function disableShiftlock()if humanoid then humanoid.AutoRotate=true end updateImage("OFF")local camera=workspace.CurrentCamera if camera then camera.CFrame=camera.CFrame*DISABLED_OFFSET end if renderConnection then renderConnection:Disconnect()renderConnection=nil end end local function toggleShiftlock()if not active then active=true renderConnection=RunService.RenderStepped:Connect(function()enableShiftlock()end)else active=false disableShiftlock()end end button.Activated:Connect(toggleShiftlock)updateSize()updatePosition()updateImage("OFF")if not UserInputService.TouchEnabled then button.Visible=false settingsButton.Visible=false panel.Visible=false end
+--Script by Renzdlys
+-- Gui to Lua
+-- Version: 3.2
+ 
+-- Instances:
+ 
+local ShiftlockStarterGui = Instance.new("ScreenGui")
+local ImageButton = Instance.new("ImageButton")
+ 
+--Properties:
+ 
+ShiftlockStarterGui.Name = "Shiftlock (StarterGui)"
+ShiftlockStarterGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ShiftlockStarterGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ 
+ImageButton.Parent = ShiftlockStarterGui
+ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ImageButton.BackgroundTransparency = 1.000
+ImageButton.Position = UDim2.new(0.921914339, 0, 0.552375436, 0)
+ImageButton.Size = UDim2.new(0.0636147112, 0, 0.0661305636, 0)
+ImageButton.SizeConstraint = Enum.SizeConstraint.RelativeXX
+ImageButton.Image = "http://www.roblox.com/asset/?id=182223762"
+ 
+-- Scripts:
+ 
+local function TLQOYN_fake_script() -- ImageButton.ShiftGUI 
+    local script = Instance.new('LocalScript', ImageButton)
+    
+    local MobileCameraFramework = {}
+    local players = game:GetService("Players")
+    local runservice = game:GetService("RunService")
+    local CAS = game:GetService("ContextActionService")
+    local player = players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local root = character:WaitForChild("HumanoidRootPart")
+    local humanoid = character.Humanoid
+    local camera = workspace.CurrentCamera
+    local button = script.Parent
+    
+    --Visiblity
+    uis = game:GetService("UserInputService")
+    ismobile = uis.TouchEnabled
+    button.Visible = ismobile
+    
+    local states = {
+    OFF = "rbxasset://textures/ui/mouseLock_off@2x.png",
+    ON = "rbxasset://textures/ui/mouseLock_on@2x.png"
+    }
+    local MAX_LENGTH = 900000
+    local active = false
+    local ENABLED_OFFSET = CFrame.new(1.7, 0, 0)
+    local DISABLED_OFFSET = CFrame.new(-1.7, 0, 0)
+    local function UpdateImage(STATE)
+        button.Image = states[STATE]
+    end
+    local function UpdateAutoRotate(BOOL)
+        humanoid.AutoRotate = BOOL
+    end
+    local function GetUpdatedCameraCFrame(ROOT, CAMERA)
+        return CFrame.new(root.Position, Vector3.new(CAMERA.CFrame.LookVector.X * MAX_LENGTH, root.Position.Y, CAMERA.CFrame.LookVector.Z * MAX_LENGTH))
+    end
+    local function EnableShiftlock()
+        UpdateAutoRotate(false)
+        UpdateImage("ON")
+        root.CFrame = GetUpdatedCameraCFrame(root, camera)
+        camera.CFrame = camera.CFrame * ENABLED_OFFSET
+    end
+    local function DisableShiftlock()
+        UpdateAutoRotate(true)
+        UpdateImage("OFF")
+        camera.CFrame = camera.CFrame * DISABLED_OFFSET
+        pcall(function()
+            active:Disconnect()
+            active = nil
+        end)
+    end
+    UpdateImage("OFF")
+    active = false
+    function ShiftLock()
+        if not active then
+            active = runservice.RenderStepped:Connect(function()
+                EnableShiftlock()
+            end)
+        else
+            DisableShiftlock()
+        end
+    end
+    local ShiftLockButton = CAS:BindAction("ShiftLOCK", ShiftLock, false, "On")
+    CAS:SetPosition("ShiftLOCK", UDim2.new(0.8, 0, 0.8, 0))
+    button.MouseButton1Click:Connect(function()
+        if not active then
+            active = runservice.RenderStepped:Connect(function()
+                EnableShiftlock()
+            end)
+        else
+            DisableShiftlock()
+        end
+    end)
+    return MobileCameraFramework
+    
+end
+coroutine.wrap(TLQOYN_fake_script)()
+local function OMQRQRC_fake_script() -- ShiftlockStarterGui.LocalScript 
+    local script = Instance.new('LocalScript', ShiftlockStarterGui)
+    
+    local Players = game:GetService("Players")
+    local UserInputService = game:GetService("UserInputService")
+    local Settings = UserSettings()
+    local GameSettings = Settings.GameSettings
+    local ShiftLockController = {}
+    while not Players.LocalPlayer do
+        wait()
+    end
+    local LocalPlayer = Players.LocalPlayer
+    local Mouse = LocalPlayer:GetMouse()
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local ScreenGui, ShiftLockIcon, InputCn
+    local IsShiftLockMode = true
+    local IsShiftLocked = true
+    local IsActionBound = false
+    local IsInFirstPerson = false
+    ShiftLockController.OnShiftLockToggled = Instance.new("BindableEvent")
+    local function isShiftLockMode()
+        return LocalPlayer.DevEnableMouseLock and GameSettings.ControlMode == Enum.ControlMode.MouseLockSwitch and LocalPlayer.DevComputerMovementMode ~= Enum.DevComputerMovementMode.ClickToMove and GameSettings.ComputerMovementMode ~= Enum.ComputerMovementMode.ClickToMove and LocalPlayer.DevComputerMovementMode ~= Enum.DevComputerMovementMode.Scriptable
+    end
+    if not UserInputService.TouchEnabled then
+        IsShiftLockMode = isShiftLockMode()
+    end
+    local function onShiftLockToggled()
+        IsShiftLocked = not IsShiftLocked
+        ShiftLockController.OnShiftLockToggled:Fire()
+    end
+    local initialize = function()
+        print("enabled")
+    end
+    function ShiftLockController:IsShiftLocked()
+        return IsShiftLockMode and IsShiftLocked
+    end
+    function ShiftLockController:SetIsInFirstPerson(isInFirstPerson)
+        IsInFirstPerson = isInFirstPerson
+    end
+    local function mouseLockSwitchFunc(actionName, inputState, inputObject)
+        if IsShiftLockMode then
+            onShiftLockToggled()
+        end
+    end
+    local function disableShiftLock()
+        if ScreenGui then
+            ScreenGui.Parent = nil
+        end
+        IsShiftLockMode = false
+        Mouse.Icon = ""
+        if InputCn then
+            InputCn:disconnect()
+            InputCn = nil
+        end
+        IsActionBound = false
+        ShiftLockController.OnShiftLockToggled:Fire()
+    end
+    local onShiftInputBegan = function(inputObject, isProcessed)
+        if isProcessed then
+            return
+        end
+        if inputObject.UserInputType ~= Enum.UserInputType.Keyboard or inputObject.KeyCode == Enum.KeyCode.LeftShift or inputObject.KeyCode == Enum.KeyCode.RightShift then
+        end
+        end
+            local function enableShiftLock()
+                IsShiftLockMode = isShiftLockMode()
+                if IsShiftLockMode then
+                    if ScreenGui then
+                        ScreenGui.Parent = PlayerGui
+                    end
+                    if IsShiftLocked then
+                        ShiftLockController.OnShiftLockToggled:Fire()
+                    end
+                    if not IsActionBound then
+                        InputCn = UserInputService.InputBegan:connect(onShiftInputBegan)
+                        IsActionBound = true
+                    end
+                end
+            end
+            GameSettings.Changed:connect(function(property)
+                if property == "ControlMode" then
+                    if GameSettings.ControlMode == Enum.ControlMode.MouseLockSwitch then
+                        enableShiftLock()
+                    else
+                        disableShiftLock()
+                    end
+                elseif property == "ComputerMovementMode" then
+                    if GameSettings.ComputerMovementMode == Enum.ComputerMovementMode.ClickToMove then
+                        disableShiftLock()
+                    else
+                        enableShiftLock()
+                    end
+                end
+            end)
+            LocalPlayer.Changed:connect(function(property)
+                if property == "DevEnableMouseLock" then
+                    if LocalPlayer.DevEnableMouseLock then
+                        enableShiftLock()
+                    else
+                        disableShiftLock()
+                    end
+                elseif property == "DevComputerMovementMode" then
+                    if LocalPlayer.DevComputerMovementMode == Enum.DevComputerMovementMode.ClickToMove or LocalPlayer.DevComputerMovementMode == Enum.DevComputerMovementMode.Scriptable then
+                        disableShiftLock()
+                    else
+                        enableShiftLock()
+                    end
+                end
+            end)
+            LocalPlayer.CharacterAdded:connect(function(character)
+                if not UserInputService.TouchEnabled then
+                    initialize()
+                end
+            end)
+            if not UserInputService.TouchEnabled then
+                initialize()
+                if isShiftLockMode() then
+                    InputCn = UserInputService.InputBegan:connect(onShiftInputBegan)
+                    IsActionBound = true
+                end
+            end
+            enableShiftLock()
+            return ShiftLockController
+            
+        end
+        coroutine.wrap(OMQRQRC_fake_script)()
