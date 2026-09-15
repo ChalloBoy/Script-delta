@@ -217,6 +217,75 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 8)
 btnCorner.Parent = ToggleBtn
 
+-- --- PROFIL + WELCOME USERNAME ---
+-- Mengambil avatar/profile thumbnail Roblox langsung dari layanan thumbnail Roblox.
+local ProfileCard = Instance.new("Frame")
+ProfileCard.Name = "VR_ProfileCard"
+ProfileCard.Size = UDim2.new(0, 250, 0, 70)
+ProfileCard.Position = UDim2.new(0, 18, 0, 18)
+ProfileCard.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+ProfileCard.BackgroundTransparency = 0.15
+ProfileCard.BorderSizePixel = 0
+ProfileCard.Visible = false
+ProfileCard.Parent = ScreenGui
+
+local profileCorner = Instance.new("UICorner")
+profileCorner.CornerRadius = UDim.new(0, 12)
+profileCorner.Parent = ProfileCard
+
+local Avatar = Instance.new("ImageLabel")
+Avatar.Name = "Avatar"
+Avatar.Size = UDim2.new(0, 52, 0, 52)
+Avatar.Position = UDim2.new(0, 9, 0.5, -26)
+Avatar.BackgroundTransparency = 1
+Avatar.Parent = ProfileCard
+
+local avatarCorner = Instance.new("UICorner")
+avatarCorner.CornerRadius = UDim.new(1, 0)
+avatarCorner.Parent = Avatar
+
+local Welcome = Instance.new("TextLabel")
+Welcome.Name = "Welcome"
+Welcome.Size = UDim2.new(1, -75, 0, 24)
+Welcome.Position = UDim2.new(0, 70, 0, 11)
+Welcome.BackgroundTransparency = 1
+Welcome.Text = "WELCOME"
+Welcome.TextColor3 = Color3.fromRGB(0, 200, 255)
+Welcome.TextSize = 15
+Welcome.Font = Enum.Font.GothamBold
+Welcome.TextXAlignment = Enum.TextXAlignment.Left
+Welcome.Parent = ProfileCard
+
+local Username = Instance.new("TextLabel")
+Username.Name = "Username"
+Username.Size = UDim2.new(1, -75, 0, 25)
+Username.Position = UDim2.new(0, 70, 0, 34)
+Username.BackgroundTransparency = 1
+Username.Text = plr.DisplayName .. "  @" .. plr.Name
+Username.TextColor3 = Color3.fromRGB(255, 255, 255)
+Username.TextSize = 13
+Username.Font = Enum.Font.Gotham
+Username.TextXAlignment = Enum.TextXAlignment.Left
+Username.TextTruncate = Enum.TextTruncate.AtEnd
+Username.Parent = ProfileCard
+
+task.spawn(function()
+    local ok, image = pcall(function()
+        return Players:GetUserThumbnailAsync(
+            plr.UserId,
+            Enum.ThumbnailType.HeadShot,
+            Enum.ThumbnailSize.Size100x100
+        )
+    end)
+
+    if ok and image then
+        Avatar.Image = image
+    end
+
+    task.wait(0.25)
+    ProfileCard.Visible = true
+end)
+
 local uiVisible = true
 ToggleBtn.MouseButton1Click:Connect(function()
     uiVisible = not uiVisible
@@ -284,6 +353,7 @@ task.spawn(function()
     IntroFrame:Destroy()
     
     ToggleBtn.Visible = true
+    ProfileCard.Visible = true
     local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Derecho_Pad", "Derecho_Z_Pad"}
     for _, padName in ipairs(pads) do
         local pad = ScreenGui:FindFirstChild(padName)
@@ -340,7 +410,7 @@ RunService.RenderStepped:Connect(function()
 
         headCF = rootCF
             * CFrame.new(0, 2, 0)
-            * CFrame.Angles(-pitch, headYaw, 0)
+            * CFrame.Angles(pitch, headYaw, 0)
         local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
         local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
         
