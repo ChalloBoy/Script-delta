@@ -222,11 +222,11 @@ btnCorner.Parent = ToggleBtn
 local ProfileCard = Instance.new("Frame")
 ProfileCard.Name = "VR_ProfileCard"
 ProfileCard.Size = UDim2.new(0, 250, 0, 70)
-ProfileCard.Position = UDim2.new(0, 18, 0, 18)
+ProfileCard.Position = UDim2.new(0.5, -125, 0.5, -135)
 ProfileCard.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 ProfileCard.BackgroundTransparency = 0.15
 ProfileCard.BorderSizePixel = 0
-ProfileCard.Visible = false
+ProfileCard.Visible = true
 ProfileCard.Parent = ScreenGui
 
 local profileCorner = Instance.new("UICorner")
@@ -309,13 +309,15 @@ IntroFrame.Parent = ScreenGui
 
 local IntroText = Instance.new("TextLabel")
 IntroText.Name = "IntroText"
-IntroText.Size = UDim2.new(0, 400, 0, 100)
-IntroText.Position = UDim2.new(0.5, -200, 0.5, -50)
+IntroText.Size = UDim2.new(0, 500, 0, 120)
+IntroText.Position = UDim2.new(0.5, -250, 0.5, -60)
 IntroText.BackgroundTransparency = 1
-IntroText.Text = "SCRIPT BY CHALLO BOY"
+IntroText.Text = "SCRIPT BY CHALLO BOY\nWELCOME " .. plr.DisplayName .. "  @" .. plr.Name
 IntroText.TextColor3 = Color3.fromRGB(255, 255, 255)
 IntroText.TextSize = 34
 IntroText.Font = Enum.Font.FredokaOne
+IntroText.TextXAlignment = Enum.TextXAlignment.Center
+IntroText.TextYAlignment = Enum.TextYAlignment.Center
 IntroText.TextTransparency = 1
 IntroText.Parent = IntroFrame
 
@@ -327,11 +329,11 @@ UIStroke.Parent = IntroText
 
 task.spawn(function()
     task.wait(0.5)
-    IntroText.Size = UDim2.new(0, 360, 0, 90)
-    IntroText.Position = UDim2.new(0.5, -180, 0.5, -45)
+    IntroText.Size = UDim2.new(0, 460, 0, 110)
+    IntroText.Position = UDim2.new(0.5, -230, 0.5, -55)
     
     local fadeInInfo = TweenInfo.new(1.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    local textFadeIn = TweenService:Create(IntroText, fadeInInfo, {TextTransparency = 0, Size = UDim2.new(0, 420, 0, 110), Position = UDim2.new(0.5, -210, 0.5, -55)})
+    local textFadeIn = TweenService:Create(IntroText, fadeInInfo, {TextTransparency = 0, Size = UDim2.new(0, 500, 0, 130), Position = UDim2.new(0.5, -250, 0.5, -65)})
     local strokeFadeIn = TweenService:Create(UIStroke, fadeInInfo, {Transparency = 0.2})
     
     textFadeIn:Play()
@@ -386,31 +388,32 @@ RunService.RenderStepped:Connect(function()
         local rootCF = char.HumanoidRootPart.CFrame
 
         -- HEAD TRACKING VR:
-        -- La cámara puede mirar 360°, pero la cabeza solamente acompaña
-        -- mientras el giro esté dentro del rango lateral natural.
-        -- Al mirar demasiado hacia atrás, la cabeza vuelve/se mantiene mirando
-        -- hacia el frente del cuerpo en vez de seguir la cámara.
+        -- La cabeza sigue el cuello REAL del personaje para no separarse al correr/saltar.
         local cameraLook = cam.CFrame.LookVector
         local localLook = rootCF:VectorToObjectSpace(cameraLook)
 
-        -- Ángulo horizontal de la cámara respecto al frente del cuerpo.
         local rawYaw = math.atan2(-localLook.X, -localLook.Z)
-
-        -- Zona en la que la cabeza puede acompañar a la cámara.
         local HEAD_SIDE_LIMIT = math.rad(85)
 
-        -- Fuera de la zona lateral, la cabeza apunta al frente.
+        -- Cámara hacia atrás: la cabeza vuelve a mirar al frente.
         local headYaw = rawYaw
         if math.abs(rawYaw) > HEAD_SIDE_LIMIT then
             headYaw = 0
         end
 
-        -- Inclinación vertical de la cabeza sigue funcionando normalmente.
+        -- Vertical correcto: arriba = arriba, abajo = abajo.
         local pitch = math.asin(math.clamp(localLook.Y, -1, 1))
 
-        headCF = rootCF
-            * CFrame.new(0, 2, 0)
-            * CFrame.Angles(pitch, headYaw, 0)
+        -- Posición basada en el Head actual, no en una altura fija desde el root.
+        local headPart = char:FindFirstChild("Head")
+        if headPart then
+            headCF = CFrame.new(headPart.Position)
+                * CFrame.Angles(pitch, headYaw, 0)
+        else
+            headCF = rootCF
+                * CFrame.new(0, 1.5, 0)
+                * CFrame.Angles(pitch, headYaw, 0)
+        end
         local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
         local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
         
@@ -456,8 +459,12 @@ RunService.Stepped:Connect(function()
         local rightShoulder = char:FindFirstChild("Right Shoulder", true) or char:FindFirstChild("RightShoulder", true)
         
         -- Forzar los joints del personaje local a ignorar por completo las animaciones activas en el juego
-        if neck and neck.Part0 then
-            neck.Transform = neck.C0:Inverse() * neck.Part0.CFrame:Inverse() * headCF * neck.C1
+        if neck and neck.Part0 and neck.Part1 then
+            -- Mantener el joint del cuello pegado al cuerpo/head actual.
+            neck.Transform = neck.C0:Inverse()
+                * neck.Part0.CFrame:Inverse()
+                * headCF
+                * neck.C1
         end
         if leftShoulder and leftShoulder.Part0 then
             leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * leftHandCF * leftShoulder.C1
