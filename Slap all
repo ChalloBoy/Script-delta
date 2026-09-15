@@ -1,13 +1,178 @@
--- AutoHit_PlayerCombat.client.lua
--- LocalScript -> StarterPlayerScripts
+--[[
+    PLAYER AUTO HIT UI
+    LocalScript
+    Untuk game Roblox milik sendiri
+
+    Fitur:
+    • Script Aktif ☑️
+    • Auto Hit ON/OFF
+    • Player Target
+    • Hitbox: Normal → 100 → 500 → 1.000 → 5.000 → 10.000
+    • Attack Speed: 0.1s → 0.2s → 0.5s → 1.0s
+    • UI kecil untuk HP
+    • UI tidak draggable
+]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
-local Remote = ReplicatedStorage:WaitForChild("AutoHitRemote")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local HITBOXES = {
+--------------------------------------------------
+-- REMOTE
+--------------------------------------------------
+
+local Remote = ReplicatedStorage:FindFirstChild("AutoHitRemote")
+
+if not Remote then
+	Remote = Instance.new("RemoteEvent")
+	Remote.Name = "AutoHitRemote"
+	Remote.Parent = ReplicatedStorage
+end
+
+--------------------------------------------------
+-- NOTIFICATION GUI
+--------------------------------------------------
+
+local NotifyGui = Instance.new("ScreenGui")
+NotifyGui.Name = "AutoHitNotification"
+NotifyGui.ResetOnSpawn = false
+NotifyGui.IgnoreGuiInset = false
+NotifyGui.Parent = PlayerGui
+
+local Notification = Instance.new("Frame")
+Notification.Size = UDim2.fromOffset(215, 48)
+Notification.Position = UDim2.new(0.5, -107, 0, 25)
+Notification.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+Notification.BorderSizePixel = 0
+Notification.Parent = NotifyGui
+
+local NotifyCorner = Instance.new("UICorner")
+NotifyCorner.CornerRadius = UDim.new(0, 12)
+NotifyCorner.Parent = Notification
+
+local NotifyStroke = Instance.new("UIStroke")
+NotifyStroke.Thickness = 1
+NotifyStroke.Color = Color3.fromRGB(75, 75, 85)
+NotifyStroke.Parent = Notification
+
+local NotifyText = Instance.new("TextLabel")
+NotifyText.Size = UDim2.fromScale(1, 1)
+NotifyText.BackgroundTransparency = 1
+NotifyText.Text = "Script Aktif ☑️"
+NotifyText.TextColor3 = Color3.fromRGB(255, 255, 255)
+NotifyText.TextSize = 15
+NotifyText.Font = Enum.Font.GothamBold
+NotifyText.Parent = Notification
+
+task.delay(3, function()
+	if NotifyGui then
+		NotifyGui:Destroy()
+	end
+end)
+
+--------------------------------------------------
+-- MAIN GUI
+--------------------------------------------------
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "PlayerAutoHit"
+Gui.ResetOnSpawn = false
+Gui.Parent = PlayerGui
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(215, 178)
+Main.Position = UDim2.new(0, 12, 0.5, -89)
+Main.BackgroundColor3 = Color3.fromRGB(24, 24, 29)
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = Main
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 1
+MainStroke.Color = Color3.fromRGB(70, 70, 80)
+MainStroke.Parent = Main
+
+--------------------------------------------------
+-- TITLE
+--------------------------------------------------
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -16, 0, 28)
+Title.Position = UDim2.fromOffset(8, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "PLAYER AUTO HIT"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 15
+Title.Font = Enum.Font.GothamBold
+Title.Parent = Main
+
+--------------------------------------------------
+-- AUTO HIT BUTTON
+--------------------------------------------------
+
+local AutoButton = Instance.new("TextButton")
+AutoButton.Size = UDim2.new(1, -16, 0, 38)
+AutoButton.Position = UDim2.fromOffset(8, 36)
+AutoButton.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+AutoButton.BorderSizePixel = 0
+AutoButton.Text = "Auto Hit: OFF"
+AutoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoButton.TextSize = 14
+AutoButton.Font = Enum.Font.GothamBold
+AutoButton.Parent = Main
+
+local AutoCorner = Instance.new("UICorner")
+AutoCorner.CornerRadius = UDim.new(0, 9)
+AutoCorner.Parent = AutoButton
+
+--------------------------------------------------
+-- HITBOX BUTTON
+--------------------------------------------------
+
+local HitboxButton = Instance.new("TextButton")
+HitboxButton.Size = UDim2.new(1, -16, 0, 38)
+HitboxButton.Position = UDim2.fromOffset(8, 80)
+HitboxButton.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+HitboxButton.BorderSizePixel = 0
+HitboxButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+HitboxButton.TextSize = 13
+HitboxButton.Font = Enum.Font.GothamMedium
+HitboxButton.Parent = Main
+
+local HitboxCorner = Instance.new("UICorner")
+HitboxCorner.CornerRadius = UDim.new(0, 9)
+HitboxCorner.Parent = HitboxButton
+
+--------------------------------------------------
+-- ATTACK SPEED BUTTON
+--------------------------------------------------
+
+local SpeedButton = Instance.new("TextButton")
+SpeedButton.Size = UDim2.new(1, -16, 0, 38)
+SpeedButton.Position = UDim2.fromOffset(8, 124)
+SpeedButton.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+SpeedButton.BorderSizePixel = 0
+SpeedButton.Text = "Attack Speed: 0.1s"
+SpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedButton.TextSize = 12
+SpeedButton.Font = Enum.Font.GothamMedium
+SpeedButton.Parent = Main
+
+local SpeedCorner = Instance.new("UICorner")
+SpeedCorner.CornerRadius = UDim.new(0, 9)
+SpeedCorner.Parent = SpeedButton
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+
+local HitboxValues = {
 	"Normal",
 	100,
 	500,
@@ -16,168 +181,114 @@ local HITBOXES = {
 	10000
 }
 
-local hitboxIndex = 1
-local autoHit = false
-local attackInterval = 0.1
+local SpeedValues = {
+	0.1,
+	0.2,
+	0.5,
+	1.0
+}
 
---==================================================
--- UI
---==================================================
+local HitboxIndex = 1
+local SpeedIndex = 1
+local AutoHit = false
 
-local GUI = Instance.new("ScreenGui")
-GUI.Name = "AutoHitMobile"
-GUI.ResetOnSpawn = false
-GUI.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local Main = Instance.new("Frame")
-Main.Size = UDim2.fromOffset(215, 175)
-Main.Position = UDim2.new(0, 12, 0.5, -87)
-Main.BackgroundColor3 = Color3.fromRGB(24,24,29)
-Main.BorderSizePixel = 0
-Main.Parent = GUI
-
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0,12)
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,-16,0,28)
-Title.Position = UDim2.fromOffset(8,5)
-Title.BackgroundTransparency = 1
-Title.Text = "PLAYER AUTO HIT"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.TextSize = 15
-Title.Font = Enum.Font.GothamBold
-Title.Parent = Main
-
-local AutoButton = Instance.new("TextButton")
-AutoButton.Size = UDim2.new(1,-16,0,38)
-AutoButton.Position = UDim2.fromOffset(8,36)
-AutoButton.Text = "Auto Hit: OFF"
-AutoButton.TextColor3 = Color3.new(1,1,1)
-AutoButton.TextSize = 14
-AutoButton.Font = Enum.Font.GothamBold
-AutoButton.BackgroundColor3 = Color3.fromRGB(45,45,52)
-AutoButton.Parent = Main
-
-Instance.new("UICorner",AutoButton).CornerRadius = UDim.new(0,9)
-
-local HitboxButton = Instance.new("TextButton")
-HitboxButton.Size = UDim2.new(1,-16,0,38)
-HitboxButton.Position = UDim2.fromOffset(8,80)
-HitboxButton.TextColor3 = Color3.new(1,1,1)
-HitboxButton.TextSize = 13
-HitboxButton.Font = Enum.Font.GothamMedium
-HitboxButton.BackgroundColor3 = Color3.fromRGB(45,45,52)
-HitboxButton.Parent = Main
-
-Instance.new("UICorner",HitboxButton).CornerRadius = UDim.new(0,9)
-
-local SpeedButton = Instance.new("TextButton")
-SpeedButton.Size = UDim2.new(1,-16,0,38)
-SpeedButton.Position = UDim2.fromOffset(8,124)
-SpeedButton.Text = "Attack Speed: 0.1s"
-SpeedButton.TextColor3 = Color3.new(1,1,1)
-SpeedButton.TextSize = 12
-SpeedButton.Font = Enum.Font.GothamMedium
-SpeedButton.BackgroundColor3 = Color3.fromRGB(45,45,52)
-SpeedButton.Parent = Main
-
-Instance.new("UICorner",SpeedButton).CornerRadius = UDim.new(0,9)
-
---==================================================
+--------------------------------------------------
 -- HITBOX
---==================================================
-
-local function CurrentHitbox()
-	local value = HITBOXES[hitboxIndex]
-
-	if value == "Normal" then
-		return 10
-	end
-
-	return value
-end
+--------------------------------------------------
 
 local function UpdateHitbox()
-	HitboxButton.Text =
-		"Hitbox: " .. tostring(HITBOXES[hitboxIndex])
 
-	Remote:FireServer(
-		"Hitbox",
-		CurrentHitbox()
-	)
+	local value = HitboxValues[HitboxIndex]
+
+	HitboxButton.Text = "Hitbox: " .. tostring(value)
+
+	local serverValue = value
+
+	if value == "Normal" then
+		serverValue = 10
+	end
+
+	Remote:FireServer("Hitbox", serverValue)
 end
 
---==================================================
+--------------------------------------------------
+-- SPEED
+--------------------------------------------------
+
+local function UpdateSpeed()
+
+	local value = SpeedValues[SpeedIndex]
+
+	SpeedButton.Text =
+		"Attack Speed: " ..
+		string.format("%.1f", value) ..
+		"s"
+
+	Remote:FireServer("AttackInterval", value)
+end
+
+--------------------------------------------------
 -- AUTO HIT
---==================================================
+--------------------------------------------------
 
 AutoButton.Activated:Connect(function()
 
-	autoHit = not autoHit
+	AutoHit = not AutoHit
 
-	if autoHit then
+	if AutoHit then
+
 		AutoButton.Text = "Auto Hit: ON"
+
 		AutoButton.BackgroundColor3 =
-			Color3.fromRGB(40,125,65)
+			Color3.fromRGB(40, 125, 65)
+
 	else
+
 		AutoButton.Text = "Auto Hit: OFF"
+
 		AutoButton.BackgroundColor3 =
-			Color3.fromRGB(45,45,52)
+			Color3.fromRGB(45, 45, 52)
 	end
 
-	Remote:FireServer(
-		"Enabled",
-		autoHit
-	)
+	Remote:FireServer("Enabled", AutoHit)
 end)
 
---==================================================
--- HITBOX BUTTON
---==================================================
+--------------------------------------------------
+-- CHANGE HITBOX
+--------------------------------------------------
 
 HitboxButton.Activated:Connect(function()
 
-	hitboxIndex += 1
+	HitboxIndex += 1
 
-	if hitboxIndex > #HITBOXES then
-		hitboxIndex = 1
+	if HitboxIndex > #HitboxValues then
+		HitboxIndex = 1
 	end
 
 	UpdateHitbox()
 end)
 
---==================================================
--- ATTACK SPEED
---==================================================
+--------------------------------------------------
+-- CHANGE SPEED
+--------------------------------------------------
 
 SpeedButton.Activated:Connect(function()
 
-	if attackInterval == 0.1 then
-		attackInterval = 0.2
-	elseif attackInterval == 0.2 then
-		attackInterval = 0.5
-	elseif attackInterval == 0.5 then
-		attackInterval = 1
-	else
-		attackInterval = 0.1
+	SpeedIndex += 1
+
+	if SpeedIndex > #SpeedValues then
+		SpeedIndex = 1
 	end
 
-	SpeedButton.Text =
-		"Attack Speed: " ..
-		string.format("%.1f",attackInterval) ..
-		"s"
-
-	Remote:FireServer(
-		"AttackInterval",
-		attackInterval
-	)
+	UpdateSpeed()
 end)
 
---==================================================
--- INITIAL
---==================================================
+--------------------------------------------------
+-- INITIAL SETTINGS
+--------------------------------------------------
 
 UpdateHitbox()
+UpdateSpeed()
 
-Remote:FireServer("AttackInterval",0.1)
-Remote:FireServer("Enabled",false)
+Remote:FireServer("Enabled", false)
+Remote:FireServer("AllTargets", true)
