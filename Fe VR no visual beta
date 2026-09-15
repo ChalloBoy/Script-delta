@@ -485,6 +485,18 @@ RunService.RenderStepped:Connect(function()
         rightHandCF = rootCF 
             * CFrame.new(1.2 + math.clamp(rightJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(rightJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Right) 
             * CFrame.Angles(math.rad(rightJoyMove.Y * 45 + rightArmPitch * 70), math.rad(-rightJoyMove.X * 30), math.rad(rightJoyMove.X * 20))
+
+        -- ESPEJO LOCAL IMEDIATO: aplica las manos en RenderStepped para que
+        -- el movimiento del cuerpo durante salto/caída no se sienta retrasado.
+        -- La posición objetivo sigue calculándose desde el HumanoidRootPart actual.
+        local leftShoulder = char:FindFirstChild("Left Shoulder", true) or char:FindFirstChild("LeftShoulder", true)
+        local rightShoulder = char:FindFirstChild("Right Shoulder", true) or char:FindFirstChild("RightShoulder", true)
+        if leftShoulder and leftShoulder.Part0 then
+            leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * leftHandCF * leftShoulder.C1
+        end
+        if rightShoulder and rightShoulder.Part0 then
+            rightShoulder.Transform = rightShoulder.C0:Inverse() * rightShoulder.Part0.CFrame:Inverse() * rightHandCF * rightShoulder.C1
+        end
         
         -- Filtro de tiempo para quitar la pesadez de red
         local tActual = os.clock()
