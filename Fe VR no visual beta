@@ -18,8 +18,7 @@ local rightJoyMove = Vector2.new(0, 0)
 local leftZMove = 0
 local rightZMove = 0
 
--- CONTROLES NUEVOS: inclinación independiente de cada brazo (arriba/abajo).
--- No mueve el hombro: solo cambia el ángulo del brazo alrededor del hombro.
+-- Kontrol vertikal independen tangan
 local leftArmPitch = 0
 local rightArmPitch = 0
 
@@ -37,7 +36,6 @@ local leftHandCF = CFrame.new()
 local rightHandCF = CFrame.new()
 local headPitch = 0
 local headYaw = 0
-local rootCFForHands = nil
 
 -- 1. OBTENER INTERFAZ SEGURA (Inmune a limpiezas de mapa)
 local ParentGui
@@ -201,93 +199,41 @@ local function crearJoystickZ(nombre, posicion, color)
     end)
 end
 
--- --- FUNCIÓN 3: CONTROL VERTICAL DE BRAZOS (ARRIBA / ABAJO) ---
--- Este control NO cambia la posición del hombro. Solo añade una rotación
--- vertical al brazo, permitiendo que la mano apunte hacia arriba o abajo.
+-- --- KONTROL ATAS / BAWAH TANGAN ---
 local function crearControlVerticalBrazo(nombre, posicion, color)
-    local Pad = Instance.new("Frame")
-    local Thumb = Instance.new("Frame")
-
-    Pad.Name = nombre.."_ArmPitch_Pad"
-    Pad.Size = UDim2.new(0, 55, 0, 105)
-    Pad.Position = posicion
-    Pad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Pad.BackgroundTransparency = 0.6
-    Pad.BorderSizePixel = 0
-    Pad.Active = true
-    Pad.Visible = false
-    Pad.Parent = ScreenGui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 14)
-    corner.Parent = Pad
-
-    local label = Instance.new("TextLabel")
-    label.Name = "Arrow"
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = "↕"
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextTransparency = 0.25
-    label.TextSize = 24
-    label.Font = Enum.Font.GothamBold
-    label.Parent = Pad
-
-    Thumb.Name = "Thumb"
-    Thumb.Size = UDim2.new(0, 34, 0, 34)
-    Thumb.Position = UDim2.new(0.5, -17, 0.5, -17)
-    Thumb.BackgroundColor3 = color
-    Thumb.BackgroundTransparency = 0.15
-    Thumb.BorderSizePixel = 0
-    Thumb.Active = true
-    Thumb.Parent = Pad
-
-    local thumbCorner = Instance.new("UICorner")
-    thumbCorner.CornerRadius = UDim.new(1, 0)
-    thumbCorner.Parent = Thumb
-
-    local dragging = false
-    local currentInput = nil
-    local maxDistance = 32
-
+    local Pad=Instance.new("Frame")
+    Pad.Name=nombre.."_ArmPitch_Pad"
+    Pad.Size=UDim2.new(0,55,0,105)
+    Pad.Position=posicion
+    Pad.BackgroundColor3=Color3.fromRGB(20,20,20)
+    Pad.BackgroundTransparency=0.6
+    Pad.BorderSizePixel=0
+    Pad.Active=true
+    Pad.Visible=false
+    Pad.Parent=ScreenGui
+    local c=Instance.new("UICorner",Pad); c.CornerRadius=UDim.new(0,14)
+    local a=Instance.new("TextLabel",Pad)
+    a.Size=UDim2.new(1,0,1,0); a.BackgroundTransparency=1; a.Text="↕"
+    a.TextColor3=Color3.new(1,1,1); a.TextTransparency=.25; a.TextSize=24; a.Font=Enum.Font.GothamBold
+    local Thumb=Instance.new("Frame",Pad)
+    Thumb.Name="Thumb"; Thumb.Size=UDim2.new(0,34,0,34); Thumb.Position=UDim2.new(.5,-17,.5,-17)
+    Thumb.BackgroundColor3=color; Thumb.BackgroundTransparency=.15; Thumb.BorderSizePixel=0; Thumb.Active=true
+    local tc=Instance.new("UICorner",Thumb); tc.CornerRadius=UDim.new(1,0)
+    local dragging=false; local currentInput=nil; local maxDistance=32
     local function update(input)
-        local centerY = Pad.AbsolutePosition.Y + Pad.AbsoluteSize.Y / 2
-        local relativeY = input.Position.Y - centerY
-        local clampedY = math.clamp(relativeY, -maxDistance, maxDistance)
-
-        Thumb.Position = UDim2.new(0.5, -17, 0.5, -17 + clampedY)
-
-        -- Arriba = brazo arriba, abajo = brazo abajo.
-        local value = math.clamp(-clampedY / maxDistance, -1, 1)
-        if nombre == "Izquierdo" then
-            leftArmPitch = value
-        else
-            rightArmPitch = value
-        end
+        local centerY=Pad.AbsolutePosition.Y+Pad.AbsoluteSize.Y/2
+        local y=math.clamp(input.Position.Y-centerY,-maxDistance,maxDistance)
+        Thumb.Position=UDim2.new(.5,-17,.5,-17+y)
+        local v=math.clamp(-y/maxDistance,-1,1)
+        if nombre=="Izquierdo" then leftArmPitch=v else rightArmPitch=v end
     end
-
     Thumb.InputBegan:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.Touch
-            or input.UserInputType == Enum.UserInputType.MouseButton1)
-            and not dragging then
-            dragging = true
-            currentInput = input
-            update(input)
+        if (input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1) and not dragging then
+            dragging=true; currentInput=input; update(input)
         end
     end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == currentInput then
-            update(input)
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if dragging and input == currentInput then
-            dragging = false
-            currentInput = nil
-        end
-    end)
+    UserInputService.InputChanged:Connect(function(input) if dragging and input==currentInput then update(input) end end)
+    UserInputService.InputEnded:Connect(function(input) if dragging and input==currentInput then dragging=false; currentInput=nil end end)
 end
 
 -- --- CREACIÓN DE CONTROLES ---
@@ -295,10 +241,8 @@ crearJoystick("Izquierdo", UDim2.new(0, 40, 1, -170), Color3.fromRGB(255, 60, 60
 crearJoystickZ("Izquierdo", UDim2.new(0, 180, 1, -145), Color3.fromRGB(255, 140, 140))
 crearJoystick("Derecho", UDim2.new(1, -165, 1, -170), Color3.fromRGB(60, 130, 255))
 crearJoystickZ("Derecho", UDim2.new(1, -255, 1, -145), Color3.fromRGB(140, 190, 255))
-
--- Nuevos controles independientes para apuntar cada brazo arriba/abajo.
-crearControlVerticalBrazo("Izquierdo", UDim2.new(0, 265, 1, -160), Color3.fromRGB(255, 190, 190))
-crearControlVerticalBrazo("Derecho", UDim2.new(1, -320, 1, -160), Color3.fromRGB(190, 215, 255))
+crearControlVerticalBrazo("Izquierdo", UDim2.new(0,265,1,-160), Color3.fromRGB(255,190,190))
+crearControlVerticalBrazo("Derecho", UDim2.new(1,-320,1,-160), Color3.fromRGB(190,215,255))
 
 -- --- BOTÓN MOSTRAR / OCULTAR INTERFAZ ---
 local ToggleBtn = Instance.new("TextButton")
@@ -499,16 +443,9 @@ RunService.RenderStepped:Connect(function()
         if thumb then thumb.Position = thumb.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
     end
 
-    -- Suavizado del nuevo control arriba/abajo.
-    if not ScreenGui:FindFirstChild("Izquierdo_ArmPitch_Pad") then
-        leftArmPitch = 0
-        rightArmPitch = 0
-    end
-
     local char = plr.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
         local rootCF = char.HumanoidRootPart.CFrame
-        rootCFForHands = rootCF
 
         -- HEAD TRACKING VR (AMAN / TANPA MEMINDAHKAN KEPALA)
         -- Hanya rotasi joint leher yang diubah. Posisi kepala tetap milik rig,
@@ -543,19 +480,11 @@ RunService.RenderStepped:Connect(function()
         
         leftHandCF = rootCF 
             * CFrame.new(-1.2 + math.clamp(leftJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(leftJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Left) 
-            * CFrame.Angles(
-                math.rad(leftJoyMove.Y * 45) + math.rad(leftArmPitch * 70),
-                math.rad(-leftJoyMove.X * 30),
-                math.rad(-leftJoyMove.X * 20)
-            )
+            * CFrame.Angles(math.rad(leftJoyMove.Y * 45 + leftArmPitch * 70), math.rad(-leftJoyMove.X * 30), math.rad(-leftJoyMove.X * 20))
         
         rightHandCF = rootCF 
             * CFrame.new(1.2 + math.clamp(rightJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(rightJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Right) 
-            * CFrame.Angles(
-                math.rad(rightJoyMove.Y * 45) + math.rad(rightArmPitch * 70),
-                math.rad(-rightJoyMove.X * 30),
-                math.rad(rightJoyMove.X * 20)
-            )
+            * CFrame.Angles(math.rad(rightJoyMove.Y * 45 + rightArmPitch * 70), math.rad(-rightJoyMove.X * 30), math.rad(rightJoyMove.X * 20))
         
         -- Filtro de tiempo para quitar la pesadez de red
         local tActual = os.clock()
@@ -596,39 +525,11 @@ RunService.Stepped:Connect(function()
             -- Ini mencegah kepala hilang/terlempar dari badan.
             neck.Transform = CFrame.Angles(headPitch, headYaw, 0)
         end
-        -- REBASE DE BRAZOS PARA SALTOS:
-        -- leftHandCF/rightHandCF se calculan en RenderStepped. Durante un salto,
-        -- el HumanoidRootPart puede avanzar de posición entre RenderStepped y Stepped.
-        -- Guardamos la pose relativa al root y la reconstruimos con el root ACTUAL.
-        -- Así la mano conserva su control/rotación, pero sube y baja exactamente
-        -- junto con el cuerpo.
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local appliedLeftHandCF = leftHandCF
-        local appliedRightHandCF = rightHandCF
-
-        if root then
-            local currentRootCF = root.CFrame
-
-            if leftHandCF then
-                local leftLocalCF = rootCFForHands and rootCFForHands:ToObjectSpace(leftHandCF)
-                if leftLocalCF then
-                    appliedLeftHandCF = currentRootCF:ToWorldSpace(leftLocalCF)
-                end
-            end
-
-            if rightHandCF then
-                local rightLocalCF = rootCFForHands and rootCFForHands:ToObjectSpace(rightHandCF)
-                if rightLocalCF then
-                    appliedRightHandCF = currentRootCF:ToWorldSpace(rightLocalCF)
-                end
-            end
-        end
-
         if leftShoulder and leftShoulder.Part0 then
-            leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * appliedLeftHandCF * leftShoulder.C1
+            leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * leftHandCF * leftShoulder.C1
         end
         if rightShoulder and rightShoulder.Part0 then
-            rightShoulder.Transform = rightShoulder.C0:Inverse() * rightShoulder.Part0.CFrame:Inverse() * appliedRightHandCF * rightShoulder.C1
+            rightShoulder.Transform = rightShoulder.C0:Inverse() * rightShoulder.Part0.CFrame:Inverse() * rightHandCF * rightShoulder.C1
         end
     end
 end)
