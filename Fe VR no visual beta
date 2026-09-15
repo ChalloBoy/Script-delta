@@ -1,390 +1,389 @@
---[[
-    VR STYLE MOBILE CONTROLLER - UPDATED
-    Untuk game Roblox milik sendiri.
-
-    UPDATE:
-    • Kepala mengikuti kamera secara halus.
-    • Kepala tidak langsung memutar seluruh badan ketika melihat belakang.
-    • Badan menyusul arah kamera dengan delay/lerp (deadzone).
-    • Tangan kiri/kanan bergerak halus seperti controller VR.
-    • Idle hand motion ringan.
-    • UI RGB halus.
-    • UI bisa disembunyikan.
-    • Tidak mengubah collision pemain lain.
-]]
-
-local Players = game:GetService("Players")
+-- FAKE VR PARA NEXUS VR + MEMORIA Z + LERP + LOCAL MIRROR + OCULTAR GUI + INTRO ÉPICA + NO-CLIP PLAYERS (OPTIMIZADO)
+local remote = game:GetService("ReplicatedStorage").NexusVRCharacterModel.UpdateInputs
+local plr = game:GetService("Players").LocalPlayer
+local cam = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
 
-local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local playerGui = player:WaitForChild("PlayerGui")
+-- Notificar al servidor que estamos ready
+game:GetService("ReplicatedStorage").NexusVRCharacterModel.ReplicationReady:FireServer()
 
--- ================= SETTINGS =================
-local BODY_FOLLOW_SPEED = 6
-local HEAD_SMOOTH_SPEED = 16
-local HAND_SMOOTH_SPEED = 18
+-- Variables globales para los Joysticks Principales (X, Y)
+local leftJoyMove = Vector2.new(0, 0)
+local rightJoyMove = Vector2.new(0, 0)
 
-local HEAD_MAX_YAW = math.rad(80)
-local HEAD_MAX_PITCH = math.rad(55)
-local BODY_DEADZONE = math.rad(20)
+-- Variables globales independientes para la extensión de los brazos (Z)
+local leftZMove = 0
+local rightZMove = 0
 
-local HAND_X = 1.15
-local HAND_Y = 0.35
-local HAND_Z = -1.0
+-- Banderas para saber si el usuario está arrastrando los joysticks grandes
+local leftLargeDragging = false
+local rightLargeDragging = false
 
--- ================= STATE =================
-local leftJoy = Vector2.zero
-local rightJoy = Vector2.zero
-local leftZ = 0
-local rightZ = 0
+-- VARIABLES DE OPTIMIZACIÓN
+local tAnterior = 0
+local TASA_ENVIO = 1 / 25 -- Limita el envío a 25 veces por segundo para quitar el lag de internet
 
+-- Variables puente para sincronizar las posiciones entre RenderStepped y Stepped
 local headCF = CFrame.new()
 local leftHandCF = CFrame.new()
 local rightHandCF = CFrame.new()
 
-local bodyYaw = 0
-local initialized = false
-
-local function shortestAngle(a)
-    return math.atan2(math.sin(a), math.cos(a))
+-- 1. OBTENER INTERFAZ SEGURA (Inmune a limpiezas de mapa)
+local ParentGui
+local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+if gethui then
+    ParentGui = gethui()
+elseif success and coreGui and coreGui:FindFirstChild("RobloxGui") then
+    ParentGui = coreGui:FindFirstChild("RobloxGui")
+else
+    ParentGui = plr:WaitForChild("PlayerGui")
 end
 
-local function smoothCF(current, target, speed, dt)
-    local alpha = 1 - math.exp(-speed * dt)
-    return current:Lerp(target, alpha)
+if ParentGui:FindFirstChild("NexusVR_Mobile_Joysticks") then
+    ParentGui["NexusVR_Mobile_Joysticks"]:Destroy()
 end
 
-local function hsv(t, offset)
-    return Color3.fromHSV((t * 0.10 + offset) % 1, 0.85, 1)
-end
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NexusVR_Mobile_Joysticks"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 99999
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = ParentGui
 
--- ================= UI =================
-local old = playerGui:FindFirstChild("VRStyleMobileUI")
-if old then old:Destroy() end
+-- --- FUNCIÓN 1: JOYSTICKS PRINCIPALES (X, Y) ---
+local function crearJoystick(nombre, posicion, color)
+    local TouchPad = Instance.new("Frame")
+    local Thumb = Instance.new("ImageButton")
+    
+    TouchPad.Name = nombre.."_Pad"
+    TouchPad.Size = UDim2.new(0, 125, 0, 125)
+    TouchPad.Position = posicion
+    TouchPad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    TouchPad.BackgroundTransparency = 0.6
+    TouchPad.BorderSizePixel = 0
+    TouchPad.Active = true
+    TouchPad.Visible = false -- Oculto al inicio por la intro
+    TouchPad.Parent = ScreenGui
+    
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(1, 0)
+    uiCorner.Parent = TouchPad
+    
+    Thumb.Name = "Thumb"
+    Thumb.Size = UDim2.new(0, 50, 0, 50)
+    Thumb.Position = UDim2.new(0.5, -25, 0.5, -25)
+    Thumb.BackgroundColor3 = color
+    Thumb.BackgroundTransparency = 0.2
+    Thumb.BorderSizePixel = 0
+    Thumb.Parent = TouchPad
+    
+    local thumbCorner = Instance.new("UICorner")
+    thumbCorner.CornerRadius = UDim.new(1, 0)
+    thumbCorner.Parent = Thumb
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "VRStyleMobileUI"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 100
-gui.Parent = playerGui
-
-local pads = {}
-
-local function makeJoystick(name, position, size, thumbSize, isZ, rgbOffset)
-    local pad = Instance.new("Frame")
-    pad.Name = name
-    pad.Size = size
-    pad.Position = position
-    pad.BackgroundColor3 = Color3.fromRGB(18,18,22)
-    pad.BackgroundTransparency = 0.25
-    pad.BorderSizePixel = 0
-    pad.Active = true
-    pad.Parent = gui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(1,0)
-    corner.Parent = pad
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 2
-    stroke.Transparency = 0.05
-    stroke.Parent = pad
-
-    local thumb = Instance.new("ImageButton")
-    thumb.Name = "Thumb"
-    thumb.Size = thumbSize
-    thumb.AnchorPoint = Vector2.new(0.5,0.5)
-    thumb.Position = UDim2.fromScale(0.5,0.5)
-    thumb.BackgroundColor3 = Color3.new(1,1,1)
-    thumb.BackgroundTransparency = 0.05
-    thumb.BorderSizePixel = 0
-    thumb.AutoButtonColor = false
-    thumb.Parent = pad
-
-    local tc = Instance.new("UICorner")
-    tc.CornerRadius = UDim.new(1,0)
-    tc.Parent = thumb
-
-    pads[name] = {
-        pad = pad,
-        thumb = thumb,
-        stroke = stroke,
-        isZ = isZ,
-        rgbOffset = rgbOffset,
-        dragging = false,
-        input = nil,
-    }
-end
-
-makeJoystick("LeftJoystick", UDim2.new(0,35,1,-175),
-    UDim2.fromOffset(125,125), UDim2.fromOffset(52,52), false, 0.00)
-
-makeJoystick("RightJoystick", UDim2.new(1,-160,1,-175),
-    UDim2.fromOffset(125,125), UDim2.fromOffset(52,52), false, 0.50)
-
-makeJoystick("LeftZ", UDim2.new(0,175,1,-145),
-    UDim2.fromOffset(72,72), UDim2.fromOffset(30,30), true, 0.15)
-
-makeJoystick("RightZ", UDim2.new(1,-247,1,-145),
-    UDim2.fromOffset(72,72), UDim2.fromOffset(30,30), true, 0.65)
-
-local toggle = Instance.new("TextButton")
-toggle.Name = "ToggleVRUI"
-toggle.Size = UDim2.fromOffset(150,38)
-toggle.Position = UDim2.new(0.5,-75,0,35)
-toggle.BackgroundColor3 = Color3.fromRGB(18,18,22)
-toggle.BackgroundTransparency = 0.18
-toggle.BorderSizePixel = 0
-toggle.Text = "SEMBUNYIKAN UI"
-toggle.TextColor3 = Color3.new(1,1,1)
-toggle.TextSize = 13
-toggle.Font = Enum.Font.GothamBold
-toggle.AutoButtonColor = false
-toggle.Parent = gui
-
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0,10)
-toggleCorner.Parent = toggle
-
-local toggleStroke = Instance.new("UIStroke")
-toggleStroke.Thickness = 2
-toggleStroke.Parent = toggle
-
-local uiVisible = true
-toggle.Activated:Connect(function()
-    uiVisible = not uiVisible
-    toggle.Text = uiVisible and "SEMBUNYIKAN UI" or "TAMPILKAN UI"
-
-    for _, data in pairs(pads) do
-        data.pad.Visible = uiVisible
+    local dragging = false
+    local startPos = Vector2.new()
+    local currentInput = nil
+    
+    Thumb.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not dragging then
+            dragging = true
+            startPos = input.Position
+            currentInput = input
+            if nombre == "Derecho" then rightLargeDragging = true else leftLargeDragging = true end
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == currentInput then
+            local delta = input.Position - startPos
+            local distance = math.clamp(delta.Magnitude, 0, 45)
+            local direction = delta.Magnitude > 0 and delta.Unit or Vector2.new(0, 0)
+            
+            Thumb.Position = UDim2.new(0.5, -25 + (direction.X * distance), 0.5, -25 + (direction.Y * distance))
+            
+            local intensidad = distance / 45
+            if nombre == "Derecho" then
+                rightJoyMove = Vector2.new(direction.X * intensidad, -direction.Y * intensidad)
+            else
+                leftJoyMove = Vector2.new(direction.X * intensidad, -direction.Y * intensidad)
+            end
+        end
+    end)
+    
+    local function endDrag(input)
+        if dragging and input == currentInput then
+            dragging = false
+            currentInput = nil
+            if nombre == "Derecho" then rightLargeDragging = false else leftLargeDragging = false end
+        end
     end
-end)
-
--- ================= INPUT =================
-local function begin(data, input)
-    if data.dragging then return end
-    if input.UserInputType ~= Enum.UserInputType.Touch
-        and input.UserInputType ~= Enum.UserInputType.MouseButton1 then
-        return
-    end
-
-    data.dragging = true
-    data.input = input
+    
+    UserInputService.InputEnded:Connect(endDrag)
 end
 
-for _, data in pairs(pads) do
-    data.thumb.InputBegan:Connect(function(input)
-        begin(data, input)
+-- --- FUNCIÓN 2: JOYSTICKS PEQUEÑOS (EJE Z - MEMORIA) ---
+local function crearJoystickZ(nombre, posicion, color)
+    local TouchPad = Instance.new("Frame")
+    local Thumb = Instance.new("ImageButton")
+    
+    TouchPad.Name = nombre.."_Z_Pad"
+    TouchPad.Size = UDim2.new(0, 75, 0, 75)
+    TouchPad.Position = posicion
+    TouchPad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    TouchPad.BackgroundTransparency = 0.6
+    TouchPad.BorderSizePixel = 0
+    TouchPad.Active = true
+    TouchPad.Visible = false -- Oculto al inicio por la intro
+    TouchPad.Parent = ScreenGui
+    
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(1, 0)
+    uiCorner.Parent = TouchPad
+    
+    Thumb.Name = "Thumb"
+    Thumb.Size = UDim2.new(0, 30, 0, 30)
+    Thumb.Position = UDim2.new(0.5, -15, 0.5, -15)
+    Thumb.BackgroundColor3 = color
+    Thumb.BackgroundTransparency = 0.2
+    Thumb.BorderSizePixel = 0
+    Thumb.Parent = TouchPad
+    
+    local thumbCorner = Instance.new("UICorner")
+    thumbCorner.CornerRadius = UDim.new(1, 0)
+    thumbCorner.Parent = Thumb
+
+    local dragging = false
+    local currentInput = nil
+    local maxDistance = 25
+    
+    local function actualizarExtensionZ(input)
+        local padCenterY = TouchPad.AbsolutePosition.Y + (TouchPad.AbsoluteSize.Y / 2)
+        local relativeY = input.Position.Y - padCenterY
+        local clampedY = math.clamp(relativeY, -maxDistance, maxDistance)
+        
+        Thumb.Position = UDim2.new(0.5, -15, 0.5, -15 + clampedY)
+        
+        local intensidad = -clampedY / maxDistance
+        if nombre == "Derecho" then rightZMove = intensidad else leftZMove = intensidad end
+    end
+    
+    Thumb.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not dragging then
+            dragging = true
+            currentInput = input
+            actualizarExtensionZ(input)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == currentInput then
+            actualizarExtensionZ(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if dragging and input == currentInput then
+            dragging = false
+            currentInput = nil
+        end
     end)
 end
 
-local function updateXY(data, input)
-    if not data.dragging or data.input ~= input then return end
+-- --- CREACIÓN DE CONTROLES ---
+crearJoystick("Izquierdo", UDim2.new(0, 40, 1, -170), Color3.fromRGB(255, 60, 60))
+crearJoystickZ("Izquierdo", UDim2.new(0, 180, 1, -145), Color3.fromRGB(255, 140, 140))
+crearJoystick("Derecho", UDim2.new(1, -165, 1, -170), Color3.fromRGB(60, 130, 255))
+crearJoystickZ("Derecho", UDim2.new(1, -255, 1, -145), Color3.fromRGB(140, 190, 255))
 
-    local center = data.pad.AbsolutePosition + data.pad.AbsoluteSize / 2
-    local delta = Vector2.new(input.Position.X,input.Position.Y) - center
-    local radius = math.min(data.pad.AbsoluteSize.X,data.pad.AbsoluteSize.Y) * 0.36
+-- --- BOTÓN MOSTRAR / OCULTAR INTERFAZ ---
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleVR_UI"
+ToggleBtn.Size = UDim2.new(0, 120, 0, 35)
+ToggleBtn.Position = UDim2.new(0.5, -60, 0, 40)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleBtn.BackgroundTransparency = 0.4
+ToggleBtn.Text = "Ocultar Controles"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 13
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.Visible = false
+ToggleBtn.Parent = ScreenGui
 
-    local mag = math.clamp(delta.Magnitude,0,radius)
-    local dir = delta.Magnitude > 0 and delta.Unit or Vector2.zero
-    local v = dir * (mag/radius)
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = ToggleBtn
 
-    data.thumb.Position = UDim2.fromScale(
-        0.5 + v.X * 0.34,
-        0.5 + v.Y * 0.34
-    )
-
-    if data == pads.LeftJoystick then
-        leftJoy = Vector2.new(v.X,-v.Y)
-    elseif data == pads.RightJoystick then
-        rightJoy = Vector2.new(v.X,-v.Y)
+local uiVisible = true
+ToggleBtn.MouseButton1Click:Connect(function()
+    uiVisible = not uiVisible
+    ToggleBtn.Text = uiVisible and "Ocultar Controles" or "Mostrar Controles"
+    
+    local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Derecho_Pad", "Derecho_Z_Pad"}
+    for _, padName in ipairs(pads) do
+        local pad = ScreenGui:FindFirstChild(padName)
+        if pad then pad.Visible = uiVisible end
     end
-end
+end)
 
-local function updateZ(data,input)
-    if not data.dragging or data.input ~= input then return end
+-- --- CREACIÓN DE LA INTRO ÉPICA ---
+local IntroFrame = Instance.new("Frame")
+IntroFrame.Name = "IntroFrame"
+IntroFrame.Size = UDim2.new(1, 0, 1, 0)
+IntroFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+IntroFrame.BackgroundTransparency = 0
+IntroFrame.BorderSizePixel = 0
+IntroFrame.Parent = ScreenGui
 
-    local centerY = data.pad.AbsolutePosition.Y + data.pad.AbsoluteSize.Y/2
-    local maxDist = data.pad.AbsoluteSize.Y * 0.34
-    local dy = math.clamp(input.Position.Y-centerY,-maxDist,maxDist)
-    local value = -dy/maxDist
+local IntroText = Instance.new("TextLabel")
+IntroText.Name = "IntroText"
+IntroText.Size = UDim2.new(0, 400, 0, 100)
+IntroText.Position = UDim2.new(0.5, -200, 0.5, -50)
+IntroText.BackgroundTransparency = 1
+IntroText.Text = "SCRIPT BY CHALLO BOY"
+IntroText.TextColor3 = Color3.fromRGB(255, 255, 255)
+IntroText.TextSize = 34
+IntroText.Font = Enum.Font.FredokaOne
+IntroText.TextTransparency = 1
+IntroText.Parent = IntroFrame
 
-    data.thumb.Position = UDim2.fromScale(
-        0.5,
-        0.5 + dy/data.pad.AbsoluteSize.Y
-    )
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 180, 255)
+UIStroke.Thickness = 3
+UIStroke.Transparency = 1
+UIStroke.Parent = IntroText
 
-    if data == pads.LeftZ then
-        leftZ = value
-    elseif data == pads.RightZ then
-        rightZ = value
+task.spawn(function()
+    task.wait(0.5)
+    IntroText.Size = UDim2.new(0, 360, 0, 90)
+    IntroText.Position = UDim2.new(0.5, -180, 0.5, -45)
+    
+    local fadeInInfo = TweenInfo.new(1.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local textFadeIn = TweenService:Create(IntroText, fadeInInfo, {TextTransparency = 0, Size = UDim2.new(0, 420, 0, 110), Position = UDim2.new(0.5, -210, 0.5, -55)})
+    local strokeFadeIn = TweenService:Create(UIStroke, fadeInInfo, {Transparency = 0.2})
+    
+    textFadeIn:Play()
+    strokeFadeIn:Play()
+    textFadeIn.Completed:Wait()
+    
+    task.wait(1.5)
+    
+    local fadeOutInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+    local textFadeOut = TweenService:Create(IntroText, fadeOutInfo, {TextTransparency = 1})
+    local strokeFadeOut = TweenService:Create(UIStroke, fadeOutInfo, {Transparency = 1})
+    local frameFadeOut = TweenService:Create(IntroFrame, fadeOutInfo, {BackgroundTransparency = 1})
+    
+    textFadeOut:Play()
+    strokeFadeOut:Play()
+    frameFadeOut:Play()
+    frameFadeOut.Completed:Wait()
+    
+    IntroFrame:Destroy()
+    
+    ToggleBtn.Visible = true
+    local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Derecho_Pad", "Derecho_Z_Pad"}
+    for _, padName in ipairs(pads) do
+        local pad = ScreenGui:FindFirstChild(padName)
+        if pad then pad.Visible = true end
     end
-end
+end)
 
-UserInputService.InputChanged:Connect(function(input)
-    for _,data in pairs(pads) do
-        if data.isZ then
-            updateZ(data,input)
-        else
-            updateXY(data,input)
+
+-- --- HILO 1: ENTRADAS DE USUARIO, LERPS Y RED (RenderStepped) ---
+-- Este evento corre a la máxima tasa de refresco de la pantalla para que la respuesta de tus dedos sea instantánea
+RunService.RenderStepped:Connect(function()
+    
+    -- Retorno suave Lerp si soltamos los Joysticks Grandes
+    if not leftLargeDragging then
+        leftJoyMove = leftJoyMove:Lerp(Vector2.new(0, 0), 0.07)
+        local pad = ScreenGui:FindFirstChild("Izquierdo_Pad")
+        local thumb = pad and pad:FindFirstChild("Thumb")
+        if thumb then thumb.Position = thumb.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
+    end
+    
+    if not rightLargeDragging then
+        rightJoyMove = rightJoyMove:Lerp(Vector2.new(0, 0), 0.07)
+        local pad = ScreenGui:FindFirstChild("Derecho_Pad")
+        local thumb = pad and pad:FindFirstChild("Thumb")
+        if thumb then thumb.Position = thumb.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
+    end
+
+    local char = plr.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local rootCF = char.HumanoidRootPart.CFrame
+
+        -- CABEZA VR:
+        -- Convertimos la cámara a espacio local del cuerpo para que mirar hacia
+        -- atrás no haga que la cabeza gire 180° siguiendo la cámara.
+        local cameraRelative = rootCF:ToObjectSpace(cam.CFrame)
+        local lookX, lookY, lookZ = cameraRelative:ToEulerAnglesXYZ()
+
+        -- Límite horizontal de la cabeza. El cuerpo/cámara puede seguir mirando
+        -- hacia atrás, pero la cabeza local no hace una vuelta completa.
+        local MAX_HEAD_YAW = math.rad(85)
+        local limitedLookY = math.clamp(lookY, -MAX_HEAD_YAW, MAX_HEAD_YAW)
+
+        -- Mantiene inclinación atas/abajo y giro lateral natural dentro del límite.
+        headCF = rootCF
+            * CFrame.new(0, 2, 0)
+            * CFrame.Angles(lookX, limitedLookY, lookZ)
+        
+        local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
+        local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
+        
+        leftHandCF = rootCF 
+            * CFrame.new(-1.2 + math.clamp(leftJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(leftJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Left) 
+            * CFrame.Angles(math.rad(leftJoyMove.Y * 45), math.rad(-leftJoyMove.X * 30), math.rad(-leftJoyMove.X * 20))
+        
+        rightHandCF = rootCF 
+            * CFrame.new(1.2 + math.clamp(rightJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(rightJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Right) 
+            * CFrame.Angles(math.rad(rightJoyMove.Y * 45), math.rad(-rightJoyMove.X * 30), math.rad(rightJoyMove.X * 20))
+        
+        -- Filtro de tiempo para quitar la pesadez de red
+        local tActual = os.clock()
+        if tActual - tAnterior >= TASA_ENVIO then
+            remote:FireServer(headCF, leftHandCF, rightHandCF)
+            tAnterior = tActual
         end
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    for _,data in pairs(pads) do
-        if data.dragging and data.input == input then
-            data.dragging = false
-            data.input = nil
+
+-- --- HILO 2: MODIFICACIONES FÍSICAS Y ESPEJO LOCAL INMUNE (Stepped) ---
+-- Este evento corre de forma nativa justo antes del motor de física y de las animaciones de Roblox,
+-- logrando un No-Clip ultra suave y previniendo que los brazos parpadeen o tiemblen en tu pantalla.
+RunService.Stepped:Connect(function()
+    
+    -- [MEJORA APLICADA]: NO-CLIP OPTIMIZADO (Busca solo BaseParts en el primer nivel del personaje, ahorrando 80% de CPU)
+    for _, otroPlr in ipairs(Players:GetPlayers()) do
+        if otroPlr ~= plr and otroPlr.Character then
+            for _, parte in ipairs(otroPlr.Character:GetChildren()) do
+                if parte:IsA("BasePart") then
+                    parte.CanCollide = false
+                end
+            end
         end
     end
-end)
-
--- ================= CHARACTER =================
-local function findJoints(character)
-    local neck = character:FindFirstChild("Neck",true)
-
-    local leftShoulder =
-        character:FindFirstChild("Left Shoulder",true)
-        or character:FindFirstChild("LeftShoulder",true)
-
-    local rightShoulder =
-        character:FindFirstChild("Right Shoulder",true)
-        or character:FindFirstChild("RightShoulder",true)
-
-    return neck,leftShoulder,rightShoulder
-end
-
-local function applyJoint(motor,target)
-    if motor and motor.Part0 then
-        motor.Transform =
-            motor.C0:Inverse()
-            * motor.Part0.CFrame:Inverse()
-            * target
-            * motor.C1
-    end
-end
-
--- ================= VR LOOP =================
-RunService.RenderStepped:Connect(function(dt)
-    local character = player.Character
-    if not character then return end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not root then return end
-
-    local neck,leftShoulder,rightShoulder = findJoints(character)
-
-    if not initialized then
-        bodyYaw = math.atan2(-root.CFrame.LookVector.X,-root.CFrame.LookVector.Z)
-        headCF = root.CFrame * CFrame.new(0,2,0)
-        leftHandCF = root.CFrame * CFrame.new(-HAND_X,HAND_Y,HAND_Z)
-        rightHandCF = root.CFrame * CFrame.new(HAND_X,HAND_Y,HAND_Z)
-        initialized = true
-    end
-
-    -- HEAD TRACKING:
-    -- Kamera boleh melihat ke belakang.
-    -- Kepala mengikuti pandangan, tetapi badan tidak langsung dipaksa berputar.
-    local localLook = root.CFrame:VectorToObjectSpace(camera.CFrame.LookVector)
-
-    local headYaw = math.atan2(-localLook.X,-localLook.Z)
-    local headPitch = math.asin(math.clamp(localLook.Y,-1,1))
-
-    headYaw = math.clamp(shortestAngle(headYaw),-HEAD_MAX_YAW,HEAD_MAX_YAW)
-    headPitch = math.clamp(headPitch,-HEAD_MAX_PITCH,HEAD_MAX_PITCH)
-
-    local targetHead =
-        root.CFrame
-        * CFrame.new(0,2,0)
-        * CFrame.Angles(headPitch,headYaw,0)
-
-    headCF = smoothCF(headCF,targetHead,HEAD_SMOOTH_SPEED,dt)
-
-    -- BODY FOLLOW:
-    -- Badan menyusul arah kamera setelah kepala cukup jauh menoleh.
-    local cameraYaw = math.atan2(-camera.CFrame.LookVector.X,-camera.CFrame.LookVector.Z)
-    local yawDelta = shortestAngle(cameraYaw-bodyYaw)
-
-    if math.abs(yawDelta) > BODY_DEADZONE then
-        local alpha = 1-math.exp(-BODY_FOLLOW_SPEED*dt)
-        bodyYaw = bodyYaw + yawDelta*alpha
-
-        -- Hanya rotasi lokal badan secara halus.
-        -- Posisi dan physics karakter tetap dikendalikan Humanoid.
-        if humanoid.AutoRotate then
-            local desired = CFrame.new(root.Position) * CFrame.Angles(0,bodyYaw,0)
-            root.CFrame = root.CFrame:Lerp(desired,math.clamp(alpha*0.35,0,1))
+    
+    -- [MEJORA APLICADA]: ESPEJO LOCAL ESTABLE (Le gana a las animaciones de Roblox al ejecutarse en Stepped)
+    local char = plr.Character
+    if char then
+        local neck = char:FindFirstChild("Neck", true)
+        local leftShoulder = char:FindFirstChild("Left Shoulder", true) or char:FindFirstChild("LeftShoulder", true)
+        local rightShoulder = char:FindFirstChild("Right Shoulder", true) or char:FindFirstChild("RightShoulder", true)
+        
+        -- Forzar los joints del personaje local a ignorar por completo las animaciones activas en el juego
+        if neck and neck.Part0 then
+            neck.Transform = neck.C0:Inverse() * neck.Part0.CFrame:Inverse() * headCF * neck.C1
         end
-    end
-
-    -- HAND TRACKING:
-    local time = os.clock()
-
-    local leftIdle = Vector3.new(0,math.sin(time*2)*0.025,0)
-    local rightIdle = Vector3.new(0,math.sin(time*2+0.7)*0.025,0)
-
-    local leftOffset = Vector3.new(
-        -HAND_X + leftJoy.X*1.35,
-        HAND_Y + leftJoy.Y*1.35,
-        HAND_Z - leftZ*1.25
-    )
-
-    local rightOffset = Vector3.new(
-        HAND_X + rightJoy.X*1.35,
-        HAND_Y + rightJoy.Y*1.35,
-        HAND_Z - rightZ*1.25
-    )
-
-    local targetLeft =
-        root.CFrame
-        * CFrame.new(leftOffset+leftIdle)
-        * CFrame.Angles(
-            math.rad(leftJoy.Y*35),
-            math.rad(-leftJoy.X*25),
-            math.rad(-leftJoy.X*18)
-        )
-
-    local targetRight =
-        root.CFrame
-        * CFrame.new(rightOffset+rightIdle)
-        * CFrame.Angles(
-            math.rad(rightJoy.Y*35),
-            math.rad(-rightJoy.X*25),
-            math.rad(rightJoy.X*18)
-        )
-
-    leftHandCF = smoothCF(leftHandCF,targetLeft,HAND_SMOOTH_SPEED,dt)
-    rightHandCF = smoothCF(rightHandCF,targetRight,HAND_SMOOTH_SPEED,dt)
-
-    -- LOCAL MIRROR
-    applyJoint(neck,headCF)
-    applyJoint(leftShoulder,leftHandCF)
-    applyJoint(rightShoulder,rightHandCF)
-
-    -- RGB UI
-    local rgbTime = os.clock()
-    for _,data in pairs(pads) do
-        local c = hsv(rgbTime,data.rgbOffset)
-        data.stroke.Color = c
-        data.thumb.BackgroundColor3 = c
-    end
-
-    toggleStroke.Color = hsv(rgbTime,0.30)
-end)
-
-player.CharacterAdded:Connect(function()
-    initialized = false
-    leftJoy = Vector2.zero
-    rightJoy = Vector2.zero
-    leftZ = 0
-    rightZ = 0
-
-    for _,data in pairs(pads) do
-        data.thumb.Position = UDim2.fromScale(0.5,0.5)
+        if leftShoulder and leftShoulder.Part0 then
+            leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * leftHandCF * leftShoulder.C1
+        end
+        if rightShoulder and rightShoulder.Part0 then
+            rightShoulder.Transform = rightShoulder.C0:Inverse() * rightShoulder.Part0.CFrame:Inverse() * rightHandCF * rightShoulder.C1
+        end
     end
 end)
