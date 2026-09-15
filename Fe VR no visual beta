@@ -30,6 +30,8 @@ local TASA_ENVIO = 1 / 25 -- Limita el envío a 25 veces por segundo para quitar
 local headCF = CFrame.new()
 local leftHandCF = CFrame.new()
 local rightHandCF = CFrame.new()
+local headPitch = 0
+local headYaw = 0
 
 -- 1. OBTENER INTERFAZ SEGURA (Inmune a limpiezas de mapa)
 local ParentGui
@@ -227,7 +229,8 @@ ProfileCard.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 ProfileCard.BackgroundTransparency = 0.15
 ProfileCard.BorderSizePixel = 0
 ProfileCard.Visible = true
-ProfileCard.Parent = ScreenGui
+-- Profile menjadi bagian dari Intro agar ikut hilang saat intro selesai.
+-- Parent sebenarnya dipindahkan ke IntroFrame setelah IntroFrame dibuat.
 
 local profileCorner = Instance.new("UICorner")
 profileCorner.CornerRadius = UDim.new(0, 12)
@@ -295,7 +298,6 @@ task.spawn(function()
     end
 
     task.wait(0.25)
-    ProfileCard.Visible = true
 end)
 
 local uiVisible = true
@@ -318,6 +320,9 @@ IntroFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 IntroFrame.BackgroundTransparency = 0
 IntroFrame.BorderSizePixel = 0
 IntroFrame.Parent = ScreenGui
+
+-- Profil berada DI DALAM intro, jadi saat IntroFrame dihancurkan profil ikut hilang.
+ProfileCard.Parent = IntroFrame
 
 local IntroText = Instance.new("TextLabel")
 IntroText.Name = "IntroText"
@@ -364,11 +369,10 @@ task.spawn(function()
     frameFadeOut:Play()
     frameFadeOut.Completed:Wait()
     
+    -- Hapus seluruh intro, termasuk kartu profil di dalamnya.
     IntroFrame:Destroy()
-    ProfileCard.Visible = true
     
     ToggleBtn.Visible = true
-    ProfileCard.Visible = true
     local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Derecho_Pad", "Derecho_Z_Pad"}
     for _, padName in ipairs(pads) do
         local pad = ScreenGui:FindFirstChild(padName)
@@ -400,38 +404,34 @@ RunService.RenderStepped:Connect(function()
     if char and char:FindFirstChild("HumanoidRootPart") then
         local rootCF = char.HumanoidRootPart.CFrame
 
-        -- HEAD TRACKING VR:
-        -- La cabeza gira alrededor del cuello REAL. La posición no se mueve
-        -- manualmente, así que permanece pegada al cuerpo al correr/saltar.
+        -- HEAD TRACKING VR (AMAN / TANPA MEMINDAHKAN KEPALA)
+        -- Hanya rotasi joint leher yang diubah. Posisi kepala tetap milik rig,
+        -- sehingga kepala tidak terlempar/hilang saat kamera bergerak.
         local cameraLook = cam.CFrame.LookVector
         local localLook = rootCF:VectorToObjectSpace(cameraLook)
 
         local rawYaw = math.atan2(-localLook.X, -localLook.Z)
         local HEAD_SIDE_LIMIT = math.rad(85)
 
-        -- Al mirar hacia la zona trasera, la cabeza vuelve a mirar al frente.
-        local headYaw = rawYaw
+        -- Sisi kiri/kanan boleh mengikuti kamera. Saat sudah mengarah belakang,
+        -- kepala kembali menghadap depan. Kamera tetap bebas 360 derajat.
+        headYaw = rawYaw
         if math.abs(rawYaw) > HEAD_SIDE_LIMIT then
             headYaw = 0
         end
 
-        -- Arriba = cabeza arriba / abajo = cabeza abajo.
-        local pitch = math.asin(math.clamp(localLook.Y, -1, 1))
+        -- Arah vertikal mengikuti kamera: lihat atas = kepala atas.
+        headPitch = math.asin(math.clamp(localLook.Y, -1, 1))
 
-        -- Importante: headCF usa la posición del joint del cuello, no la
-        -- posición del Head que ya está siendo modificada por Neck.Transform.
         local neck = char:FindFirstChild("Neck", true)
         if neck and neck.Part0 and neck.Part1 then
+            -- headCF untuk server memakai posisi/orientasi dasar joint leher.
             local neckWorld = neck.Part0.CFrame * neck.C0
-            local headTarget = neckWorld * neck.C1:Inverse()
-
-            headCF = CFrame.new(headTarget.Position)
-                * CFrame.Angles(pitch, headYaw, 0)
+            headCF = neckWorld * CFrame.Angles(headPitch, headYaw, 0)
         else
-            headCF = rootCF
-                * CFrame.new(0, 1.5, 0)
-                * CFrame.Angles(pitch, headYaw, 0)
+            headCF = rootCF * CFrame.new(0, 1.5, 0) * CFrame.Angles(headPitch, headYaw, 0)
         end
+
         local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
         local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
         
@@ -477,13 +477,10 @@ RunService.Stepped:Connect(function()
         local rightShoulder = char:FindFirstChild("Right Shoulder", true) or char:FindFirstChild("RightShoulder", true)
         
         -- Forzar los joints del personaje local a ignorar por completo las animaciones activas en el juego
-        if neck and neck.Part0 then
-            -- Solo modificamos la rotación del joint; su posición sigue siendo
-            -- la del cuello del rig, evitando que la cabeza desaparezca.
-            neck.Transform = neck.C0:Inverse()
-                * neck.Part0.CFrame:Inverse()
-                * headCF
-                * neck.C1
+        if neck and neck.Part0 and neck.Part1 then
+            -- PENTING: jangan mengubah posisi Motor6D. Hanya rotasi kepala.
+            -- Ini mencegah kepala hilang/terlempar dari badan.
+            neck.Transform = CFrame.Angles(headPitch, headYaw, 0)
         end
         if leftShoulder and leftShoulder.Part0 then
             leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * leftHandCF * leftShoulder.C1
