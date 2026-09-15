@@ -565,10 +565,10 @@ RunService.RenderStepped:Connect(function()
 end)
 
 
--- --- HILO 2: MODIFICACIONES FÍSICAS Y ESPEJO LOCAL INMUNE (Stepped) ---
--- Este evento corre de forma nativa justo antes del motor de física y de las animaciones de Roblox,
--- logrando un No-Clip ultra suave y previniendo que los brazos parpadeen o tiemblen en tu pantalla.
-RunService.Stepped:Connect(function()
+-- --- HILO 2: MODIFICACIONES FÍSICAS Y ESPEJO LOCAL ---
+-- El espejo local se aplica DESPUÉS de la física para que los brazos acompañen
+-- exactamente al HumanoidRootPart al saltar, caer y aterrizar.
+RunService.Heartbeat:Connect(function()
     
     -- [MEJORA APLICADA]: NO-CLIP OPTIMIZADO (Busca solo BaseParts en el primer nivel del personaje, ahorrando 80% de CPU)
     for _, otroPlr in ipairs(Players:GetPlayers()) do
@@ -594,11 +594,57 @@ RunService.Stepped:Connect(function()
             -- Ini mencegah kepala hilang/terlempar dari badan.
             neck.Transform = CFrame.Angles(headPitch, headYaw, 0)
         end
-        if leftShoulder and leftShoulder.Part0 then
-            leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * leftHandCF * leftShoulder.C1
-        end
-        if rightShoulder and rightShoulder.Part0 then
-            rightShoulder.Transform = rightShoulder.C0:Inverse() * rightShoulder.Part0.CFrame:Inverse() * rightHandCF * rightShoulder.C1
+        -- IMPORTANTE: reconstruimos el objetivo usando la posición ACTUAL del cuerpo.
+        -- Así, si el HumanoidRootPart sube durante un salto, las manos suben con él
+        -- en el mismo frame físico, sin quedarse flotando atrás.
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local currentRootCF = root.CFrame
+
+            -- Mantener exactamente la misma lógica de control, pero con la altura
+            -- actual del cuerpo para eliminar el desfase durante saltos/caídas.
+            local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
+            local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
+
+            local localLeftHandCF = currentRootCF
+                * CFrame.new(
+                    -1.2 + math.clamp(leftJoyMove.X * 1.4, -1.4, 1.4),
+                    0.5 + math.clamp(leftJoyMove.Y * 1.4, -1.4, 1.4),
+                    currentZ_Left
+                )
+                * CFrame.Angles(
+                    math.rad(leftJoyMove.Y * 45) + math.rad(leftArmPitch * 70),
+                    math.rad(-leftJoyMove.X * 30),
+                    math.rad(-leftJoyMove.X * 20)
+                )
+
+            local localRightHandCF = currentRootCF
+                * CFrame.new(
+                    1.2 + math.clamp(rightJoyMove.X * 1.4, -1.4, 1.4),
+                    0.5 + math.clamp(rightJoyMove.Y * 1.4, -1.4, 1.4),
+                    currentZ_Right
+                )
+                * CFrame.Angles(
+                    math.rad(rightJoyMove.Y * 45) + math.rad(rightArmPitch * 70),
+                    math.rad(-rightJoyMove.X * 30),
+                    math.rad(rightJoyMove.X * 20)
+                )
+
+            if leftShoulder and leftShoulder.Part0 then
+                leftShoulder.Transform =
+                    leftShoulder.C0:Inverse()
+                    * leftShoulder.Part0.CFrame:Inverse()
+                    * localLeftHandCF
+                    * leftShoulder.C1
+            end
+
+            if rightShoulder and rightShoulder.Part0 then
+                rightShoulder.Transform =
+                    rightShoulder.C0:Inverse()
+                    * rightShoulder.Part0.CFrame:Inverse()
+                    * localRightHandCF
+                    * rightShoulder.C1
+            end
         end
     end
 end)
