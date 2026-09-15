@@ -263,9 +263,11 @@ btnCorner.CornerRadius = UDim.new(0, 8)
 btnCorner.Parent = ToggleBtn
 
 -- --- MODE CAMERA VR / CAMERA BIASA ---
--- Mode VR memakai kamera orang pertama (LockFirstPerson) dan kepala lokal disembunyikan.
--- Mode Biasa mengembalikan kamera Roblox normal (Classic) dan kepala lokal terlihat.
--- Semua joystick tangan/kepala tetap aktif pada KEDUA mode.
+-- MODE CAMERA VR / CAMERA BIASA
+-- Camera VR: kamera orang pertama, TETAPI hanya Head milik LocalPlayer
+-- yang dibuat transparan secara lokal. Badan, tangan, dan kaki tetap terlihat.
+-- Pemain lain tetap melihat Head normal karena LocalTransparencyModifier
+-- hanya berlaku di sisi client ini. Semua kontrol tetap aktif di kedua mode.
 local vrMode = false
 local normalCameraMode = plr.CameraMode
 
@@ -289,18 +291,42 @@ vrModeCorner.Parent = VRModeBtn
 local function setLocalHeadVisible(isVisible)
     local char = plr.Character
     if not char then return end
+
+    -- PENTING: hanya Head yang disembunyikan. Jangan menyentuh tangan,
+    -- kaki, torso, atau bagian tubuh lain. LocalTransparencyModifier
+    -- tidak direplikasi ke pemain lain.
     local head = char:FindFirstChild("Head")
     if head and head:IsA("BasePart") then
-        -- 0 = terlihat lokal, 1 = hilang lokal. Tidak memengaruhi pemain lain.
         head.LocalTransparencyModifier = isVisible and 0 or 1
     end
+end
+
+local function enforceCameraVRBodyVisibility()
+    if not vrMode then return end
+    local char = plr.Character
+    if not char then return end
+
+    -- Roblox/CameraModule kadang mengubah transparency lokal saat
+    -- first-person. Kembalikan bagian tubuh selain Head agar badan,
+    -- tangan, dan kaki tetap terlihat di Camera VR.
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name ~= "Head" then
+            if obj.Name == "HumanoidRootPart" then
+                obj.LocalTransparencyModifier = 1
+            else
+                obj.LocalTransparencyModifier = 0
+            end
+        end
+    end
+
+    setLocalHeadVisible(false)
 end
 
 local function updateVRMode()
     if vrMode then
         -- CAMERA VR: first person supaya kamera berada di area kepala.
         plr.CameraMode = Enum.CameraMode.LockFirstPerson
-        setLocalHeadVisible(false)
+        enforceCameraVRBodyVisibility()
         VRModeBtn.Text = "Camera VR: ON"
     else
         -- CAMERA BIASA: kembalikan mode kamera Roblox sebelumnya.
@@ -513,6 +539,10 @@ RunService.RenderStepped:Connect(function()
             -- Hanya kepala lokal yang disembunyikan saat Camera VR.
             -- Pemain lain tetap melihat kepala normal.
             head.LocalTransparencyModifier = vrMode and 1 or 0
+        end
+
+        if vrMode then
+            enforceCameraVRBodyVisibility()
         end
 
         local rootCF = char.HumanoidRootPart.CFrame
