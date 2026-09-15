@@ -1,17 +1,24 @@
--- Movement Recorder V1
--- LocalScript | StarterPlayerScripts
+--// AUTO OBSTACLE
+--// LocalScript
+--// StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
-local recording = false
-local playing = false
-local frames = {}
-local startTime = 0
+local character
+local humanoid
+local root
 
-local character, humanoid, root
+local enabled = false
+local minimized = false
+local jumpCooldown = false
+
+--==================================================
+-- CHARACTER
+--==================================================
 
 local function setupCharacter(char)
 	character = char
@@ -20,124 +27,377 @@ local function setupCharacter(char)
 end
 
 setupCharacter(player.Character or player.CharacterAdded:Wait())
-player.CharacterAdded:Connect(setupCharacter)
 
+player.CharacterAdded:Connect(function(char)
+	enabled = false
+	setupCharacter(char)
+
+	task.wait(0.5)
+
+	if toggle then
+		toggle.Text = "AUTO: OFF"
+		toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
+	end
+
+	if status then
+		status.Text = "Ready"
+	end
+end)
+
+--==================================================
 -- UI
+--==================================================
+
 local gui = Instance.new("ScreenGui")
-gui.Name = "MovementRecorder"
+gui.Name = "AutoObstacleUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local main = Instance.new("Frame")
-main.Size = UDim2.fromOffset(230, 150)
-main.Position = UDim2.new(0, 20, 0.5, -75)
-main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+main.Size = UDim2.fromOffset(195,125)
+main.Position = UDim2.new(0.5,-97,0.65,0)
+main.BackgroundColor3 = Color3.fromRGB(24,24,31)
+main.BackgroundTransparency = 0.06
 main.BorderSizePixel = 0
+main.Active = true
 main.Parent = gui
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
+corner.CornerRadius = UDim.new(0,12)
 corner.Parent = main
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundTransparency = 1
-title.Text = "🎮 Movement Recorder"
-title.TextColor3 = Color3.new(1,1,1)
-title.TextSize = 16
-title.Font = Enum.Font.GothamBold
-title.Parent = main
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 1
+stroke.Transparency = 0.45
+stroke.Parent = main
 
-local function button(text, y)
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(1, -20, 0, 30)
-	b.Position = UDim2.fromOffset(10, y)
-	b.BackgroundColor3 = Color3.fromRGB(45,45,55)
-	b.TextColor3 = Color3.new(1,1,1)
-	b.Text = text
-	b.TextSize = 14
-	b.Font = Enum.Font.GothamMedium
-	b.BorderSizePixel = 0
-	b.Parent = main
+--==================================================
+-- DRAG
+--==================================================
 
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 7)
-	c.Parent = b
+local dragging = false
+local dragStart
+local startPosition
 
-	return b
-end
+main.InputBegan:Connect(function(input)
 
-local recordButton = button("🔴 Record", 40)
-local stopButton = button("⏹ Stop", 75)
-local playButton = button("▶ Play", 110)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
 
--- Record
-recordButton.MouseButton1Click:Connect(function()
-	if playing then return end
+		dragging = true
+		dragStart = input.Position
+		startPosition = main.Position
 
-	frames = {}
-	recording = true
-	startTime = os.clock()
+		input.Changed:Connect(function()
 
-	recordButton.Text = "🔴 Recording..."
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+
+		end)
+	end
+
 end)
 
--- Stop
-stopButton.MouseButton1Click:Connect(function()
-	recording = false
-	playing = false
+UserInputService.InputChanged:Connect(function(input)
 
-	recordButton.Text = "🔴 Record"
-	playButton.Text = "▶ Play"
-end)
-
--- Capture movement
-RunService.Heartbeat:Connect(function()
-	if not recording or not root or not humanoid then
+	if not dragging then
 		return
 	end
 
-	table.insert(frames, {
-		t = os.clock() - startTime,
-		cframe = root.CFrame,
-		velocity = root.AssemblyLinearVelocity,
-		jump = humanoid:GetState() == Enum.HumanoidStateType.Jumping
-	})
-end)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
 
--- Playback
-playButton.MouseButton1Click:Connect(function()
-	if recording or playing or #frames < 2 then return end
+		local delta = input.Position - dragStart
 
-	playing = true
-	playButton.Text = "▶ Playing..."
+		main.Position = UDim2.new(
+			startPosition.X.Scale,
+			startPosition.X.Offset + delta.X,
 
-	local playbackStart = os.clock()
-	local index = 1
+			startPosition.Y.Scale,
+			startPosition.Y.Offset + delta.Y
+		)
 
-	while playing and index <= #frames do
-		local elapsed = os.clock() - playbackStart
-
-		while index < #frames and frames[index + 1].t <= elapsed do
-			index += 1
-		end
-
-		local frame = frames[index]
-
-		if root and humanoid then
-			-- Gerakkan karakter mengikuti rekaman
-			root.CFrame = frame.cframe
-			root.AssemblyLinearVelocity = frame.velocity
-
-			-- Tirukan lompatan
-			if frame.jump then
-				humanoid.Jump = true
-			end
-		end
-
-		RunService.Heartbeat:Wait()
 	end
 
-	playing = false
-	playButton.Text = "▶ Play"
+end)
+
+--==================================================
+-- TITLE
+--==================================================
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,-48,0,32)
+title.Position = UDim2.fromOffset(12,4)
+title.BackgroundTransparency = 1
+title.Text = "AUTO OBSTACLE"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextSize = 14
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+local minimize = Instance.new("TextButton")
+minimize.Size = UDim2.fromOffset(30,30)
+minimize.Position = UDim2.new(1,-36,0,4)
+minimize.BackgroundTransparency = 1
+minimize.Text = "−"
+minimize.TextColor3 = Color3.fromRGB(255,255,255)
+minimize.TextSize = 21
+minimize.Font = Enum.Font.GothamBold
+minimize.Parent = main
+
+--==================================================
+-- TOGGLE
+--==================================================
+
+toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1,-24,0,42)
+toggle.Position = UDim2.fromOffset(12,42)
+toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
+toggle.BorderSizePixel = 0
+toggle.Text = "AUTO: OFF"
+toggle.TextColor3 = Color3.fromRGB(255,255,255)
+toggle.TextSize = 14
+toggle.Font = Enum.Font.GothamBold
+toggle.Parent = main
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0,9)
+toggleCorner.Parent = toggle
+
+--==================================================
+-- STATUS
+--==================================================
+
+status = Instance.new("TextLabel")
+status.Size = UDim2.new(1,-24,0,25)
+status.Position = UDim2.fromOffset(12,90)
+status.BackgroundTransparency = 1
+status.Text = "Ready"
+status.TextColor3 = Color3.fromRGB(170,170,180)
+status.TextSize = 10
+status.Font = Enum.Font.Gotham
+status.Parent = main
+
+--==================================================
+-- TOGGLE FUNCTION
+--==================================================
+
+toggle.MouseButton1Click:Connect(function()
+
+	enabled = not enabled
+
+	if enabled then
+
+		toggle.Text = "AUTO: ON"
+		toggle.BackgroundColor3 = Color3.fromRGB(45,140,85)
+		status.Text = "Auto obstacle active"
+
+	else
+
+		toggle.Text = "AUTO: OFF"
+		toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
+		status.Text = "Ready"
+
+		if humanoid then
+			humanoid:Move(Vector3.zero,false)
+		end
+
+	end
+
+end)
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+minimize.MouseButton1Click:Connect(function()
+
+	minimized = not minimized
+
+	if minimized then
+
+		main.Size = UDim2.fromOffset(135,42)
+
+		toggle.Visible = false
+		status.Visible = false
+
+		title.Text = "AUTO"
+
+	else
+
+		main.Size = UDim2.fromOffset(195,125)
+
+		toggle.Visible = true
+		status.Visible = true
+
+		title.Text = "AUTO OBSTACLE"
+
+	end
+
+end)
+
+--==================================================
+-- RAYCAST
+--==================================================
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function raycast(origin,direction)
+
+	rayParams.FilterDescendantsInstances = {
+		character
+	}
+
+	return workspace:Raycast(
+		origin,
+		direction,
+		rayParams
+	)
+
+end
+
+--==================================================
+-- OBSTACLE DETECTION
+--==================================================
+
+local function detectObstacle()
+
+	if not root or not humanoid then
+		return false
+	end
+
+	-- Posisi depan karakter
+	local origin =
+		root.Position
+		+ Vector3.new(0,1.5,0)
+
+	-- Jarak deteksi
+	local direction =
+		root.CFrame.LookVector * 5
+
+	local hit = raycast(
+		origin,
+		direction
+	)
+
+	if not hit then
+		return false
+	end
+
+	local part = hit.Instance
+
+	if not part:IsA("BasePart") then
+		return false
+	end
+
+	-- Cek apakah objek cukup rendah untuk dilompati
+	local topY = part.Position.Y + (part.Size.Y / 2)
+	local characterFeet = root.Position.Y - 3
+
+	local obstacleHeight = topY - characterFeet
+
+	if obstacleHeight > 0 and obstacleHeight < 6 then
+		return true
+	end
+
+	return false
+
+end
+
+--==================================================
+-- CEK LUBANG DI DEPAN
+--==================================================
+
+local function detectGround()
+
+	if not root then
+		return true
+	end
+
+	local origin =
+		root.Position
+		+ root.CFrame.LookVector * 4
+		+ Vector3.new(0,2,0)
+
+	local direction =
+		Vector3.new(0,-8,0)
+
+	local hit = raycast(
+		origin,
+		direction
+	)
+
+	return hit ~= nil
+
+end
+
+--==================================================
+-- AUTO JUMP
+--==================================================
+
+local function tryJump()
+
+	if jumpCooldown then
+		return
+	end
+
+	if not humanoid then
+		return
+	end
+
+	if humanoid.FloorMaterial == Enum.Material.Air then
+		return
+	end
+
+	jumpCooldown = true
+
+	humanoid.Jump = true
+
+	task.delay(0.75,function()
+		jumpCooldown = false
+	end)
+
+end
+
+--==================================================
+-- MAIN AUTO SYSTEM
+--==================================================
+
+RunService.Heartbeat:Connect(function()
+
+	if not enabled then
+		return
+	end
+
+	if not character or not humanoid or not root then
+		return
+	end
+
+	if humanoid.Health <= 0 then
+		return
+	end
+
+	-- Jalan terus ke arah karakter menghadap
+	humanoid:Move(
+		root.CFrame.LookVector,
+		false
+	)
+
+	-- Rintangan di depan
+	if detectObstacle() then
+		tryJump()
+	end
+
+	-- Lubang kecil / perubahan permukaan
+	if not detectGround() then
+		tryJump()
+	end
+
 end)
