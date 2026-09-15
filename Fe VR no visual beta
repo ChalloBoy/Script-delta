@@ -290,6 +290,19 @@ local function updateVRHeadVisibility()
     end
 end
 
+local function restoreLocalHeadVisibility()
+    for obj, oldValue in pairs(hiddenLocally) do
+        if obj and obj.Parent then
+            if obj:IsA("BasePart") then
+                obj.LocalTransparencyModifier = oldValue
+            elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                obj.Transparency = oldValue
+            end
+        end
+    end
+    hiddenLocally = {}
+end
+
 local function setCameraMode(mode)
     cameraMode = mode
     vrCameraEnabled = (mode == "VR")
@@ -298,7 +311,16 @@ local function setCameraMode(mode)
         savedCameraType = cam.CameraType
         savedCameraSubject = cam.CameraSubject
         savedCameraFOV = cam.FieldOfView
-        cam.CameraType = Enum.CameraType.Scriptable
+
+        -- Não usar Scriptable: a câmera padrão continua recebendo toque/arrasto.
+        local char = plr.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        cam.CameraType = Enum.CameraType.Custom
+        if humanoid then
+            cam.CameraSubject = humanoid
+        elseif savedCameraSubject then
+            cam.CameraSubject = savedCameraSubject
+        end
         CameraBtn.Text = "Camera: VR"
     else
         cam.CameraType = savedCameraType or Enum.CameraType.Custom
@@ -313,7 +335,11 @@ local function setCameraMode(mode)
         CameraBtn.Text = "Camera: NORMAL"
     end
 
-    updateVRHeadVisibility()
+    if vrCameraEnabled then
+        updateVRHeadVisibility()
+    else
+        restoreLocalHeadVisibility()
+    end
 end
 
 local CameraBtn = Instance.new("TextButton")
@@ -340,7 +366,11 @@ end)
 plr.CharacterAdded:Connect(function()
     hiddenLocally = {}
     task.wait(0.5)
-    updateVRHeadVisibility()
+    if vrCameraEnabled then
+        updateVRHeadVisibility()
+    else
+        restoreLocalHeadVisibility()
+    end
 end)
 
 -- --- HILO 1: ENTRADAS DE USUARIO, LERPS Y RED (RenderStepped) ---
@@ -370,13 +400,8 @@ RunService.RenderStepped:Connect(function()
         -- Calcular CFrames exactos y guardarlos en variables globales puente
         headCF = CFrame.new(rootCF.Position + Vector3.new(0, 2, 0)) * CFrame.Angles(lookX, lookY, lookZ)
 
-        -- En Camera Normal la VR sigue enviando head/manos.
-        -- En Camera VR, la cámara sigue el headCF.
-        if vrCameraEnabled then
-            cam.CameraType = Enum.CameraType.Scriptable
-            cam.CFrame = headCF
-        end
-        
+        -- A câmera fica livre nos dois modos. O CFrame atual alimenta o VR.
+        -- Não sobrescrevemos cam.CFrame, pois isso travava o movimento.
         if vrCameraEnabled then updateVRHeadVisibility() end
         
         local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
