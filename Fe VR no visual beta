@@ -18,6 +18,11 @@ local rightJoyMove = Vector2.new(0, 0)
 local leftZMove = 0
 local rightZMove = 0
 
+-- CONTROLES NUEVOS: inclinación independiente de cada brazo (arriba/abajo).
+-- No mueve el hombro: solo cambia el ángulo del brazo alrededor del hombro.
+local leftArmPitch = 0
+local rightArmPitch = 0
+
 -- Banderas para saber si el usuario está arrastrando los joysticks grandes
 local leftLargeDragging = false
 local rightLargeDragging = false
@@ -195,11 +200,104 @@ local function crearJoystickZ(nombre, posicion, color)
     end)
 end
 
+-- --- FUNCIÓN 3: CONTROL VERTICAL DE BRAZOS (ARRIBA / ABAJO) ---
+-- Este control NO cambia la posición del hombro. Solo añade una rotación
+-- vertical al brazo, permitiendo que la mano apunte hacia arriba o abajo.
+local function crearControlVerticalBrazo(nombre, posicion, color)
+    local Pad = Instance.new("Frame")
+    local Thumb = Instance.new("Frame")
+
+    Pad.Name = nombre.."_ArmPitch_Pad"
+    Pad.Size = UDim2.new(0, 55, 0, 105)
+    Pad.Position = posicion
+    Pad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Pad.BackgroundTransparency = 0.6
+    Pad.BorderSizePixel = 0
+    Pad.Active = true
+    Pad.Visible = false
+    Pad.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = Pad
+
+    local label = Instance.new("TextLabel")
+    label.Name = "Arrow"
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "↕"
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextTransparency = 0.25
+    label.TextSize = 24
+    label.Font = Enum.Font.GothamBold
+    label.Parent = Pad
+
+    Thumb.Name = "Thumb"
+    Thumb.Size = UDim2.new(0, 34, 0, 34)
+    Thumb.Position = UDim2.new(0.5, -17, 0.5, -17)
+    Thumb.BackgroundColor3 = color
+    Thumb.BackgroundTransparency = 0.15
+    Thumb.BorderSizePixel = 0
+    Thumb.Active = true
+    Thumb.Parent = Pad
+
+    local thumbCorner = Instance.new("UICorner")
+    thumbCorner.CornerRadius = UDim.new(1, 0)
+    thumbCorner.Parent = Thumb
+
+    local dragging = false
+    local currentInput = nil
+    local maxDistance = 32
+
+    local function update(input)
+        local centerY = Pad.AbsolutePosition.Y + Pad.AbsoluteSize.Y / 2
+        local relativeY = input.Position.Y - centerY
+        local clampedY = math.clamp(relativeY, -maxDistance, maxDistance)
+
+        Thumb.Position = UDim2.new(0.5, -17, 0.5, -17 + clampedY)
+
+        -- Arriba = brazo arriba, abajo = brazo abajo.
+        local value = math.clamp(-clampedY / maxDistance, -1, 1)
+        if nombre == "Izquierdo" then
+            leftArmPitch = value
+        else
+            rightArmPitch = value
+        end
+    end
+
+    Thumb.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.Touch
+            or input.UserInputType == Enum.UserInputType.MouseButton1)
+            and not dragging then
+            dragging = true
+            currentInput = input
+            update(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == currentInput then
+            update(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if dragging and input == currentInput then
+            dragging = false
+            currentInput = nil
+        end
+    end)
+end
+
 -- --- CREACIÓN DE CONTROLES ---
 crearJoystick("Izquierdo", UDim2.new(0, 40, 1, -170), Color3.fromRGB(255, 60, 60))
 crearJoystickZ("Izquierdo", UDim2.new(0, 180, 1, -145), Color3.fromRGB(255, 140, 140))
 crearJoystick("Derecho", UDim2.new(1, -165, 1, -170), Color3.fromRGB(60, 130, 255))
 crearJoystickZ("Derecho", UDim2.new(1, -255, 1, -145), Color3.fromRGB(140, 190, 255))
+
+-- Nuevos controles independientes para apuntar cada brazo arriba/abajo.
+crearControlVerticalBrazo("Izquierdo", UDim2.new(0, 265, 1, -160), Color3.fromRGB(255, 190, 190))
+crearControlVerticalBrazo("Derecho", UDim2.new(1, -320, 1, -160), Color3.fromRGB(190, 215, 255))
 
 -- --- BOTÓN MOSTRAR / OCULTAR INTERFAZ ---
 local ToggleBtn = Instance.new("TextButton")
@@ -305,7 +403,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     uiVisible = not uiVisible
     ToggleBtn.Text = uiVisible and "Ocultar Controles" or "Mostrar Controles"
     
-    local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Derecho_Pad", "Derecho_Z_Pad"}
+    local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Izquierdo_ArmPitch_Pad", "Derecho_Pad", "Derecho_Z_Pad", "Derecho_ArmPitch_Pad"}
     for _, padName in ipairs(pads) do
         local pad = ScreenGui:FindFirstChild(padName)
         if pad then pad.Visible = uiVisible end
@@ -373,7 +471,7 @@ task.spawn(function()
     IntroFrame:Destroy()
     
     ToggleBtn.Visible = true
-    local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Derecho_Pad", "Derecho_Z_Pad"}
+    local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Izquierdo_ArmPitch_Pad", "Derecho_Pad", "Derecho_Z_Pad", "Derecho_ArmPitch_Pad"}
     for _, padName in ipairs(pads) do
         local pad = ScreenGui:FindFirstChild(padName)
         if pad then pad.Visible = true end
@@ -398,6 +496,12 @@ RunService.RenderStepped:Connect(function()
         local pad = ScreenGui:FindFirstChild("Derecho_Pad")
         local thumb = pad and pad:FindFirstChild("Thumb")
         if thumb then thumb.Position = thumb.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
+    end
+
+    -- Suavizado del nuevo control arriba/abajo.
+    if not ScreenGui:FindFirstChild("Izquierdo_ArmPitch_Pad") then
+        leftArmPitch = 0
+        rightArmPitch = 0
     end
 
     local char = plr.Character
@@ -437,11 +541,19 @@ RunService.RenderStepped:Connect(function()
         
         leftHandCF = rootCF 
             * CFrame.new(-1.2 + math.clamp(leftJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(leftJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Left) 
-            * CFrame.Angles(math.rad(leftJoyMove.Y * 45), math.rad(-leftJoyMove.X * 30), math.rad(-leftJoyMove.X * 20))
+            * CFrame.Angles(
+                math.rad(leftJoyMove.Y * 45) + math.rad(leftArmPitch * 70),
+                math.rad(-leftJoyMove.X * 30),
+                math.rad(-leftJoyMove.X * 20)
+            )
         
         rightHandCF = rootCF 
             * CFrame.new(1.2 + math.clamp(rightJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(rightJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Right) 
-            * CFrame.Angles(math.rad(rightJoyMove.Y * 45), math.rad(-rightJoyMove.X * 30), math.rad(rightJoyMove.X * 20))
+            * CFrame.Angles(
+                math.rad(rightJoyMove.Y * 45) + math.rad(rightArmPitch * 70),
+                math.rad(-rightJoyMove.X * 30),
+                math.rad(rightJoyMove.X * 20)
+            )
         
         -- Filtro de tiempo para quitar la pesadez de red
         local tActual = os.clock()
