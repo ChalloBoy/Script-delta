@@ -1,0 +1,143 @@
+-- Movement Recorder V1
+-- LocalScript | StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local recording = false
+local playing = false
+local frames = {}
+local startTime = 0
+
+local character, humanoid, root
+
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+player.CharacterAdded:Connect(setupCharacter)
+
+-- UI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MovementRecorder"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(230, 150)
+main.Position = UDim2.new(0, 20, 0.5, -75)
+main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundTransparency = 1
+title.Text = "🎮 Movement Recorder"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
+title.Parent = main
+
+local function button(text, y)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1, -20, 0, 30)
+	b.Position = UDim2.fromOffset(10, y)
+	b.BackgroundColor3 = Color3.fromRGB(45,45,55)
+	b.TextColor3 = Color3.new(1,1,1)
+	b.Text = text
+	b.TextSize = 14
+	b.Font = Enum.Font.GothamMedium
+	b.BorderSizePixel = 0
+	b.Parent = main
+
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 7)
+	c.Parent = b
+
+	return b
+end
+
+local recordButton = button("🔴 Record", 40)
+local stopButton = button("⏹ Stop", 75)
+local playButton = button("▶ Play", 110)
+
+-- Record
+recordButton.MouseButton1Click:Connect(function()
+	if playing then return end
+
+	frames = {}
+	recording = true
+	startTime = os.clock()
+
+	recordButton.Text = "🔴 Recording..."
+end)
+
+-- Stop
+stopButton.MouseButton1Click:Connect(function()
+	recording = false
+	playing = false
+
+	recordButton.Text = "🔴 Record"
+	playButton.Text = "▶ Play"
+end)
+
+-- Capture movement
+RunService.Heartbeat:Connect(function()
+	if not recording or not root or not humanoid then
+		return
+	end
+
+	table.insert(frames, {
+		t = os.clock() - startTime,
+		cframe = root.CFrame,
+		velocity = root.AssemblyLinearVelocity,
+		jump = humanoid:GetState() == Enum.HumanoidStateType.Jumping
+	})
+end)
+
+-- Playback
+playButton.MouseButton1Click:Connect(function()
+	if recording or playing or #frames < 2 then return end
+
+	playing = true
+	playButton.Text = "▶ Playing..."
+
+	local playbackStart = os.clock()
+	local index = 1
+
+	while playing and index <= #frames do
+		local elapsed = os.clock() - playbackStart
+
+		while index < #frames and frames[index + 1].t <= elapsed do
+			index += 1
+		end
+
+		local frame = frames[index]
+
+		if root and humanoid then
+			-- Gerakkan karakter mengikuti rekaman
+			root.CFrame = frame.cframe
+			root.AssemblyLinearVelocity = frame.velocity
+
+			-- Tirukan lompatan
+			if frame.jump then
+				humanoid.Jump = true
+			end
+		end
+
+		RunService.Heartbeat:Wait()
+	end
+
+	playing = false
+	playButton.Text = "▶ Play"
+end)
