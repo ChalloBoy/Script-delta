@@ -221,7 +221,7 @@ btnCorner.Parent = ToggleBtn
 -- Mengambil avatar/profile thumbnail Roblox langsung dari layanan thumbnail Roblox.
 local ProfileCard = Instance.new("Frame")
 ProfileCard.Name = "VR_ProfileCard"
-ProfileCard.Size = UDim2.new(0, 250, 0, 70)
+ProfileCard.Size = UDim2.new(0, 250, 0, 82)
 ProfileCard.Position = UDim2.new(0.5, -125, 0.5, -135)
 ProfileCard.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 ProfileCard.BackgroundTransparency = 0.15
@@ -268,6 +268,18 @@ Username.Font = Enum.Font.Gotham
 Username.TextXAlignment = Enum.TextXAlignment.Left
 Username.TextTruncate = Enum.TextTruncate.AtEnd
 Username.Parent = ProfileCard
+
+local Version = Instance.new("TextLabel")
+Version.Name = "Version"
+Version.Size = UDim2.new(1, -75, 0, 18)
+Version.Position = UDim2.new(0, 70, 0, 53)
+Version.BackgroundTransparency = 1
+Version.Text = "Version 1.0"
+Version.TextColor3 = Color3.fromRGB(170, 170, 180)
+Version.TextSize = 11
+Version.Font = Enum.Font.GothamMedium
+Version.TextXAlignment = Enum.TextXAlignment.Left
+Version.Parent = ProfileCard
 
 task.spawn(function()
     local ok, image = pcall(function()
