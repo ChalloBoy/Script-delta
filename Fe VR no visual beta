@@ -315,22 +315,32 @@ RunService.RenderStepped:Connect(function()
     if char and char:FindFirstChild("HumanoidRootPart") then
         local rootCF = char.HumanoidRootPart.CFrame
 
-        -- CABEZA VR:
-        -- Convertimos la cámara a espacio local del cuerpo para que mirar hacia
-        -- atrás no haga que la cabeza gire 180° siguiendo la cámara.
-        local cameraRelative = rootCF:ToObjectSpace(cam.CFrame)
-        local lookX, lookY, lookZ = cameraRelative:ToEulerAnglesXYZ()
+        -- HEAD TRACKING VR:
+        -- La cámara puede mirar 360°, pero la cabeza solamente acompaña
+        -- mientras el giro esté dentro del rango lateral natural.
+        -- Al mirar demasiado hacia atrás, la cabeza vuelve/se mantiene mirando
+        -- hacia el frente del cuerpo en vez de seguir la cámara.
+        local cameraLook = cam.CFrame.LookVector
+        local localLook = rootCF:VectorToObjectSpace(cameraLook)
 
-        -- Límite horizontal de la cabeza. El cuerpo/cámara puede seguir mirando
-        -- hacia atrás, pero la cabeza local no hace una vuelta completa.
-        local MAX_HEAD_YAW = math.rad(85)
-        local limitedLookY = math.clamp(lookY, -MAX_HEAD_YAW, MAX_HEAD_YAW)
+        -- Ángulo horizontal de la cámara respecto al frente del cuerpo.
+        local rawYaw = math.atan2(-localLook.X, -localLook.Z)
 
-        -- Mantiene inclinación atas/abajo y giro lateral natural dentro del límite.
+        -- Zona en la que la cabeza puede acompañar a la cámara.
+        local HEAD_SIDE_LIMIT = math.rad(85)
+
+        -- Fuera de la zona lateral, la cabeza apunta al frente.
+        local headYaw = rawYaw
+        if math.abs(rawYaw) > HEAD_SIDE_LIMIT then
+            headYaw = 0
+        end
+
+        -- Inclinación vertical de la cabeza sigue funcionando normalmente.
+        local pitch = math.asin(math.clamp(localLook.Y, -1, 1))
+
         headCF = rootCF
             * CFrame.new(0, 2, 0)
-            * CFrame.Angles(lookX, limitedLookY, lookZ)
-        
+            * CFrame.Angles(-pitch, headYaw, 0)
         local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
         local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
         
