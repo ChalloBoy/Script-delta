@@ -1,294 +1,143 @@
---[[
-    PLAYER AUTO HIT UI
-    LocalScript
-    Untuk game Roblox milik sendiri
-
-    Fitur:
-    • Script Aktif ☑️
-    • Auto Hit ON/OFF
-    • Player Target
-    • Hitbox: Normal → 100 → 500 → 1.000 → 5.000 → 10.000
-    • Attack Speed: 0.1s → 0.2s → 0.5s → 1.0s
-    • UI kecil untuk HP
-    • UI tidak draggable
-]]
+-- Movement Recorder V1
+-- LocalScript | StarterPlayerScripts
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
 
---------------------------------------------------
--- REMOTE
---------------------------------------------------
+local recording = false
+local playing = false
+local frames = {}
+local startTime = 0
 
-local Remote = ReplicatedStorage:FindFirstChild("AutoHitRemote")
+local character, humanoid, root
 
-if not Remote then
-	Remote = Instance.new("RemoteEvent")
-	Remote.Name = "AutoHitRemote"
-	Remote.Parent = ReplicatedStorage
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
 end
 
---------------------------------------------------
--- NOTIFICATION GUI
---------------------------------------------------
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+player.CharacterAdded:Connect(setupCharacter)
 
-local NotifyGui = Instance.new("ScreenGui")
-NotifyGui.Name = "AutoHitNotification"
-NotifyGui.ResetOnSpawn = false
-NotifyGui.IgnoreGuiInset = false
-NotifyGui.Parent = PlayerGui
+-- UI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MovementRecorder"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
-local Notification = Instance.new("Frame")
-Notification.Size = UDim2.fromOffset(215, 48)
-Notification.Position = UDim2.new(0.5, -107, 0, 25)
-Notification.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-Notification.BorderSizePixel = 0
-Notification.Parent = NotifyGui
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(230, 150)
+main.Position = UDim2.new(0, 20, 0.5, -75)
+main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+main.BorderSizePixel = 0
+main.Parent = gui
 
-local NotifyCorner = Instance.new("UICorner")
-NotifyCorner.CornerRadius = UDim.new(0, 12)
-NotifyCorner.Parent = Notification
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = main
 
-local NotifyStroke = Instance.new("UIStroke")
-NotifyStroke.Thickness = 1
-NotifyStroke.Color = Color3.fromRGB(75, 75, 85)
-NotifyStroke.Parent = Notification
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundTransparency = 1
+title.Text = "🎮 Movement Recorder"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
+title.Parent = main
 
-local NotifyText = Instance.new("TextLabel")
-NotifyText.Size = UDim2.fromScale(1, 1)
-NotifyText.BackgroundTransparency = 1
-NotifyText.Text = "Script Aktif ☑️"
-NotifyText.TextColor3 = Color3.fromRGB(255, 255, 255)
-NotifyText.TextSize = 15
-NotifyText.Font = Enum.Font.GothamBold
-NotifyText.Parent = Notification
+local function button(text, y)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1, -20, 0, 30)
+	b.Position = UDim2.fromOffset(10, y)
+	b.BackgroundColor3 = Color3.fromRGB(45,45,55)
+	b.TextColor3 = Color3.new(1,1,1)
+	b.Text = text
+	b.TextSize = 14
+	b.Font = Enum.Font.GothamMedium
+	b.BorderSizePixel = 0
+	b.Parent = main
 
-task.delay(3, function()
-	if NotifyGui then
-		NotifyGui:Destroy()
-	end
-end)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 7)
+	c.Parent = b
 
---------------------------------------------------
--- MAIN GUI
---------------------------------------------------
-
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "PlayerAutoHit"
-Gui.ResetOnSpawn = false
-Gui.Parent = PlayerGui
-
-local Main = Instance.new("Frame")
-Main.Name = "Main"
-Main.Size = UDim2.fromOffset(215, 178)
-Main.Position = UDim2.new(0, 12, 0.5, -89)
-Main.BackgroundColor3 = Color3.fromRGB(24, 24, 29)
-Main.BorderSizePixel = 0
-Main.Parent = Gui
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
-MainCorner.Parent = Main
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Thickness = 1
-MainStroke.Color = Color3.fromRGB(70, 70, 80)
-MainStroke.Parent = Main
-
---------------------------------------------------
--- TITLE
---------------------------------------------------
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -16, 0, 28)
-Title.Position = UDim2.fromOffset(8, 5)
-Title.BackgroundTransparency = 1
-Title.Text = "PLAYER AUTO HIT"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 15
-Title.Font = Enum.Font.GothamBold
-Title.Parent = Main
-
---------------------------------------------------
--- AUTO HIT BUTTON
---------------------------------------------------
-
-local AutoButton = Instance.new("TextButton")
-AutoButton.Size = UDim2.new(1, -16, 0, 38)
-AutoButton.Position = UDim2.fromOffset(8, 36)
-AutoButton.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-AutoButton.BorderSizePixel = 0
-AutoButton.Text = "Auto Hit: OFF"
-AutoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoButton.TextSize = 14
-AutoButton.Font = Enum.Font.GothamBold
-AutoButton.Parent = Main
-
-local AutoCorner = Instance.new("UICorner")
-AutoCorner.CornerRadius = UDim.new(0, 9)
-AutoCorner.Parent = AutoButton
-
---------------------------------------------------
--- HITBOX BUTTON
---------------------------------------------------
-
-local HitboxButton = Instance.new("TextButton")
-HitboxButton.Size = UDim2.new(1, -16, 0, 38)
-HitboxButton.Position = UDim2.fromOffset(8, 80)
-HitboxButton.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-HitboxButton.BorderSizePixel = 0
-HitboxButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-HitboxButton.TextSize = 13
-HitboxButton.Font = Enum.Font.GothamMedium
-HitboxButton.Parent = Main
-
-local HitboxCorner = Instance.new("UICorner")
-HitboxCorner.CornerRadius = UDim.new(0, 9)
-HitboxCorner.Parent = HitboxButton
-
---------------------------------------------------
--- ATTACK SPEED BUTTON
---------------------------------------------------
-
-local SpeedButton = Instance.new("TextButton")
-SpeedButton.Size = UDim2.new(1, -16, 0, 38)
-SpeedButton.Position = UDim2.fromOffset(8, 124)
-SpeedButton.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-SpeedButton.BorderSizePixel = 0
-SpeedButton.Text = "Attack Speed: 0.1s"
-SpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedButton.TextSize = 12
-SpeedButton.Font = Enum.Font.GothamMedium
-SpeedButton.Parent = Main
-
-local SpeedCorner = Instance.new("UICorner")
-SpeedCorner.CornerRadius = UDim.new(0, 9)
-SpeedCorner.Parent = SpeedButton
-
---------------------------------------------------
--- SETTINGS
---------------------------------------------------
-
-local HitboxValues = {
-	"Normal",
-	100,
-	500,
-	1000,
-	5000,
-	10000
-}
-
-local SpeedValues = {
-	0.1,
-	0.2,
-	0.5,
-	1.0
-}
-
-local HitboxIndex = 1
-local SpeedIndex = 1
-local AutoHit = false
-
---------------------------------------------------
--- HITBOX
---------------------------------------------------
-
-local function UpdateHitbox()
-
-	local value = HitboxValues[HitboxIndex]
-
-	HitboxButton.Text = "Hitbox: " .. tostring(value)
-
-	local serverValue = value
-
-	if value == "Normal" then
-		serverValue = 10
-	end
-
-	Remote:FireServer("Hitbox", serverValue)
+	return b
 end
 
---------------------------------------------------
--- SPEED
---------------------------------------------------
+local recordButton = button("🔴 Record", 40)
+local stopButton = button("⏹ Stop", 75)
+local playButton = button("▶ Play", 110)
 
-local function UpdateSpeed()
+-- Record
+recordButton.MouseButton1Click:Connect(function()
+	if playing then return end
 
-	local value = SpeedValues[SpeedIndex]
+	frames = {}
+	recording = true
+	startTime = os.clock()
 
-	SpeedButton.Text =
-		"Attack Speed: " ..
-		string.format("%.1f", value) ..
-		"s"
-
-	Remote:FireServer("AttackInterval", value)
-end
-
---------------------------------------------------
--- AUTO HIT
---------------------------------------------------
-
-AutoButton.Activated:Connect(function()
-
-	AutoHit = not AutoHit
-
-	if AutoHit then
-
-		AutoButton.Text = "Auto Hit: ON"
-
-		AutoButton.BackgroundColor3 =
-			Color3.fromRGB(40, 125, 65)
-
-	else
-
-		AutoButton.Text = "Auto Hit: OFF"
-
-		AutoButton.BackgroundColor3 =
-			Color3.fromRGB(45, 45, 52)
-	end
-
-	Remote:FireServer("Enabled", AutoHit)
+	recordButton.Text = "🔴 Recording..."
 end)
 
---------------------------------------------------
--- CHANGE HITBOX
---------------------------------------------------
+-- Stop
+stopButton.MouseButton1Click:Connect(function()
+	recording = false
+	playing = false
 
-HitboxButton.Activated:Connect(function()
-
-	HitboxIndex += 1
-
-	if HitboxIndex > #HitboxValues then
-		HitboxIndex = 1
-	end
-
-	UpdateHitbox()
+	recordButton.Text = "🔴 Record"
+	playButton.Text = "▶ Play"
 end)
 
---------------------------------------------------
--- CHANGE SPEED
---------------------------------------------------
-
-SpeedButton.Activated:Connect(function()
-
-	SpeedIndex += 1
-
-	if SpeedIndex > #SpeedValues then
-		SpeedIndex = 1
+-- Capture movement
+RunService.Heartbeat:Connect(function()
+	if not recording or not root or not humanoid then
+		return
 	end
 
-	UpdateSpeed()
+	table.insert(frames, {
+		t = os.clock() - startTime,
+		cframe = root.CFrame,
+		velocity = root.AssemblyLinearVelocity,
+		jump = humanoid:GetState() == Enum.HumanoidStateType.Jumping
+	})
 end)
 
---------------------------------------------------
--- INITIAL SETTINGS
---------------------------------------------------
+-- Playback
+playButton.MouseButton1Click:Connect(function()
+	if recording or playing or #frames < 2 then return end
 
-UpdateHitbox()
-UpdateSpeed()
+	playing = true
+	playButton.Text = "▶ Playing..."
 
-Remote:FireServer("Enabled", false)
-Remote:FireServer("AllTargets", true)
+	local playbackStart = os.clock()
+	local index = 1
+
+	while playing and index <= #frames do
+		local elapsed = os.clock() - playbackStart
+
+		while index < #frames and frames[index + 1].t <= elapsed do
+			index += 1
+		end
+
+		local frame = frames[index]
+
+		if root and humanoid then
+			-- Gerakkan karakter mengikuti rekaman
+			root.CFrame = frame.cframe
+			root.AssemblyLinearVelocity = frame.velocity
+
+			-- Tirukan lompatan
+			if frame.jump then
+				humanoid.Jump = true
+			end
+		end
+
+		RunService.Heartbeat:Wait()
+	end
+
+	playing = false
+	playButton.Text = "▶ Play"
+end)
