@@ -1,368 +1,708 @@
--- FAKE VR PARA NEXUS VR + MEMORIA Z + LERP + LOCAL MIRROR + OCULTAR GUI + NO-CLIP PLAYERS (OPTIMIZADO)
-local remote = game:GetService("ReplicatedStorage").NexusVRCharacterModel.UpdateInputs
-local plr = game:GetService("Players").LocalPlayer
-local cam = workspace.CurrentCamera
+--// NexusVR Mobile - CAMERA VR / NORMAL
+--// No Intro
+--// VR: Hide Head + Head Accessories ONLY
+--// Body / Arms / Legs stay visible
+--// Normal: Restore Roblox Camera + Head
+--// Mobile Friendly
+
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Notificar al servidor que estamos ready
-game:GetService("ReplicatedStorage").NexusVRCharacterModel.ReplicationReady:FireServer()
+local plr = Players.LocalPlayer
+local cam = workspace.CurrentCamera
 
--- Variables globales para los Joysticks Principales (X, Y)
-local leftJoyMove = Vector2.new(0, 0)
-local rightJoyMove = Vector2.new(0, 0)
+local NexusFolder = ReplicatedStorage:WaitForChild("NexusVRCharacterModel")
+local remote = NexusFolder:WaitForChild("UpdateInputs")
+local replicationReady = NexusFolder:WaitForChild("ReplicationReady")
 
--- Variables globales independientes para la extensión de los brazos (Z)
+pcall(function()
+	replicationReady:FireServer()
+end)
+
+--==================================================
+-- VARIABLES
+--==================================================
+
+local leftJoyMove = Vector2.zero
+local rightJoyMove = Vector2.zero
+
 local leftZMove = 0
 local rightZMove = 0
 
--- Banderas para saber si el usuario está arrastrando los joysticks grandes
 local leftLargeDragging = false
 local rightLargeDragging = false
 
--- VARIABLES DE OPTIMIZACIÓN
-local tAnterior = 0
-local TASA_ENVIO = 1 / 25 -- Limita el envío a 25 veces por segundo para quitar el lag de internet
-
--- Variables puente para sincronizar las posiciones entre RenderStepped y Stepped
 local headCF = CFrame.new()
 local leftHandCF = CFrame.new()
 local rightHandCF = CFrame.new()
 
--- 1. OBTENER INTERFAZ SEGURA (Inmune a limpiezas de mapa)
-local ParentGui
-local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
-if gethui then
-    ParentGui = gethui()
-elseif success and coreGui and coreGui:FindFirstChild("RobloxGui") then
-    ParentGui = coreGui:FindFirstChild("RobloxGui")
-else
-    ParentGui = plr:WaitForChild("PlayerGui")
-end
+local sendTimer = 0
+local SEND_RATE = 1 / 25
 
-if ParentGui:FindFirstChild("NexusVR_Mobile_Joysticks") then
-    ParentGui["NexusVR_Mobile_Joysticks"]:Destroy()
-end
+--==================================================
+-- CAMERA MODE
+--==================================================
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NexusVR_Mobile_Joysticks"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 99999
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent = ParentGui
-
--- --- FUNCIÓN 1: JOYSTICKS PRINCIPALES (X, Y) ---
-local function crearJoystick(nombre, posicion, color)
-    local TouchPad = Instance.new("Frame")
-    local Thumb = Instance.new("ImageButton")
-    
-    TouchPad.Name = nombre.."_Pad"
-    TouchPad.Size = UDim2.new(0, 125, 0, 125)
-    TouchPad.Position = posicion
-    TouchPad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    TouchPad.BackgroundTransparency = 0.6
-    TouchPad.BorderSizePixel = 0
-    TouchPad.Active = true
-        TouchPad.Parent = ScreenGui
-    
-    local uiCorner = Instance.new("UICorner")
-    uiCorner.CornerRadius = UDim.new(1, 0)
-    uiCorner.Parent = TouchPad
-    
-    Thumb.Name = "Thumb"
-    Thumb.Size = UDim2.new(0, 50, 0, 50)
-    Thumb.Position = UDim2.new(0.5, -25, 0.5, -25)
-    Thumb.BackgroundColor3 = color
-    Thumb.BackgroundTransparency = 0.2
-    Thumb.BorderSizePixel = 0
-    Thumb.Parent = TouchPad
-    
-    local thumbCorner = Instance.new("UICorner")
-    thumbCorner.CornerRadius = UDim.new(1, 0)
-    thumbCorner.Parent = Thumb
-
-    local dragging = false
-    local startPos = Vector2.new()
-    local currentInput = nil
-    
-    Thumb.InputBegan:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not dragging then
-            dragging = true
-            startPos = input.Position
-            currentInput = input
-            if nombre == "Derecho" then rightLargeDragging = true else leftLargeDragging = true end
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == currentInput then
-            local delta = input.Position - startPos
-            local distance = math.clamp(delta.Magnitude, 0, 45)
-            local direction = delta.Magnitude > 0 and delta.Unit or Vector2.new(0, 0)
-            
-            Thumb.Position = UDim2.new(0.5, -25 + (direction.X * distance), 0.5, -25 + (direction.Y * distance))
-            
-            local intensidad = distance / 45
-            if nombre == "Derecho" then
-                rightJoyMove = Vector2.new(direction.X * intensidad, -direction.Y * intensidad)
-            else
-                leftJoyMove = Vector2.new(direction.X * intensidad, -direction.Y * intensidad)
-            end
-        end
-    end)
-    
-    local function endDrag(input)
-        if dragging and input == currentInput then
-            dragging = false
-            currentInput = nil
-            if nombre == "Derecho" then rightLargeDragging = false else leftLargeDragging = false end
-        end
-    end
-    
-    UserInputService.InputEnded:Connect(endDrag)
-end
-
--- --- FUNCIÓN 2: JOYSTICKS PEQUEÑOS (EJE Z - MEMORIA) ---
-local function crearJoystickZ(nombre, posicion, color)
-    local TouchPad = Instance.new("Frame")
-    local Thumb = Instance.new("ImageButton")
-    
-    TouchPad.Name = nombre.."_Z_Pad"
-    TouchPad.Size = UDim2.new(0, 75, 0, 75)
-    TouchPad.Position = posicion
-    TouchPad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    TouchPad.BackgroundTransparency = 0.6
-    TouchPad.BorderSizePixel = 0
-    TouchPad.Active = true
-        TouchPad.Parent = ScreenGui
-    
-    local uiCorner = Instance.new("UICorner")
-    uiCorner.CornerRadius = UDim.new(1, 0)
-    uiCorner.Parent = TouchPad
-    
-    Thumb.Name = "Thumb"
-    Thumb.Size = UDim2.new(0, 30, 0, 30)
-    Thumb.Position = UDim2.new(0.5, -15, 0.5, -15)
-    Thumb.BackgroundColor3 = color
-    Thumb.BackgroundTransparency = 0.2
-    Thumb.BorderSizePixel = 0
-    Thumb.Parent = TouchPad
-    
-    local thumbCorner = Instance.new("UICorner")
-    thumbCorner.CornerRadius = UDim.new(1, 0)
-    thumbCorner.Parent = Thumb
-
-    local dragging = false
-    local currentInput = nil
-    local maxDistance = 25
-    
-    local function actualizarExtensionZ(input)
-        local padCenterY = TouchPad.AbsolutePosition.Y + (TouchPad.AbsoluteSize.Y / 2)
-        local relativeY = input.Position.Y - padCenterY
-        local clampedY = math.clamp(relativeY, -maxDistance, maxDistance)
-        
-        Thumb.Position = UDim2.new(0.5, -15, 0.5, -15 + clampedY)
-        
-        local intensidad = -clampedY / maxDistance
-        if nombre == "Derecho" then rightZMove = intensidad else leftZMove = intensidad end
-    end
-    
-    Thumb.InputBegan:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not dragging then
-            dragging = true
-            currentInput = input
-            actualizarExtensionZ(input)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == currentInput then
-            actualizarExtensionZ(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if dragging and input == currentInput then
-            dragging = false
-            currentInput = nil
-        end
-    end)
-end
-
--- --- CREACIÓN DE CONTROLES ---
-crearJoystick("Izquierdo", UDim2.new(0, 40, 1, -170), Color3.fromRGB(255, 60, 60))
-crearJoystickZ("Izquierdo", UDim2.new(0, 180, 1, -145), Color3.fromRGB(255, 140, 140))
-crearJoystick("Derecho", UDim2.new(1, -165, 1, -170), Color3.fromRGB(60, 130, 255))
-crearJoystickZ("Derecho", UDim2.new(1, -255, 1, -145), Color3.fromRGB(140, 190, 255))
-
--- --- BOTÓN MOSTRAR / OCULTAR INTERFAZ ---
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Name = "ToggleVR_UI"
-ToggleBtn.Size = UDim2.new(0, 120, 0, 35)
-ToggleBtn.Position = UDim2.new(0.5, -60, 0, 40)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleBtn.BackgroundTransparency = 0.4
-ToggleBtn.Text = "Ocultar Controles"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize = 13
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.Visible = true
-ToggleBtn.Parent = ScreenGui
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 8)
-btnCorner.Parent = ToggleBtn
-
-local uiVisible = true
-ToggleBtn.MouseButton1Click:Connect(function()
-    uiVisible = not uiVisible
-    ToggleBtn.Text = uiVisible and "Ocultar Controles" or "Mostrar Controles"
-    
-    local pads = {"Izquierdo_Pad", "Izquierdo_Z_Pad", "Derecho_Pad", "Derecho_Z_Pad"}
-    for _, padName in ipairs(pads) do
-        local pad = ScreenGui:FindFirstChild(padName)
-        if pad then pad.Visible = uiVisible end
-    end
-end)
-
--- --- CAMERA VR / NORMAL ---
--- Pseudo-VR para móvil: la cámara Roblox sigue siendo Custom para que el
--- toque/arrastre de cámara continúe funcionando. En VR se fuerza primera persona
--- y se oculta localmente únicamente cabeza/cara/accesorios de cabeza.
-local cameraMode = "Normal"
+local cameraMode = "NORMAL"
 local vrCameraEnabled = false
+
 local savedCameraType = cam.CameraType
 local savedCameraSubject = cam.CameraSubject
 local savedCameraFOV = cam.FieldOfView
+
 local savedMinZoom = plr.CameraMinZoomDistance
 local savedMaxZoom = plr.CameraMaxZoomDistance
 
-local hiddenLocally = {}
+--==================================================
+-- LOCAL HEAD VISIBILITY
+--==================================================
 
-local function setLocalHidden(obj, hidden)
-    if not obj or not obj:IsA("BasePart") then return end
-    if hidden then
-        if hiddenLocally[obj] == nil then
-            hiddenLocally[obj] = obj.LocalTransparencyModifier
-        end
-        obj.LocalTransparencyModifier = 1
-    elseif hiddenLocally[obj] ~= nil then
-        obj.LocalTransparencyModifier = hiddenLocally[obj]
-        hiddenLocally[obj] = nil
-    end
+local hiddenObjects = {}
+
+local function hideBasePart(part)
+	if not part or not part:IsA("BasePart") then
+		return
+	end
+
+	if hiddenObjects[part] == nil then
+		hiddenObjects[part] = {
+			type = "BasePart",
+			value = part.LocalTransparencyModifier
+		}
+	end
+
+	part.LocalTransparencyModifier = 1
 end
 
-local function setLocalHiddenTexture(obj, hidden)
-    if not obj then return end
-    if hidden then
-        if hiddenLocally[obj] == nil then
-            hiddenLocally[obj] = obj.Transparency
-        end
-        obj.Transparency = 1
-    elseif hiddenLocally[obj] ~= nil then
-        obj.Transparency = hiddenLocally[obj]
-        hiddenLocally[obj] = nil
-    end
+local function hideTexture(texture)
+	if not texture then
+		return
+	end
+
+	if hiddenObjects[texture] == nil then
+		hiddenObjects[texture] = {
+			type = "Texture",
+			value = texture.Transparency
+		}
+	end
+
+	texture.Transparency = 1
 end
+
+local function restoreHiddenObjects()
+	for object, data in pairs(hiddenObjects) do
+		if object and object.Parent then
+
+			if data.type == "BasePart" then
+				object.LocalTransparencyModifier = data.value
+
+			elseif data.type == "Texture" then
+				object.Transparency = data.value
+			end
+		end
+	end
+
+	table.clear(hiddenObjects)
+end
+
+--==================================================
+-- DETECT HEAD ACCESSORIES
+--==================================================
 
 local function isHeadAccessory(accessory)
-    if not accessory:IsA("Accessory") then return false end
-    local t = accessory.AccessoryType
-    return t == Enum.AccessoryType.Hair
-        or t == Enum.AccessoryType.Hat
-        or t == Enum.AccessoryType.Face
-        or t == Enum.AccessoryType.Neck
+
+	if not accessory:IsA("Accessory") then
+		return false
+	end
+
+	-- Roblox AccessoryType
+	local accessoryType = accessory.AccessoryType
+
+	if accessoryType == Enum.AccessoryType.Hair then
+		return true
+	end
+
+	if accessoryType == Enum.AccessoryType.Hat then
+		return true
+	end
+
+	if accessoryType == Enum.AccessoryType.Face then
+		return true
+	end
+
+	if accessoryType == Enum.AccessoryType.Neck then
+		return true
+	end
+
+	-- Extra detection for accessories with unusual AccessoryType
+	local handle = accessory:FindFirstChild("Handle")
+
+	if handle and handle:IsA("BasePart") then
+
+		for _, attachment in ipairs(handle:GetChildren()) do
+
+			if attachment:IsA("Attachment") then
+
+				local name = attachment.Name
+
+				if string.find(name, "HatAttachment") then
+					return true
+				end
+
+				if string.find(name, "HairAttachment") then
+					return true
+				end
+
+				if string.find(name, "FaceFrontAttachment") then
+					return true
+				end
+
+				if string.find(name, "FaceCenterAttachment") then
+					return true
+				end
+
+				if string.find(name, "NeckAttachment") then
+					return true
+				end
+
+			end
+		end
+	end
+
+	return false
 end
+
+--==================================================
+-- HIDE ONLY HEAD
+--==================================================
 
 local function updateVRHeadVisibility()
-    local char = plr.Character
-    if not char then return end
 
-    local head = char:FindFirstChild("Head")
-    if head then
-        setLocalHidden(head, true)
-        for _, obj in ipairs(head:GetDescendants()) do
-            if obj:IsA("Decal") or obj:IsA("Texture") then
-                setLocalHiddenTexture(obj, true)
-            end
-        end
-    end
+	if not vrCameraEnabled then
+		return
+	end
 
-    for _, accessory in ipairs(char:GetChildren()) do
-        if isHeadAccessory(accessory) then
-            for _, obj in ipairs(accessory:GetDescendants()) do
-                if obj:IsA("BasePart") then
-                    setLocalHidden(obj, true)
-                elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                    setLocalHiddenTexture(obj, true)
-                end
-            end
-        end
-    end
+	local char = plr.Character
+
+	if not char then
+		return
+	end
+
+	-- ONLY HEAD
+	local head = char:FindFirstChild("Head")
+
+	if head then
+
+		hideBasePart(head)
+
+		for _, object in ipairs(head:GetDescendants()) do
+
+			if object:IsA("Decal") then
+				hideTexture(object)
+
+			elseif object:IsA("Texture") then
+				hideTexture(object)
+
+			end
+		end
+	end
+
+	-- ONLY HEAD ACCESSORIES
+	for _, object in ipairs(char:GetChildren()) do
+
+		if object:IsA("Accessory") and isHeadAccessory(object) then
+
+			for _, child in ipairs(object:GetDescendants()) do
+
+				if child:IsA("BasePart") then
+					hideBasePart(child)
+
+				elseif child:IsA("Decal") then
+					hideTexture(child)
+
+				elseif child:IsA("Texture") then
+					hideTexture(child)
+
+				end
+			end
+		end
+	end
 end
 
-local function restoreLocalHeadVisibility()
-    -- Restore exactly what existed before VR was enabled.
-    for obj, oldValue in pairs(hiddenLocally) do
-        if obj and obj.Parent then
-            if obj:IsA("BasePart") then
-                obj.LocalTransparencyModifier = oldValue
-            elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                obj.Transparency = oldValue
-            end
-        end
-    end
-    table.clear(hiddenLocally)
+--==================================================
+-- CAMERA NORMAL
+--==================================================
+
+local function restoreNormalCamera()
+
+	local char = plr.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+	vrCameraEnabled = false
+	cameraMode = "NORMAL"
+
+	-- Restore camera
+	cam.CameraType = Enum.CameraType.Custom
+
+	if humanoid then
+		cam.CameraSubject = humanoid
+	elseif savedCameraSubject then
+		cam.CameraSubject = savedCameraSubject
+	end
+
+	if savedCameraFOV then
+		cam.FieldOfView = savedCameraFOV
+	end
+
+	-- Restore player's normal zoom
+	plr.CameraMinZoomDistance = savedMinZoom
+	plr.CameraMaxZoomDistance = savedMaxZoom
+
+	-- IMPORTANT:
+	-- Restore head + hair + face + hats
+	restoreHiddenObjects()
+
+	if CameraBtn then
+		CameraBtn.Text = "Camera: NORMAL"
+	end
 end
 
-local function applyCameraMode()
-    local char = plr.Character
-    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+--==================================================
+-- CAMERA VR
+--==================================================
 
-    if vrCameraEnabled then
-        -- Save camera/player zoom only once when entering VR.
-        cam.CameraType = Enum.CameraType.Custom
-        if humanoid then
-            cam.CameraSubject = humanoid
-        end
+local function enableVRCamera()
 
-        -- First-person pseudo-VR. Roblox's normal mobile camera controls remain active.
-        plr.CameraMinZoomDistance = 0.5
-        plr.CameraMaxZoomDistance = 0.5
+	local char = plr.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 
-        updateVRHeadVisibility()
-        CameraBtn.Text = "Camera: VR"
-    else
-        restoreLocalHeadVisibility()
+	-- Save CURRENT normal camera state
+	savedCameraType = cam.CameraType
+	savedCameraSubject = cam.CameraSubject
+	savedCameraFOV = cam.FieldOfView
 
-        cam.CameraType = savedCameraType or Enum.CameraType.Custom
-        if humanoid then
-            cam.CameraSubject = humanoid
-        elseif savedCameraSubject then
-            cam.CameraSubject = savedCameraSubject
-        end
-        if savedCameraFOV then
-            cam.FieldOfView = savedCameraFOV
-        end
+	savedMinZoom = plr.CameraMinZoomDistance
+	savedMaxZoom = plr.CameraMaxZoomDistance
 
-        plr.CameraMinZoomDistance = savedMinZoom
-        plr.CameraMaxZoomDistance = savedMaxZoom
-        CameraBtn.Text = "Camera: NORMAL"
-    end
+	cameraMode = "VR"
+	vrCameraEnabled = true
+
+	-- IMPORTANT:
+	-- Do NOT use Scriptable.
+	-- Do NOT force CameraMinZoomDistance to 0.5.
+	-- Roblox mobile camera remains usable.
+	cam.CameraType = Enum.CameraType.Custom
+
+	if humanoid then
+		cam.CameraSubject = humanoid
+	end
+
+	-- KEEP NORMAL ZOOM
+	-- This prevents Roblox first-person transparency
+	-- from hiding the body / hands / legs.
+	plr.CameraMinZoomDistance = savedMinZoom
+	plr.CameraMaxZoomDistance = savedMaxZoom
+
+	-- Hide ONLY head and head accessories
+	updateVRHeadVisibility()
+
+	if CameraBtn then
+		CameraBtn.Text = "Camera: VR"
+	end
 end
 
-local CameraBtn = Instance.new("TextButton")
+--==================================================
+-- CAMERA TOGGLE
+--==================================================
+
+local function toggleCameraMode()
+
+	if cameraMode == "NORMAL" then
+		enableVRCamera()
+	else
+		restoreNormalCamera()
+	end
+end
+
+--==================================================
+-- GUI PARENT
+--==================================================
+
+local ParentGui
+
+local success, coreGui = pcall(function()
+	return game:GetService("CoreGui")
+end)
+
+if gethui then
+	ParentGui = gethui()
+
+elseif success and coreGui and coreGui:FindFirstChild("RobloxGui") then
+	ParentGui = coreGui.RobloxGui
+
+else
+	ParentGui = plr:WaitForChild("PlayerGui")
+end
+
+-- Remove old UI
+local oldUI = ParentGui:FindFirstChild("NexusVR_Mobile_Joysticks")
+
+if oldUI then
+	oldUI:Destroy()
+end
+
+--==================================================
+-- SCREEN GUI
+--==================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+
+ScreenGui.Name = "NexusVR_Mobile_Joysticks"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 99999
+
+ScreenGui.Parent = ParentGui
+
+--==================================================
+-- JOYSTICK FUNCTION
+--==================================================
+
+local function createJoystick(name, position, color)
+
+	local TouchPad = Instance.new("Frame")
+	local Thumb = Instance.new("ImageButton")
+
+	TouchPad.Name = name .. "_Pad"
+	TouchPad.Size = UDim2.fromOffset(125, 125)
+	TouchPad.Position = position
+	TouchPad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	TouchPad.BackgroundTransparency = 0.6
+	TouchPad.BorderSizePixel = 0
+	TouchPad.Active = true
+	TouchPad.Parent = ScreenGui
+
+	local padCorner = Instance.new("UICorner")
+	padCorner.CornerRadius = UDim.new(1, 0)
+	padCorner.Parent = TouchPad
+
+	Thumb.Name = "Thumb"
+	Thumb.Size = UDim2.fromOffset(50, 50)
+	Thumb.Position = UDim2.new(0.5, -25, 0.5, -25)
+	Thumb.BackgroundColor3 = color
+	Thumb.BackgroundTransparency = 0.2
+	Thumb.BorderSizePixel = 0
+	Thumb.AutoButtonColor = false
+	Thumb.Parent = TouchPad
+
+	local thumbCorner = Instance.new("UICorner")
+	thumbCorner.CornerRadius = UDim.new(1, 0)
+	thumbCorner.Parent = Thumb
+
+	local dragging = false
+	local currentInput = nil
+	local startPos = Vector2.zero
+
+	Thumb.InputBegan:Connect(function(input)
+
+		if input.UserInputType == Enum.UserInputType.Touch
+			or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+			if not dragging then
+
+				dragging = true
+				currentInput = input
+				startPos = input.Position
+
+				if name == "Left" then
+					leftLargeDragging = true
+				else
+					rightLargeDragging = true
+				end
+			end
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+
+		if not dragging then
+			return
+		end
+
+		if input ~= currentInput then
+			return
+		end
+
+		local delta = input.Position - startPos
+
+		local distance = math.clamp(delta.Magnitude, 0, 45)
+
+		local direction
+
+		if delta.Magnitude > 0 then
+			direction = delta.Unit
+		else
+			direction = Vector2.zero
+		end
+
+		Thumb.Position =
+			UDim2.new(
+				0.5,
+				-25 + direction.X * distance,
+				0.5,
+				-25 + direction.Y * distance
+			)
+
+		local strength = distance / 45
+
+		if name == "Left" then
+
+			leftJoyMove =
+				Vector2.new(
+					direction.X * strength,
+					-direction.Y * strength
+				)
+
+		else
+
+			rightJoyMove =
+				Vector2.new(
+					direction.X * strength,
+					-direction.Y * strength
+				)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+
+		if input ~= currentInput then
+			return
+		end
+
+		dragging = false
+		currentInput = nil
+
+		if name == "Left" then
+			leftLargeDragging = false
+			leftJoyMove = Vector2.zero
+		else
+			rightLargeDragging = false
+			rightJoyMove = Vector2.zero
+		end
+	end)
+end
+
+--==================================================
+-- Z JOYSTICK
+--==================================================
+
+local function createJoystickZ(name, position, color)
+
+	local TouchPad = Instance.new("Frame")
+	local Thumb = Instance.new("ImageButton")
+
+	TouchPad.Name = name .. "_Z_Pad"
+	TouchPad.Size = UDim2.fromOffset(75, 75)
+	TouchPad.Position = position
+	TouchPad.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	TouchPad.BackgroundTransparency = 0.6
+	TouchPad.BorderSizePixel = 0
+	TouchPad.Active = true
+	TouchPad.Parent = ScreenGui
+
+	local padCorner = Instance.new("UICorner")
+	padCorner.CornerRadius = UDim.new(1, 0)
+	padCorner.Parent = TouchPad
+
+	Thumb.Name = "Thumb"
+	Thumb.Size = UDim2.fromOffset(30, 30)
+	Thumb.Position = UDim2.new(0.5, -15, 0.5, -15)
+	Thumb.BackgroundColor3 = color
+	Thumb.BackgroundTransparency = 0.2
+	Thumb.BorderSizePixel = 0
+	Thumb.AutoButtonColor = false
+	Thumb.Parent = TouchPad
+
+	local thumbCorner = Instance.new("UICorner")
+	thumbCorner.CornerRadius = UDim.new(1, 0)
+	thumbCorner.Parent = Thumb
+
+	local dragging = false
+	local currentInput = nil
+
+	local maxDistance = 25
+
+	local function updateZ(input)
+
+		local centerY =
+			TouchPad.AbsolutePosition.Y +
+			(TouchPad.AbsoluteSize.Y / 2)
+
+		local relativeY =
+			input.Position.Y - centerY
+
+		local clampedY =
+			math.clamp(relativeY, -maxDistance, maxDistance)
+
+		Thumb.Position =
+			UDim2.new(
+				0.5,
+				-15,
+				0.5,
+				-15 + clampedY
+			)
+
+		local strength =
+			-clampedY / maxDistance
+
+		if name == "Left" then
+			leftZMove = strength
+		else
+			rightZMove = strength
+		end
+	end
+
+	Thumb.InputBegan:Connect(function(input)
+
+		if input.UserInputType == Enum.UserInputType.Touch
+			or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+			if not dragging then
+
+				dragging = true
+				currentInput = input
+
+				updateZ(input)
+			end
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+
+		if dragging and input == currentInput then
+			updateZ(input)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+
+		if dragging and input == currentInput then
+
+			dragging = false
+			currentInput = nil
+
+			if name == "Left" then
+				leftZMove = 0
+			else
+				rightZMove = 0
+			end
+		end
+	end)
+end
+
+--==================================================
+-- CREATE JOYSTICKS
+--==================================================
+
+createJoystick(
+	"Left",
+	UDim2.new(0, 40, 1, -170),
+	Color3.fromRGB(255, 60, 60)
+)
+
+createJoystickZ(
+	"Left",
+	UDim2.new(0, 180, 1, -145),
+	Color3.fromRGB(255, 140, 140)
+)
+
+createJoystick(
+	"Right",
+	UDim2.new(1, -165, 1, -170),
+	Color3.fromRGB(60, 130, 255)
+)
+
+createJoystickZ(
+	"Right",
+	UDim2.new(1, -255, 1, -145),
+	Color3.fromRGB(140, 190, 255)
+)
+
+--==================================================
+-- HIDE / SHOW CONTROLS BUTTON
+--==================================================
+
+local ToggleBtn = Instance.new("TextButton")
+
+ToggleBtn.Name = "ToggleVR_UI"
+ToggleBtn.Size = UDim2.fromOffset(130, 35)
+ToggleBtn.Position = UDim2.new(0.5, -65, 0, 40)
+
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleBtn.BackgroundTransparency = 0.25
+ToggleBtn.BorderSizePixel = 0
+
+ToggleBtn.Text = "Hide Controls"
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.TextSize = 13
+ToggleBtn.Font = Enum.Font.SourceSansBold
+
+ToggleBtn.Parent = ScreenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = ToggleBtn
+
+local uiVisible = true
+
+ToggleBtn.Activated:Connect(function()
+
+	uiVisible = not uiVisible
+
+	ToggleBtn.Text =
+		uiVisible
+		and "Hide Controls"
+		or "Show Controls"
+
+	local controlNames = {
+		"Left_Pad",
+		"Left_Z_Pad",
+		"Right_Pad",
+		"Right_Z_Pad"
+	}
+
+	for _, name in ipairs(controlNames) do
+
+		local control = ScreenGui:FindFirstChild(name)
+
+		if control then
+			control.Visible = uiVisible
+		end
+	end
+end)
+
+--==================================================
+-- CAMERA BUTTON
+--==================================================
+
+CameraBtn = Instance.new("TextButton")
+
 CameraBtn.Name = "CameraModeButton"
-CameraBtn.Size = UDim2.new(0, 150, 0, 38)
-CameraBtn.Position = UDim2.new(0.5, -75, 0, 82)
+
+CameraBtn.Size = UDim2.fromOffset(160, 38)
+CameraBtn.Position = UDim2.new(0.5, -80, 0, 82)
+
 CameraBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
-CameraBtn.BackgroundTransparency = 0.2
+CameraBtn.BackgroundTransparency = 0.15
 CameraBtn.BorderSizePixel = 0
+
 CameraBtn.Text = "Camera: NORMAL"
 CameraBtn.TextColor3 = Color3.new(1, 1, 1)
 CameraBtn.TextSize = 14
 CameraBtn.Font = Enum.Font.SourceSansBold
+
 CameraBtn.Parent = ScreenGui
 
 local cameraCorner = Instance.new("UICorner")
@@ -370,128 +710,349 @@ cameraCorner.CornerRadius = UDim.new(0, 9)
 cameraCorner.Parent = CameraBtn
 
 CameraBtn.Activated:Connect(function()
-    if cameraMode == "Normal" then
-        -- Capture the real current normal camera state immediately before entering VR.
-        savedCameraType = cam.CameraType
-        savedCameraSubject = cam.CameraSubject
-        savedCameraFOV = cam.FieldOfView
-        savedMinZoom = plr.CameraMinZoomDistance
-        savedMaxZoom = plr.CameraMaxZoomDistance
-
-        cameraMode = "VR"
-        vrCameraEnabled = true
-    else
-        cameraMode = "Normal"
-        vrCameraEnabled = false
-    end
-
-    applyCameraMode()
+	toggleCameraMode()
 end)
+
+--==================================================
+-- CHARACTER RESPAWN
+--==================================================
 
 plr.CharacterAdded:Connect(function(char)
-    -- Never carry transparency state from an old character into a new one.
-    table.clear(hiddenLocally)
-    task.wait(0.5)
 
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if vrCameraEnabled then
-        cam.CameraType = Enum.CameraType.Custom
-        if humanoid then
-            cam.CameraSubject = humanoid
-        end
-        plr.CameraMinZoomDistance = 0.5
-        plr.CameraMaxZoomDistance = 0.5
-        updateVRHeadVisibility()
-        CameraBtn.Text = "Camera: VR"
-    else
-        restoreLocalHeadVisibility()
-        CameraBtn.Text = "Camera: NORMAL"
-    end
+	-- New character = old transparency data is no longer valid
+	table.clear(hiddenObjects)
+
+	task.wait(0.5)
+
+	local humanoid =
+		char:FindFirstChildOfClass("Humanoid")
+
+	if not humanoid then
+		return
+	end
+
+	if vrCameraEnabled then
+
+		-- Keep VR camera functional
+		cam.CameraType = Enum.CameraType.Custom
+		cam.CameraSubject = humanoid
+
+		-- DO NOT force first-person
+		plr.CameraMinZoomDistance = savedMinZoom
+		plr.CameraMaxZoomDistance = savedMaxZoom
+
+		-- Hide ONLY head/accessories
+		updateVRHeadVisibility()
+
+		CameraBtn.Text = "Camera: VR"
+
+	else
+
+		-- Normal Roblox camera
+		cam.CameraType = Enum.CameraType.Custom
+		cam.CameraSubject = humanoid
+
+		restoreHiddenObjects()
+
+		CameraBtn.Text = "Camera: NORMAL"
+	end
 end)
 
--- --- HILO 1: ENTRADAS DE USUARIO, LERPS Y RED (RenderStepped) ---
--- Este evento corre a la máxima tasa de refresco de la pantalla para que la respuesta de tus dedos sea instantánea
-RunService.RenderStepped:Connect(function()
-    
-    -- Retorno suave Lerp si soltamos los Joysticks Grandes
-    if not leftLargeDragging then
-        leftJoyMove = leftJoyMove:Lerp(Vector2.new(0, 0), 0.07)
-        local pad = ScreenGui:FindFirstChild("Izquierdo_Pad")
-        local thumb = pad and pad:FindFirstChild("Thumb")
-        if thumb then thumb.Position = thumb.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
-    end
-    
-    if not rightLargeDragging then
-        rightJoyMove = rightJoyMove:Lerp(Vector2.new(0, 0), 0.07)
-        local pad = ScreenGui:FindFirstChild("Derecho_Pad")
-        local thumb = pad and pad:FindFirstChild("Thumb")
-        if thumb then thumb.Position = thumb.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
-    end
+--==================================================
+-- RENDER STEPPED
+--==================================================
 
-    local char = plr.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local rootCF = char.HumanoidRootPart.CFrame
-        local lookX, lookY, lookZ = cam.CFrame:ToEulerAnglesXYZ()
-        
-        -- Calcular CFrames exactos y guardarlos en variables globales puente
-        headCF = CFrame.new(rootCF.Position + Vector3.new(0, 2, 0)) * CFrame.Angles(lookX, lookY, lookZ)
+RunService.RenderStepped:Connect(function(deltaTime)
 
-        -- A câmera fica livre nos dois modos. O CFrame atual alimenta o VR.
-        -- Não sobrescrevemos cam.CFrame, pois isso travava o movimento.
-        
-        local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
-        local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
-        
-        leftHandCF = rootCF 
-            * CFrame.new(-1.2 + math.clamp(leftJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(leftJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Left) 
-            * CFrame.Angles(math.rad(leftJoyMove.Y * 45), math.rad(-leftJoyMove.X * 30), math.rad(-leftJoyMove.X * 20))
-        
-        rightHandCF = rootCF 
-            * CFrame.new(1.2 + math.clamp(rightJoyMove.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(rightJoyMove.Y * 1.4, -1.4, 1.4), currentZ_Right) 
-            * CFrame.Angles(math.rad(rightJoyMove.Y * 45), math.rad(-rightJoyMove.X * 30), math.rad(rightJoyMove.X * 20))
-        
-        -- Filtro de tiempo para quitar la pesadez de red
-        local tActual = os.clock()
-        if tActual - tAnterior >= TASA_ENVIO then
-            remote:FireServer(headCF, leftHandCF, rightHandCF)
-            tAnterior = tActual
-        end
-    end
+	-- Smooth left joystick
+	if not leftLargeDragging then
+
+		leftJoyMove =
+			leftJoyMove:Lerp(
+				Vector2.zero,
+				0.07
+			)
+
+		local pad =
+			ScreenGui:FindFirstChild("Left_Pad")
+
+		local thumb =
+			pad and pad:FindFirstChild("Thumb")
+
+		if thumb then
+
+			thumb.Position =
+				thumb.Position:Lerp(
+					UDim2.new(
+						0.5,
+						-25,
+						0.5,
+						-25
+					),
+					0.07
+				)
+		end
+	end
+
+	-- Smooth right joystick
+	if not rightLargeDragging then
+
+		rightJoyMove =
+			rightJoyMove:Lerp(
+				Vector2.zero,
+				0.07
+			)
+
+		local pad =
+			ScreenGui:FindFirstChild("Right_Pad")
+
+		local thumb =
+			pad and pad:FindFirstChild("Thumb")
+
+		if thumb then
+
+			thumb.Position =
+				thumb.Position:Lerp(
+					UDim2.new(
+						0.5,
+						-25,
+						0.5,
+						-25
+					),
+					0.07
+				)
+		end
+	end
+
+	-- Keep head hidden only while VR is active
+	if vrCameraEnabled then
+		updateVRHeadVisibility()
+	end
+
+	local char = plr.Character
+
+	if not char then
+		return
+	end
+
+	local root =
+		char:FindFirstChild("HumanoidRootPart")
+
+	if not root then
+		return
+	end
+
+	local rootCF = root.CFrame
+
+	--==================================================
+	-- HEAD
+	--==================================================
+
+	local lookX, lookY, lookZ =
+		cam.CFrame:ToEulerAnglesXYZ()
+
+	headCF =
+		CFrame.new(
+			rootCF.Position +
+			Vector3.new(0, 2, 0)
+		)
+		*
+		CFrame.Angles(
+			lookX,
+			lookY,
+			lookZ
+		)
+
+	--==================================================
+	-- LEFT HAND
+	--==================================================
+
+	local currentZ_Left =
+		math.clamp(
+			-1.2 -
+			(leftZMove * 1.2),
+			-2.2,
+			-0.5
+		)
+
+	leftHandCF =
+		rootCF
+		*
+		CFrame.new(
+			-1.2 +
+			math.clamp(
+				leftJoyMove.X * 1.4,
+				-1.4,
+				1.4
+			),
+
+			0.5 +
+			math.clamp(
+				leftJoyMove.Y * 1.4,
+				-1.4,
+				1.4
+			),
+
+			currentZ_Left
+		)
+		*
+		CFrame.Angles(
+			math.rad(leftJoyMove.Y * 45),
+			math.rad(-leftJoyMove.X * 30),
+			math.rad(-leftJoyMove.X * 20)
+		)
+
+	--==================================================
+	-- RIGHT HAND
+	--==================================================
+
+	local currentZ_Right =
+		math.clamp(
+			-1.2 -
+			(rightZMove * 1.2),
+			-2.2,
+			-0.5
+		)
+
+	rightHandCF =
+		rootCF
+		*
+		CFrame.new(
+			1.2 +
+			math.clamp(
+				rightJoyMove.X * 1.4,
+				-1.4,
+				1.4
+			),
+
+			0.5 +
+			math.clamp(
+				rightJoyMove.Y * 1.4,
+				-1.4,
+				1.4
+			),
+
+			currentZ_Right
+		)
+		*
+		CFrame.Angles(
+			math.rad(rightJoyMove.Y * 45),
+			math.rad(-rightJoyMove.X * 30),
+			math.rad(rightJoyMove.X * 20)
+		)
+
+	--==================================================
+	-- SEND TO NEXUS VR
+	--==================================================
+
+	sendTimer += deltaTime
+
+	if sendTimer >= SEND_RATE then
+
+		sendTimer = 0
+
+		pcall(function()
+			remote:FireServer(
+				headCF,
+				leftHandCF,
+				rightHandCF
+			)
+		end)
+	end
 end)
 
+--==================================================
+-- STEPPED
+--==================================================
 
--- --- HILO 2: MODIFICACIONES FÍSICAS Y ESPEJO LOCAL INMUNE (Stepped) ---
--- Este evento corre de forma nativa justo antes del motor de física y de las animaciones de Roblox,
--- logrando un No-Clip ultra suave y previniendo que los brazos parpadeen o tiemblen en tu pantalla.
 RunService.Stepped:Connect(function()
-    
-    -- [MEJORA APLICADA]: NO-CLIP OPTIMIZADO (Busca solo BaseParts en el primer nivel del personaje, ahorrando 80% de CPU)
-    for _, otroPlr in ipairs(Players:GetPlayers()) do
-        if otroPlr ~= plr and otroPlr.Character then
-            for _, parte in ipairs(otroPlr.Character:GetChildren()) do
-                if parte:IsA("BasePart") then
-                    parte.CanCollide = false
-                end
-            end
-        end
-    end
-    
-    -- [MEJORA APLICADA]: ESPEJO LOCAL ESTABLE (Le gana a las animaciones de Roblox al ejecutarse en Stepped)
-    local char = plr.Character
-    if char then
-        local neck = char:FindFirstChild("Neck", true)
-        local leftShoulder = char:FindFirstChild("Left Shoulder", true) or char:FindFirstChild("LeftShoulder", true)
-        local rightShoulder = char:FindFirstChild("Right Shoulder", true) or char:FindFirstChild("RightShoulder", true)
-        
-        -- Forzar los joints del personaje local a ignorar por completo las animaciones activas en el juego
-        if neck and neck.Part0 then
-            neck.Transform = neck.C0:Inverse() * neck.Part0.CFrame:Inverse() * headCF * neck.C1
-        end
-        if leftShoulder and leftShoulder.Part0 then
-            leftShoulder.Transform = leftShoulder.C0:Inverse() * leftShoulder.Part0.CFrame:Inverse() * leftHandCF * leftShoulder.C1
-        end
-        if rightShoulder and rightShoulder.Part0 then
-            rightShoulder.Transform = rightShoulder.C0:Inverse() * rightShoulder.Part0.CFrame:Inverse() * rightHandCF * rightShoulder.C1
-        end
-    end
+
+	-- No collision with other players
+	for _, otherPlayer in ipairs(Players:GetPlayers()) do
+
+		if otherPlayer ~= plr
+			and otherPlayer.Character then
+
+			for _, part in ipairs(otherPlayer.Character:GetChildren()) do
+
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
+	end
+
+	--==================================================
+	-- LOCAL BODY JOINTS
+	--==================================================
+
+	local char = plr.Character
+
+	if not char then
+		return
+	end
+
+	local neck =
+		char:FindFirstChild("Neck", true)
+
+	local leftShoulder =
+		char:FindFirstChild("Left Shoulder", true)
+		or
+		char:FindFirstChild("LeftShoulder", true)
+
+	local rightShoulder =
+		char:FindFirstChild("Right Shoulder", true)
+		or
+		char:FindFirstChild("RightShoulder", true)
+
+	-- Head
+	if neck and neck.Part0 then
+
+		pcall(function()
+
+			neck.Transform =
+				neck.C0:Inverse()
+				*
+				neck.Part0.CFrame:Inverse()
+				*
+				headCF
+				*
+				neck.C1
+
+		end)
+	end
+
+	-- Left hand
+	if leftShoulder and leftShoulder.Part0 then
+
+		pcall(function()
+
+			leftShoulder.Transform =
+				leftShoulder.C0:Inverse()
+				*
+				leftShoulder.Part0.CFrame:Inverse()
+				*
+				leftHandCF
+				*
+				leftShoulder.C1
+
+		end)
+	end
+
+	-- Right hand
+	if rightShoulder and rightShoulder.Part0 then
+
+		pcall(function()
+
+			rightShoulder.Transform =
+				rightShoulder.C0:Inverse()
+				*
+				rightShoulder.Part0.CFrame:Inverse()
+				*
+				rightHandCF
+				*
+				rightShoulder.C1
+
+		end)
+	end
 end)
