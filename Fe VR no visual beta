@@ -227,18 +227,21 @@ ToggleBtn.MouseButton1Click:Connect(function()
 end)
 
 -- --- CAMERA VR / NORMAL ---
+-- Pseudo-VR para móvil: la cámara Roblox sigue siendo Custom para que el
+-- toque/arrastre de cámara continúe funcionando. En VR se fuerza primera persona
+-- y se oculta localmente únicamente cabeza/cara/accesorios de cabeza.
 local cameraMode = "Normal"
 local vrCameraEnabled = false
 local savedCameraType = cam.CameraType
 local savedCameraSubject = cam.CameraSubject
 local savedCameraFOV = cam.FieldOfView
+local savedMinZoom = plr.CameraMinZoomDistance
+local savedMaxZoom = plr.CameraMaxZoomDistance
 
--- Oculta SOLO la cabeza y accesorios de cabeza/cara en el cliente.
--- El cuerpo, brazos/manos y piernas/pies nunca se tocan.
 local hiddenLocally = {}
 
 local function setLocalHidden(obj, hidden)
-    if not obj:IsA("BasePart") then return end
+    if not obj or not obj:IsA("BasePart") then return end
     if hidden then
         if hiddenLocally[obj] == nil then
             hiddenLocally[obj] = obj.LocalTransparencyModifier
@@ -250,12 +253,26 @@ local function setLocalHidden(obj, hidden)
     end
 end
 
+local function setLocalHiddenTexture(obj, hidden)
+    if not obj then return end
+    if hidden then
+        if hiddenLocally[obj] == nil then
+            hiddenLocally[obj] = obj.Transparency
+        end
+        obj.Transparency = 1
+    elseif hiddenLocally[obj] ~= nil then
+        obj.Transparency = hiddenLocally[obj]
+        hiddenLocally[obj] = nil
+    end
+end
+
 local function isHeadAccessory(accessory)
     if not accessory:IsA("Accessory") then return false end
     local t = accessory.AccessoryType
     return t == Enum.AccessoryType.Hair
         or t == Enum.AccessoryType.Hat
         or t == Enum.AccessoryType.Face
+        or t == Enum.AccessoryType.Neck
 end
 
 local function updateVRHeadVisibility()
@@ -264,17 +281,10 @@ local function updateVRHeadVisibility()
 
     local head = char:FindFirstChild("Head")
     if head then
-        setLocalHidden(head, vrCameraEnabled)
-        -- Face decal/texture también se oculta localmente.
+        setLocalHidden(head, true)
         for _, obj in ipairs(head:GetDescendants()) do
             if obj:IsA("Decal") or obj:IsA("Texture") then
-                if vrCameraEnabled then
-                    if hiddenLocally[obj] == nil then hiddenLocally[obj] = obj.Transparency end
-                    obj.Transparency = 1
-                elseif hiddenLocally[obj] ~= nil then
-                    obj.Transparency = hiddenLocally[obj]
-                    hiddenLocally[obj] = nil
-                end
+                setLocalHiddenTexture(obj, true)
             end
         end
     end
@@ -283,7 +293,9 @@ local function updateVRHeadVisibility()
         if isHeadAccessory(accessory) then
             for _, obj in ipairs(accessory:GetDescendants()) do
                 if obj:IsA("BasePart") then
-                    setLocalHidden(obj, vrCameraEnabled)
+                    setLocalHidden(obj, true)
+                elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                    setLocalHiddenTexture(obj, true)
                 end
             end
         end
@@ -291,6 +303,7 @@ local function updateVRHeadVisibility()
 end
 
 local function restoreLocalHeadVisibility()
+    -- Restore exactly what existed before VR was enabled.
     for obj, oldValue in pairs(hiddenLocally) do
         if obj and obj.Parent then
             if obj:IsA("BasePart") then
@@ -300,45 +313,42 @@ local function restoreLocalHeadVisibility()
             end
         end
     end
-    hiddenLocally = {}
+    table.clear(hiddenLocally)
 end
 
-local function setCameraMode(mode)
-    cameraMode = mode
-    vrCameraEnabled = (mode == "VR")
+local function applyCameraMode()
+    local char = plr.Character
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 
     if vrCameraEnabled then
-        savedCameraType = cam.CameraType
-        savedCameraSubject = cam.CameraSubject
-        savedCameraFOV = cam.FieldOfView
-
-        -- Não usar Scriptable: a câmera padrão continua recebendo toque/arrasto.
-        local char = plr.Character
-        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        -- Save camera/player zoom only once when entering VR.
         cam.CameraType = Enum.CameraType.Custom
         if humanoid then
             cam.CameraSubject = humanoid
-        elseif savedCameraSubject then
-            cam.CameraSubject = savedCameraSubject
         end
+
+        -- First-person pseudo-VR. Roblox's normal mobile camera controls remain active.
+        plr.CameraMinZoomDistance = 0.5
+        plr.CameraMaxZoomDistance = 0.5
+
+        updateVRHeadVisibility()
         CameraBtn.Text = "Camera: VR"
     else
+        restoreLocalHeadVisibility()
+
         cam.CameraType = savedCameraType or Enum.CameraType.Custom
-        local char = plr.Character
-        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
         if humanoid then
             cam.CameraSubject = humanoid
         elseif savedCameraSubject then
             cam.CameraSubject = savedCameraSubject
         end
-        if savedCameraFOV then cam.FieldOfView = savedCameraFOV end
-        CameraBtn.Text = "Camera: NORMAL"
-    end
+        if savedCameraFOV then
+            cam.FieldOfView = savedCameraFOV
+        end
 
-    if vrCameraEnabled then
-        updateVRHeadVisibility()
-    else
-        restoreLocalHeadVisibility()
+        plr.CameraMinZoomDistance = savedMinZoom
+        plr.CameraMaxZoomDistance = savedMaxZoom
+        CameraBtn.Text = "Camera: NORMAL"
     end
 end
 
@@ -359,17 +369,43 @@ local cameraCorner = Instance.new("UICorner")
 cameraCorner.CornerRadius = UDim.new(0, 9)
 cameraCorner.Parent = CameraBtn
 
-CameraBtn.MouseButton1Click:Connect(function()
-    setCameraMode(cameraMode == "Normal" and "VR" or "Normal")
+CameraBtn.Activated:Connect(function()
+    if cameraMode == "Normal" then
+        -- Capture the real current normal camera state immediately before entering VR.
+        savedCameraType = cam.CameraType
+        savedCameraSubject = cam.CameraSubject
+        savedCameraFOV = cam.FieldOfView
+        savedMinZoom = plr.CameraMinZoomDistance
+        savedMaxZoom = plr.CameraMaxZoomDistance
+
+        cameraMode = "VR"
+        vrCameraEnabled = true
+    else
+        cameraMode = "Normal"
+        vrCameraEnabled = false
+    end
+
+    applyCameraMode()
 end)
 
-plr.CharacterAdded:Connect(function()
-    hiddenLocally = {}
+plr.CharacterAdded:Connect(function(char)
+    -- Never carry transparency state from an old character into a new one.
+    table.clear(hiddenLocally)
     task.wait(0.5)
+
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
     if vrCameraEnabled then
+        cam.CameraType = Enum.CameraType.Custom
+        if humanoid then
+            cam.CameraSubject = humanoid
+        end
+        plr.CameraMinZoomDistance = 0.5
+        plr.CameraMaxZoomDistance = 0.5
         updateVRHeadVisibility()
+        CameraBtn.Text = "Camera: VR"
     else
         restoreLocalHeadVisibility()
+        CameraBtn.Text = "Camera: NORMAL"
     end
 end)
 
@@ -402,7 +438,6 @@ RunService.RenderStepped:Connect(function()
 
         -- A câmera fica livre nos dois modos. O CFrame atual alimenta o VR.
         -- Não sobrescrevemos cam.CFrame, pois isso travava o movimento.
-        if vrCameraEnabled then updateVRHeadVisibility() end
         
         local currentZ_Left = math.clamp(-1.2 - (leftZMove * 1.2), -2.2, -0.5)
         local currentZ_Right = math.clamp(-1.2 - (rightZMove * 1.2), -2.2, -0.5)
