@@ -365,6 +365,7 @@ task.spawn(function()
     frameFadeOut.Completed:Wait()
     
     IntroFrame:Destroy()
+    ProfileCard.Visible = true
     
     ToggleBtn.Visible = true
     ProfileCard.Visible = true
@@ -400,26 +401,31 @@ RunService.RenderStepped:Connect(function()
         local rootCF = char.HumanoidRootPart.CFrame
 
         -- HEAD TRACKING VR:
-        -- La cabeza sigue el cuello REAL del personaje para no separarse al correr/saltar.
+        -- La cabeza gira alrededor del cuello REAL. La posición no se mueve
+        -- manualmente, así que permanece pegada al cuerpo al correr/saltar.
         local cameraLook = cam.CFrame.LookVector
         local localLook = rootCF:VectorToObjectSpace(cameraLook)
 
         local rawYaw = math.atan2(-localLook.X, -localLook.Z)
         local HEAD_SIDE_LIMIT = math.rad(85)
 
-        -- Cámara hacia atrás: la cabeza vuelve a mirar al frente.
+        -- Al mirar hacia la zona trasera, la cabeza vuelve a mirar al frente.
         local headYaw = rawYaw
         if math.abs(rawYaw) > HEAD_SIDE_LIMIT then
             headYaw = 0
         end
 
-        -- Vertical correcto: arriba = arriba, abajo = abajo.
+        -- Arriba = cabeza arriba / abajo = cabeza abajo.
         local pitch = math.asin(math.clamp(localLook.Y, -1, 1))
 
-        -- Posición basada en el Head actual, no en una altura fija desde el root.
-        local headPart = char:FindFirstChild("Head")
-        if headPart then
-            headCF = CFrame.new(headPart.Position)
+        -- Importante: headCF usa la posición del joint del cuello, no la
+        -- posición del Head que ya está siendo modificada por Neck.Transform.
+        local neck = char:FindFirstChild("Neck", true)
+        if neck and neck.Part0 and neck.Part1 then
+            local neckWorld = neck.Part0.CFrame * neck.C0
+            local headTarget = neckWorld * neck.C1:Inverse()
+
+            headCF = CFrame.new(headTarget.Position)
                 * CFrame.Angles(pitch, headYaw, 0)
         else
             headCF = rootCF
@@ -471,8 +477,9 @@ RunService.Stepped:Connect(function()
         local rightShoulder = char:FindFirstChild("Right Shoulder", true) or char:FindFirstChild("RightShoulder", true)
         
         -- Forzar los joints del personaje local a ignorar por completo las animaciones activas en el juego
-        if neck and neck.Part0 and neck.Part1 then
-            -- Mantener el joint del cuello pegado al cuerpo/head actual.
+        if neck and neck.Part0 then
+            -- Solo modificamos la rotación del joint; su posición sigue siendo
+            -- la del cuello del rig, evitando que la cabeza desaparezca.
             neck.Transform = neck.C0:Inverse()
                 * neck.Part0.CFrame:Inverse()
                 * headCF
