@@ -262,6 +262,66 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 8)
 btnCorner.Parent = ToggleBtn
 
+-- --- MODE CAMERA VR / CAMERA BIASA ---
+-- Mode VR memakai kamera orang pertama (LockFirstPerson) dan kepala lokal disembunyikan.
+-- Mode Biasa mengembalikan kamera Roblox normal (Classic) dan kepala lokal terlihat.
+-- Semua joystick tangan/kepala tetap aktif pada KEDUA mode.
+local vrMode = false
+local normalCameraMode = plr.CameraMode
+
+local VRModeBtn = Instance.new("TextButton")
+VRModeBtn.Name = "ToggleVRMode"
+VRModeBtn.Size = UDim2.new(0, 120, 0, 35)
+VRModeBtn.Position = UDim2.new(0.5, -60, 0, 80)
+VRModeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+VRModeBtn.BackgroundTransparency = 0.4
+VRModeBtn.Text = "Mode VR: OFF"
+VRModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+VRModeBtn.TextSize = 13
+VRModeBtn.Font = Enum.Font.SourceSansBold
+VRModeBtn.Visible = false
+VRModeBtn.Parent = ScreenGui
+
+local vrModeCorner = Instance.new("UICorner")
+vrModeCorner.CornerRadius = UDim.new(0, 8)
+vrModeCorner.Parent = VRModeBtn
+
+local function setLocalHeadVisible(isVisible)
+    local char = plr.Character
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    if head and head:IsA("BasePart") then
+        -- 0 = terlihat lokal, 1 = hilang lokal. Tidak memengaruhi pemain lain.
+        head.LocalTransparencyModifier = isVisible and 0 or 1
+    end
+end
+
+local function updateVRMode()
+    if vrMode then
+        -- CAMERA VR: first person supaya kamera berada di area kepala.
+        plr.CameraMode = Enum.CameraMode.LockFirstPerson
+        setLocalHeadVisible(false)
+        VRModeBtn.Text = "Camera VR: ON"
+    else
+        -- CAMERA BIASA: kembalikan mode kamera Roblox sebelumnya.
+        plr.CameraMode = normalCameraMode
+        setLocalHeadVisible(true)
+        VRModeBtn.Text = "Camera VR: OFF"
+    end
+end
+
+VRModeBtn.Activated:Connect(function()
+    vrMode = not vrMode
+    updateVRMode()
+end)
+
+plr.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Head", 5)
+    task.defer(function()
+        setLocalHeadVisible(not vrMode)
+    end)
+end)
+
 -- --- PROFIL + WELCOME USERNAME ---
 -- Mengambil avatar/profile thumbnail Roblox langsung dari layanan thumbnail Roblox.
 local ProfileCard = Instance.new("Frame")
@@ -421,6 +481,8 @@ task.spawn(function()
         local pad = ScreenGui:FindFirstChild(padName)
         if pad then pad.Visible = true end
     end
+    ToggleBtn.Visible = true
+    VRModeBtn.Visible = true
 end)
 
 
@@ -445,6 +507,14 @@ RunService.RenderStepped:Connect(function()
 
     local char = plr.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
+        -- Pastikan status kepala lokal selalu sesuai mode yang dipilih.
+        local head = char:FindFirstChild("Head")
+        if head and head:IsA("BasePart") then
+            -- Hanya kepala lokal yang disembunyikan saat Camera VR.
+            -- Pemain lain tetap melihat kepala normal.
+            head.LocalTransparencyModifier = vrMode and 1 or 0
+        end
+
         local rootCF = char.HumanoidRootPart.CFrame
 
         -- HEAD TRACKING VR (AMAN / TANPA MEMINDAHKAN KEPALA)
