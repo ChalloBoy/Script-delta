@@ -1,6 +1,6 @@
---// CHECKPOINT RECORDER
+--// AUTO RECORDER + AUTO REPLAY
 --// LocalScript
---// StarterPlayer > StarterPlayerScripts
+--// Taruh di StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -8,37 +8,24 @@ local UserInputService = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 
---------------------------------------------------
+--==================================================
 -- SETTINGS
---------------------------------------------------
+--==================================================
 
-local SAMPLE_RATE = 0.05
+local SAMPLE_RATE = 1 / 30
+local TELEPORT_DISTANCE = 18
+local CHECKPOINT_RADIUS = 12
 
---------------------------------------------------
--- VARIABLES
---------------------------------------------------
+local MIN_SPEED = 4
+local MAX_SPEED = 40
+
+--==================================================
+-- CHARACTER
+--==================================================
 
 local Character
 local Humanoid
 local Root
-
-local Recording = false
-local Replaying = false
-
-local Frames = {}
-local Checkpoints = {}
-
-local RecordStartTime = 0
-local RecordTime = 0
-
-local RecordConnection
-local ReplayConnection
-
-local CurrentReplayCheckpoint = nil
-
---------------------------------------------------
--- CHARACTER
---------------------------------------------------
 
 local function SetupCharacter(char)
 	Character = char
@@ -50,224 +37,295 @@ if Player.Character then
 	SetupCharacter(Player.Character)
 end
 
-Player.CharacterAdded:Connect(function(char)
-	SetupCharacter(char)
+Player.CharacterAdded:Connect(SetupCharacter)
 
-	-- Kalau mati saat replay,
-	-- lanjut dari checkpoint terakhir yang dipilih.
-	if Replaying and CurrentReplayCheckpoint then
-		task.wait(0.7)
+--==================================================
+-- DATA
+--==================================================
 
-		local cp = Checkpoints[CurrentReplayCheckpoint]
+local Recording = false
+local Replaying = false
 
-		if cp and Root then
-			Root.CFrame = cp.CFrame
-			task.wait(0.2)
-			StartReplay(CurrentReplayCheckpoint)
-		end
-	end
-end)
+local SessionStart = 0
+local RouteTime = 0
+local LastSample = 0
+local LastPosition = nil
 
---------------------------------------------------
--- FORMAT TIME
---------------------------------------------------
+local Frames = {}
 
-local function FormatTime(seconds)
+-- Checkpoint:
+-- {
+--     Part = checkpoint part,
+--     Time = route time,
+--     FrameIndex = index frame
+-- }
 
-	seconds = math.max(0, seconds)
+local Checkpoints = {}
 
-	local hours = math.floor(seconds / 3600)
-	local minutes = math.floor((seconds % 3600) / 60)
-	local secs = seconds % 60
+local ReplayIndex = 1
+local ReplayStartTime = 0
+local ReplayStartRouteTime = 0
 
-	return string.format(
-		"%02d:%02d:%05.2f",
-		hours,
-		minutes,
-		secs
-	)
-end
+local OldWalkSpeed = nil
+local OldAutoRotate = nil
 
---------------------------------------------------
+--==================================================
 -- UI
---------------------------------------------------
+--==================================================
 
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "CheckpointRecorder"
-Gui.ResetOnSpawn = false
-Gui.Parent = Player:WaitForChild("PlayerGui")
-
---------------------------------------------------
--- MAIN
---------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AutoRecorderUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = Player:WaitForChild("PlayerGui")
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.fromOffset(320, 120) -- 16:6
-Main.Position = UDim2.new(0.5, -160, 0.75, 0)
-Main.BackgroundColor3 = Color3.fromRGB(24,24,24)
+Main.Size = UDim2.fromOffset(320, 120)
+Main.Position = UDim2.new(0.5, -160, 0, 80)
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 Main.BorderSizePixel = 0
-Main.Parent = Gui
+Main.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0,10)
+MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = Main
 
---------------------------------------------------
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 1
+Stroke.Color = Color3.fromRGB(70, 70, 80)
+Stroke.Parent = Main
+
+--==================================================
+-- DRAG
+--==================================================
+
+local dragging = false
+local dragStart
+local startPos
+
+local function StartDrag(input)
+	dragging = true
+	dragStart = input.Position
+	startPos = Main.Position
+end
+
+local function UpdateDrag(input)
+	if not dragging then return end
+
+	local delta = input.Position - dragStart
+
+	Main.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+end
+
+local function StopDrag()
+	dragging = false
+end
+
+Main.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		StartDrag(input)
+	end
+end)
+
+Main.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		UserInputService.InputChanged:Connect(UpdateDrag)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		StopDrag()
+	end
+end)
+
+--==================================================
 -- TITLE
---------------------------------------------------
+--==================================================
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,-50,0,28)
-Title.Position = UDim2.fromOffset(10,3)
+Title.Size = UDim2.new(1, -45, 0, 25)
+Title.Position = UDim2.fromOffset(10, 5)
 Title.BackgroundTransparency = 1
-Title.Text = "🎥  CHECKPOINT RECORDER"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.TextSize = 13
+Title.Text = "AUTO RECORDER"
+Title.TextColor3 = Color3.fromRGB(235, 235, 235)
+Title.TextSize = 14
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Main
 
---------------------------------------------------
+--==================================================
 -- TIMER
---------------------------------------------------
+--==================================================
 
 local Timer = Instance.new("TextLabel")
-Timer.Size = UDim2.fromOffset(110,25)
-Timer.Position = UDim2.new(1,-145,0,4)
+Timer.Size = UDim2.fromOffset(120, 28)
+Timer.Position = UDim2.fromOffset(10, 30)
 Timer.BackgroundTransparency = 1
 Timer.Text = "--:--:--"
-Timer.TextColor3 = Color3.fromRGB(255,90,90)
-Timer.TextSize = 13
-Timer.Font = Enum.Font.GothamBold
+Timer.TextColor3 = Color3.fromRGB(255, 255, 255)
+Timer.TextSize = 20
+Timer.Font = Enum.Font.Code
+Timer.TextXAlignment = Enum.TextXAlignment.Left
 Timer.Parent = Main
 
---------------------------------------------------
--- MINIMIZE BUTTON
---------------------------------------------------
-
-local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(25,25)
-Minimize.Position = UDim2.new(1,-30,0,4)
-Minimize.Text = "-"
-Minimize.TextSize = 17
-Minimize.TextColor3 = Color3.new(1,1,1)
-Minimize.BackgroundColor3 = Color3.fromRGB(50,50,50)
-Minimize.BorderSizePixel = 0
-Minimize.Parent = Main
-
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0,6)
-MinCorner.Parent = Minimize
-
---------------------------------------------------
--- BUTTON AREA
---------------------------------------------------
-
-local RecordButton = Instance.new("TextButton")
-RecordButton.Size = UDim2.fromOffset(72,30)
-RecordButton.Position = UDim2.fromOffset(8,34)
-RecordButton.Text = "🔴 REC"
-RecordButton.TextSize = 11
-RecordButton.TextColor3 = Color3.new(1,1,1)
-RecordButton.BackgroundColor3 = Color3.fromRGB(170,45,45)
-RecordButton.BorderSizePixel = 0
-RecordButton.Parent = Main
-
-local StopButton = Instance.new("TextButton")
-StopButton.Size = UDim2.fromOffset(62,30)
-StopButton.Position = UDim2.fromOffset(84,34)
-StopButton.Text = "■ STOP"
-StopButton.TextSize = 11
-StopButton.TextColor3 = Color3.new(1,1,1)
-StopButton.BackgroundColor3 = Color3.fromRGB(65,65,65)
-StopButton.BorderSizePixel = 0
-StopButton.Parent = Main
-
-local ClearButton = Instance.new("TextButton")
-ClearButton.Size = UDim2.fromOffset(65,30)
-ClearButton.Position = UDim2.fromOffset(150,34)
-ClearButton.Text = "🗑 CLEAR"
-ClearButton.TextSize = 10
-ClearButton.TextColor3 = Color3.new(1,1,1)
-ClearButton.BackgroundColor3 = Color3.fromRGB(75,55,55)
-ClearButton.BorderSizePixel = 0
-ClearButton.Parent = Main
+--==================================================
+-- STATUS
+--==================================================
 
 local Status = Instance.new("TextLabel")
-Status.Size = UDim2.fromOffset(95,30)
-Status.Position = UDim2.fromOffset(220,34)
+Status.Size = UDim2.fromOffset(170, 22)
+Status.Position = UDim2.fromOffset(140, 32)
 Status.BackgroundTransparency = 1
-Status.Text = "Ready"
-Status.TextColor3 = Color3.fromRGB(190,190,190)
-Status.TextSize = 10
+Status.Text = "Idle"
+Status.TextColor3 = Color3.fromRGB(170, 170, 170)
+Status.TextSize = 12
 Status.Font = Enum.Font.Gotham
+Status.TextXAlignment = Enum.TextXAlignment.Right
 Status.Parent = Main
 
---------------------------------------------------
--- CHECKPOINT LIST
---------------------------------------------------
+--==================================================
+-- BUTTON CREATOR
+--==================================================
 
-local List = Instance.new("ScrollingFrame")
-List.Size = UDim2.new(1,-16,0,48)
-List.Position = UDim2.fromOffset(8,69)
-List.BackgroundColor3 = Color3.fromRGB(18,18,18)
-List.BorderSizePixel = 0
-List.ScrollBarThickness = 3
-List.CanvasSize = UDim2.new(0,0,0,0)
-List.Parent = Main
+local function CreateButton(text, x, width)
+	local Button = Instance.new("TextButton")
+	Button.Size = UDim2.fromOffset(width, 28)
+	Button.Position = UDim2.fromOffset(x, 65)
+	Button.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+	Button.BorderSizePixel = 0
+	Button.Text = text
+	Button.TextColor3 = Color3.fromRGB(235, 235, 235)
+	Button.TextSize = 12
+	Button.Font = Enum.Font.GothamBold
+	Button.Parent = Main
 
-local ListCorner = Instance.new("UICorner")
-ListCorner.CornerRadius = UDim.new(0,6)
-ListCorner.Parent = List
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 6)
+	Corner.Parent = Button
 
-local Layout = Instance.new("UIListLayout")
-Layout.FillDirection = Enum.FillDirection.Horizontal
-Layout.Padding = UDim.new(0,5)
-Layout.Parent = List
-
---------------------------------------------------
--- SMALL MINIMIZED UI
---------------------------------------------------
-
-local Mini = Instance.new("TextButton")
-Mini.Name = "MiniTimer"
-Mini.Size = UDim2.fromOffset(105,35)
-Mini.Position = Main.Position
-Mini.BackgroundColor3 = Color3.fromRGB(24,24,24)
-Mini.BorderSizePixel = 0
-Mini.Text = "🔴 --:--:--"
-Mini.TextColor3 = Color3.new(1,1,1)
-Mini.TextSize = 12
-Mini.Font = Enum.Font.GothamBold
-Mini.Visible = false
-Mini.Parent = Gui
-
-local MiniCorner = Instance.new("UICorner")
-MiniCorner.CornerRadius = UDim.new(0,9)
-MiniCorner.Parent = Mini
-
---------------------------------------------------
--- UPDATE MINI TIMER
---------------------------------------------------
-
-local function UpdateMini()
-
-	if Recording then
-		Mini.Text = "🔴 " .. FormatTime(RecordTime)
-	else
-		Mini.Text = "⏱ " .. FormatTime(RecordTime)
-	end
-
+	return Button
 end
 
---------------------------------------------------
--- REFRESH CP LIST
---------------------------------------------------
+local RecordButton = CreateButton("● REC", 10, 70)
+local StopButton = CreateButton("■ STOP", 85, 70)
+local ClearButton = CreateButton("CLEAR", 160, 65)
+local MinButton = CreateButton("—", 265, 45)
 
-local function RefreshList()
+--==================================================
+-- CP LIST
+--==================================================
 
-	for _, child in ipairs(List:GetChildren()) do
+local CPFrame = Instance.new("ScrollingFrame")
+CPFrame.Name = "CPList"
+CPFrame.Size = UDim2.new(1, -20, 0, 85)
+CPFrame.Position = UDim2.fromOffset(10, 112)
+CPFrame.BackgroundTransparency = 1
+CPFrame.BorderSizePixel = 0
+CPFrame.ScrollBarThickness = 3
+CPFrame.CanvasSize = UDim2.fromOffset(0, 0)
+CPFrame.ScrollingDirection = Enum.ScrollingDirection.X
+CPFrame.Parent = Main
+
+local CPLayout = Instance.new("UIListLayout")
+CPLayout.FillDirection = Enum.FillDirection.Horizontal
+CPLayout.Padding = UDim.new(0, 6)
+CPLayout.Parent = CPFrame
+
+--==================================================
+-- MINI TIMER
+--==================================================
+
+local Mini = Instance.new("TextButton")
+Mini.Size = UDim2.fromOffset(115, 35)
+Mini.Position = UDim2.new(0.5, -57, 0, 80)
+Mini.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+Mini.BorderSizePixel = 0
+Mini.Text = "--:--:--"
+Mini.TextColor3 = Color3.fromRGB(255, 255, 255)
+Mini.TextSize = 14
+Mini.Font = Enum.Font.Code
+Mini.Visible = false
+Mini.Parent = ScreenGui
+
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 9)
+MiniCorner.Parent = Mini
+
+--==================================================
+-- TIME FORMAT
+--==================================================
+
+local function FormatTime(seconds)
+	seconds = math.max(0, seconds or 0)
+
+	local hours = math.floor(seconds / 3600)
+	local minutes = math.floor((seconds % 3600) / 60)
+	local secs = math.floor(seconds % 60)
+
+	return string.format("%02d:%02d:%02d", hours, minutes, secs)
+end
+
+--==================================================
+-- CHECKPOINT DETECTION
+--==================================================
+
+local function IsCheckpoint(part)
+	if not part or not part:IsA("BasePart") then
+		return false
+	end
+
+	local name = string.lower(part.Name)
+
+	return
+		name:match("^cp%d+$")
+		or name:match("^checkpoint%d+$")
+		or name == "checkpoint"
+end
+
+local function GetCheckpointNear(position)
+	local closest = nil
+	local closestDistance = CHECKPOINT_RADIUS
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if IsCheckpoint(obj) then
+			local distance = (obj.Position - position).Magnitude
+
+			if distance <= closestDistance then
+				closestDistance = distance
+				closest = obj
+			end
+		end
+	end
+
+	return closest
+end
+
+local function HasCheckpoint(part)
+	for _, cp in ipairs(Checkpoints) do
+		if cp.Part == part then
+			return true
+		end
+	end
+
+	return false
+end
+
+--==================================================
+-- CP UI
+--==================================================
+
+local function RefreshCPList()
+	for _, child in ipairs(CPFrame:GetChildren()) do
 		if child:IsA("Frame") then
 			child:Destroy()
 		end
@@ -275,110 +333,570 @@ local function RefreshList()
 
 	for index, cp in ipairs(Checkpoints) do
 
-		local Item = Instance.new("Frame")
-		Item.Size = UDim2.fromOffset(150,40)
-		Item.BackgroundColor3 = Color3.fromRGB(35,35,35)
-		Item.BorderSizePixel = 0
-		Item.Parent = List
+		local Card = Instance.new("Frame")
+		Card.Size = UDim2.fromOffset(145, 65)
+		Card.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+		Card.BorderSizePixel = 0
+		Card.Parent = CPFrame
 
 		local Corner = Instance.new("UICorner")
-		Corner.CornerRadius = UDim.new(0,6)
-		Corner.Parent = Item
+		Corner.CornerRadius = UDim.new(0, 7)
+		Corner.Parent = Card
 
-		local Label = Instance.new("TextLabel")
-		Label.Size = UDim2.fromOffset(70,40)
-		Label.Position = UDim2.fromOffset(5,0)
-		Label.BackgroundTransparency = 1
-		Label.Text = "CP"..index..
-			"\n"..FormatTime(cp.Time)
-		Label.TextColor3 = Color3.new(1,1,1)
-		Label.TextSize = 9
-		Label.Font = Enum.Font.GothamBold
-		Label.TextXAlignment = Enum.TextXAlignment.Left
-		Label.Parent = Item
+		local Name = Instance.new("TextLabel")
+		Name.Size = UDim2.new(1, -10, 0, 20)
+		Name.Position = UDim2.fromOffset(5, 3)
+		Name.BackgroundTransparency = 1
+		Name.Text = "CP " .. index
+		Name.TextColor3 = Color3.fromRGB(255, 255, 255)
+		Name.TextSize = 12
+		Name.Font = Enum.Font.GothamBold
+		Name.Parent = Card
+
+		local Time = Instance.new("TextLabel")
+		Time.Size = UDim2.new(1, -10, 0, 16)
+		Time.Position = UDim2.fromOffset(5, 21)
+		Time.BackgroundTransparency = 1
+		Time.Text = FormatTime(cp.Time)
+		Time.TextColor3 = Color3.fromRGB(160, 160, 170)
+		Time.TextSize = 10
+		Time.Font = Enum.Font.Code
+		Time.Parent = Card
 
 		local Play = Instance.new("TextButton")
-		Play.Size = UDim2.fromOffset(32,27)
-		Play.Position = UDim2.fromOffset(78,6)
-		Play.Text = "▶"
-		Play.TextSize = 12
-		Play.TextColor3 = Color3.new(1,1,1)
-		Play.BackgroundColor3 = Color3.fromRGB(45,120,65)
+		Play.Size = UDim2.fromOffset(58, 20)
+		Play.Position = UDim2.fromOffset(5, 42)
+		Play.BackgroundColor3 = Color3.fromRGB(50, 90, 55)
 		Play.BorderSizePixel = 0
-		Play.Parent = Item
+		Play.Text = "▶ Play"
+		Play.TextColor3 = Color3.fromRGB(255, 255, 255)
+		Play.TextSize = 10
+		Play.Font = Enum.Font.GothamBold
+		Play.Parent = Card
 
 		local PlayCorner = Instance.new("UICorner")
-		PlayCorner.CornerRadius = UDim.new(0,5)
+		PlayCorner.CornerRadius = UDim.new(0, 4)
 		PlayCorner.Parent = Play
 
 		local Delete = Instance.new("TextButton")
-		Delete.Size = UDim2.fromOffset(32,27)
-		Delete.Position = UDim2.fromOffset(114,6)
-		Delete.Text = "🗑"
-		Delete.TextSize = 10
-		Delete.TextColor3 = Color3.new(1,1,1)
-		Delete.BackgroundColor3 = Color3.fromRGB(130,45,45)
+		Delete.Size = UDim2.fromOffset(58, 20)
+		Delete.Position = UDim2.fromOffset(67, 42)
+		Delete.BackgroundColor3 = Color3.fromRGB(90, 45, 45)
 		Delete.BorderSizePixel = 0
-		Delete.Parent = Item
+		Delete.Text = "🗑"
+		Delete.TextColor3 = Color3.fromRGB(255, 255, 255)
+		Delete.TextSize = 11
+		Delete.Font = Enum.Font.GothamBold
+		Delete.Parent = Card
 
 		local DeleteCorner = Instance.new("UICorner")
-		DeleteCorner.CornerRadius = UDim.new(0,5)
+		DeleteCorner.CornerRadius = UDim.new(0, 4)
 		DeleteCorner.Parent = Delete
 
 		Play.MouseButton1Click:Connect(function()
-			StartReplay(index)
+			if not Replaying then
+				StartReplay(index)
+			end
 		end)
 
 		Delete.MouseButton1Click:Connect(function()
-
-			if CurrentReplayCheckpoint == index then
-				Replaying = false
-			end
-
-			table.remove(Checkpoints,index)
-
-			RefreshList()
-
-			Status.Text = "CP deleted"
+			table.remove(Checkpoints, index)
+			RefreshCPList()
 		end)
 	end
 
 	task.wait()
 
-	List.CanvasSize = UDim2.new(
-		0,
-		Layout.AbsoluteContentSize.X + 10,
-		0,
+	CPFrame.CanvasSize = UDim2.fromOffset(
+		CPLayout.AbsoluteContentSize.X + 10,
 		0
 	)
 end
 
---------------------------------------------------
--- CHECKPOINT DETECTION
---------------------------------------------------
+--==================================================
+-- RECORD FRAME
+--==================================================
 
-local CheckpointTouched = {}
+local function AddFrame()
+	if not Root or not Humanoid then
+		return
+	end
+
+	local now = os.clock()
+	local currentPosition = Root.Position
+
+	local state = Humanoid:GetState()
+
+	local frame = {
+		Time = RouteTime,
+		CFrame = Root.CFrame,
+		State = state,
+		Jump = Humanoid.Jump
+	}
+
+	table.insert(Frames, frame)
+
+	LastPosition = currentPosition
+end
+
+--==================================================
+-- ADD CHECKPOINT
+--==================================================
+
+local function AddCheckpoint(part)
+	if not Recording then
+		return
+	end
+
+	if HasCheckpoint(part) then
+		return
+	end
+
+	if not Root then
+		return
+	end
+
+	local cp = {
+		Part = part,
+		Time = RouteTime,
+		FrameIndex = #Frames,
+		CFrame = Root.CFrame
+	}
+
+	table.insert(Checkpoints, cp)
+
+	Status.Text = "CP " .. #Checkpoints .. " ✓"
+
+	RefreshCPList()
+end
+
+--==================================================
+-- FAILED ATTEMPT
+--==================================================
+
+local function HandleFailedAttempt(cp)
+	if not cp then
+		return
+	end
+
+	-- Buang semua frame setelah checkpoint terakhir
+	if cp.FrameIndex and #Frames > cp.FrameIndex then
+		for i = #Frames, cp.FrameIndex + 1, -1 do
+			table.remove(Frames, i)
+		end
+	end
+
+	-- Kembalikan route time ke waktu CP
+	RouteTime = cp.Time
+
+	-- Frame awal retry
+	if Root and Humanoid then
+		table.insert(Frames, {
+			Time = RouteTime,
+			CFrame = Root.CFrame,
+			State = Humanoid:GetState(),
+			Jump = false
+		})
+	end
+
+	LastPosition = Root and Root.Position or nil
+
+	Status.Text = "Retry CP " .. table.find(Checkpoints, cp)
+
+end
+
+--==================================================
+-- RECORD BUTTON
+--==================================================
+
+RecordButton.MouseButton1Click:Connect(function()
+
+	if Replaying then
+		return
+	end
+
+	if Recording then
+		return
+	end
+
+	if not Root or not Humanoid then
+		return
+	end
+
+	Recording = true
+
+	Frames = {}
+	Checkpoints = {}
+
+	SessionStart = os.clock()
+	RouteTime = 0
+	LastSample = 0
+	LastPosition = Root.Position
+
+	AddFrame()
+
+	Status.Text = "Recording..."
+
+	RefreshCPList()
+end)
+
+--==================================================
+-- STOP BUTTON
+--==================================================
+
+StopButton.MouseButton1Click:Connect(function()
+
+	if not Recording then
+		return
+	end
+
+	Recording = false
+
+	Status.Text = "Saved"
+
+	if #Frames > 0 then
+		-- Pastikan frame terakhir tersimpan
+		AddFrame()
+	end
+end)
+
+--==================================================
+-- CLEAR
+--==================================================
+
+ClearButton.MouseButton1Click:Connect(function()
+
+	if Recording or Replaying then
+		return
+	end
+
+	Frames = {}
+	Checkpoints = {}
+
+	Timer.Text = "--:--:--"
+	Status.Text = "Cleared"
+
+	RefreshCPList()
+end)
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+local Minimized = false
+
+MinButton.MouseButton1Click:Connect(function()
+
+	Minimized = true
+
+	Main.Visible = false
+	Mini.Visible = true
+end)
+
+Mini.MouseButton1Click:Connect(function()
+
+	Minimized = false
+
+	Mini.Visible = false
+	Main.Visible = true
+end)
+
+--==================================================
+-- REPLAY
+--==================================================
+
+function StartReplay(cpIndex)
+
+	if Recording or Replaying then
+		return
+	end
+
+	if #Frames < 2 then
+		Status.Text = "No record"
+		return
+	end
+
+	local cp = Checkpoints[cpIndex]
+
+	if not cp then
+		return
+	end
+
+	if not Root or not Humanoid then
+		return
+	end
+
+	Replaying = true
+
+	OldWalkSpeed = Humanoid.WalkSpeed
+	OldAutoRotate = Humanoid.AutoRotate
+
+	Humanoid.AutoRotate = true
+
+	-- Teleport hanya sekali ke titik awal CP.
+	-- Setelah itu gerakan menggunakan Humanoid:Move().
+	Root.CFrame = cp.CFrame
+
+	ReplayIndex = math.max(1, cp.FrameIndex)
+	ReplayStartRouteTime = Frames[ReplayIndex].Time
+	ReplayStartTime = os.clock()
+
+	Status.Text = "Playing CP " .. cpIndex
+end
+
+--==================================================
+-- STOP REPLAY
+--==================================================
+
+local function StopReplay()
+	if not Replaying then
+		return
+	end
+
+	Replaying = false
+
+	if Humanoid then
+		Humanoid:Move(Vector3.zero, false)
+
+		if OldWalkSpeed then
+			Humanoid.WalkSpeed = OldWalkSpeed
+		end
+
+		if OldAutoRotate ~= nil then
+			Humanoid.AutoRotate = OldAutoRotate
+		end
+	end
+
+	Status.Text = "Finished"
+end
+
+--==================================================
+-- REPLAY MOVEMENT
+--==================================================
+
+local function ReplayStep()
+
+	if not Replaying then
+		return
+	end
+
+	if not Root or not Humanoid then
+		StopReplay()
+		return
+	end
+
+	local elapsed = os.clock() - ReplayStartTime
+	local targetTime = ReplayStartRouteTime + elapsed
+
+	-- Cari frame sesuai waktu
+	while ReplayIndex < #Frames
+		and Frames[ReplayIndex + 1].Time <= targetTime do
+
+		ReplayIndex += 1
+	end
+
+	if ReplayIndex >= #Frames then
+		StopReplay()
+		return
+	end
+
+	local currentFrame = Frames[ReplayIndex]
+	local nextFrame = Frames[ReplayIndex + 1]
+
+	local currentPos = Root.Position
+	local targetPos = nextFrame.CFrame.Position
+
+	-- Arah horizontal
+	local offset = targetPos - currentPos
+	local horizontal = Vector3.new(
+		offset.X,
+		0,
+		offset.Z
+	)
+
+	local distance = horizontal.Magnitude
+
+	if distance > 0.15 then
+
+		local direction = horizontal.Unit
+
+		-- Hitung kecepatan dari record
+		local recordedDistance = (
+			nextFrame.CFrame.Position
+			- currentFrame.CFrame.Position
+		).Magnitude
+
+		local recordedTime =
+			math.max(
+				nextFrame.Time - currentFrame.Time,
+				1 / 60
+			)
+
+		local speed = recordedDistance / recordedTime
+
+		speed = math.clamp(
+			speed,
+			MIN_SPEED,
+			MAX_SPEED
+		)
+
+		Humanoid.WalkSpeed = speed
+
+		-- INI YANG MEMBUAT KARAKTER BENAR-BENAR BERJALAN
+		Humanoid:Move(direction, false)
+
+	else
+		Humanoid:Move(Vector3.zero, false)
+	end
+
+	--==================================================
+	-- JUMP
+	--==================================================
+
+	local state = nextFrame.State
+
+	if state == Enum.HumanoidStateType.Jumping
+		or state == Enum.HumanoidStateType.Freefall then
+
+		if Humanoid.FloorMaterial ~= Enum.Material.Air then
+			Humanoid.Jump = true
+		end
+	end
+
+	--==================================================
+	-- FALL / TELEPORT DETECTION SAAT REPLAY
+	--==================================================
+
+	if LastPosition then
+
+		local jumpDistance =
+			(Root.Position - LastPosition).Magnitude
+
+		if jumpDistance >= TELEPORT_DISTANCE then
+
+			local nearCP = GetCheckpointNear(Root.Position)
+
+			if nearCP then
+
+				-- Cari frame CP tersebut
+				for i, checkpoint in ipairs(Checkpoints) do
+
+					if checkpoint.Part == nearCP then
+
+						ReplayIndex =
+							math.max(
+								1,
+								checkpoint.FrameIndex
+							)
+
+						ReplayStartRouteTime =
+							Frames[ReplayIndex].Time
+
+						ReplayStartTime = os.clock()
+
+						Status.Text =
+							"Retry CP " .. i
+
+						break
+					end
+				end
+			end
+		end
+	end
+
+	LastPosition = Root.Position
+end
+
+--==================================================
+-- MAIN LOOP
+--==================================================
+
+RunService.Heartbeat:Connect(function(dt)
+
+	--================================================
+	-- TIMER
+	--================================================
+
+	if Recording then
+
+		local sessionTime =
+			os.clock() - SessionStart
+
+		Timer.Text = FormatTime(sessionTime)
+
+		Mini.Text = FormatTime(sessionTime)
+
+		RouteTime += dt
+
+		-- Record sekitar 30 FPS
+		if os.clock() - LastSample >= SAMPLE_RATE then
+
+			LastSample = os.clock()
+
+			if Root and Humanoid then
+
+				local currentPosition = Root.Position
+
+				--================================================
+				-- TELEPORT / FALL DETECTION
+				--================================================
+
+				if LastPosition then
+
+					local distance =
+						(currentPosition - LastPosition).Magnitude
+
+					if distance >= TELEPORT_DISTANCE then
+
+						local nearestCP =
+							GetCheckpointNear(currentPosition)
+
+						if nearestCP then
+
+							local lastCP =
+								Checkpoints[#Checkpoints]
+
+							-- Hanya anggap gagal jika teleport
+							-- kembali ke CP terakhir.
+							if lastCP
+								and lastCP.Part == nearestCP then
+
+								HandleFailedAttempt(lastCP)
+
+								return
+							end
+						end
+					end
+				end
+
+				AddFrame()
+			end
+		end
+	else
+		if not Replaying then
+			Timer.Text = "--:--:--"
+			Mini.Text = "--:--:--"
+		end
+	end
+
+	--================================================
+	-- REPLAY
+	--================================================
+
+	if Replaying then
+		ReplayStep()
+	end
+end)
+
+--==================================================
+-- CHECKPOINT TOUCH LISTENER
+--==================================================
 
 local function ConnectCheckpoint(part)
 
-	if not part:IsA("BasePart") then
+	if not IsCheckpoint(part) then
 		return
 	end
-
-	local lower = string.lower(part.Name)
-
-	if not (
-		string.find(lower,"checkpoint")
-		or string.match(lower,"^cp")
-	) then
-		return
-	end
-
-	if CheckpointTouched[part] then
-		return
-	end
-
-	CheckpointTouched[part] = true
 
 	part.Touched:Connect(function(hit)
 
@@ -390,429 +908,47 @@ local function ConnectCheckpoint(part)
 			return
 		end
 
-		if not hit:IsDescendantOf(Character) then
-			return
+		if hit:IsDescendantOf(Character) then
+			AddCheckpoint(part)
 		end
-
-		-- CEK CP YANG SAMA
-		for _, cp in ipairs(Checkpoints) do
-			if cp.Part == part then
-				return
-			end
-		end
-
-		if not Root then
-			return
-		end
-
-		table.insert(Checkpoints,{
-			Part = part,
-			CFrame = Root.CFrame,
-			Time = RecordTime,
-			FrameIndex = #Frames
-		})
-
-		Status.Text = "CP "..#Checkpoints.." saved"
-
-		RefreshList()
-
 	end)
 end
 
+-- Checkpoint yang sudah ada
 for _, obj in ipairs(workspace:GetDescendants()) do
-	ConnectCheckpoint(obj)
+	if obj:IsA("BasePart") then
+		ConnectCheckpoint(obj)
+	end
 end
 
+-- Checkpoint yang dibuat kemudian
 workspace.DescendantAdded:Connect(function(obj)
-	ConnectCheckpoint(obj)
+
+	if obj:IsA("BasePart") then
+		ConnectCheckpoint(obj)
+	end
 end)
 
---------------------------------------------------
--- RECORD
---------------------------------------------------
+--==================================================
+-- CHARACTER RESPAWN
+--==================================================
 
-local function StartRecord()
+Player.CharacterAdded:Connect(function(char)
 
-	if not Root then
-		Status.Text = "Character belum siap"
-		return
-	end
+	SetupCharacter(char)
 
-	if RecordConnection then
-		RecordConnection:Disconnect()
-	end
-
-	if ReplayConnection then
-		ReplayConnection:Disconnect()
-		ReplayConnection = nil
-	end
-
-	Frames = {}
-	Checkpoints = {}
-
-	Recording = true
-	Replaying = false
-
-	RecordStartTime = os.clock()
-	RecordTime = 0
-
-	Timer.Text = "00:00:00"
-	Status.Text = "Recording..."
-
-	RefreshList()
-
-	local accumulator = 0
-
-	RecordConnection = RunService.Heartbeat:Connect(function(dt)
-
-		if not Recording then
-			return
-		end
-
-		if not Root then
-			return
-		end
-
-		RecordTime = os.clock() - RecordStartTime
-
-		Timer.Text = FormatTime(RecordTime)
-		UpdateMini()
-
-		accumulator += dt
-
-		if accumulator >= SAMPLE_RATE then
-			accumulator = 0
-
-			table.insert(Frames,{
-				Time = RecordTime,
-				CFrame = Root.CFrame
-			})
-		end
-	end)
-end
-
---------------------------------------------------
--- STOP
---------------------------------------------------
-
-local function StopRecord()
-
-	if not Recording then
-		return
-	end
-
-	Recording = false
-
-	if RecordConnection then
-		RecordConnection:Disconnect()
-		RecordConnection = nil
-	end
-
-	RecordTime = os.clock() - RecordStartTime
-
-	Timer.Text = FormatTime(RecordTime)
-	UpdateMini()
-
-	Status.Text =
-		"Done • "..#Checkpoints.." CP"
-
-end
-
---------------------------------------------------
--- STOP REPLAY
---------------------------------------------------
-
-local function StopReplay()
-
-	Replaying = false
-
-	if ReplayConnection then
-		ReplayConnection:Disconnect()
-		ReplayConnection = nil
-	end
-
-	Status.Text = "Replay stopped"
-
-end
-
---------------------------------------------------
--- REPLAY
---------------------------------------------------
-
-function StartReplay(cpIndex)
-
-	if #Frames == 0 then
-		Status.Text = "Belum ada record"
-		return
-	end
-
-	if not cpIndex then
-		cpIndex = 1
-	end
-
-	local cp = Checkpoints[cpIndex]
-
-	if not cp then
-		Status.Text = "CP tidak ditemukan"
-		return
-	end
-
-	Replaying = true
-	Recording = false
-
-	CurrentReplayCheckpoint = cpIndex
-
-	if RecordConnection then
-		RecordConnection:Disconnect()
-		RecordConnection = nil
-	end
-
-	if ReplayConnection then
-		ReplayConnection:Disconnect()
-	end
-
-	local startFrame = cp.FrameIndex
-
-	if startFrame < 1 then
-		startFrame = 1
-	end
-
-	local firstFrame = Frames[startFrame]
-
-	if not firstFrame then
-		Status.Text = "Frame tidak ditemukan"
-		return
-	end
-
-	if Root then
-		Root.CFrame = cp.CFrame
-	end
-
-	local replayStart = os.clock()
-	local baseTime = firstFrame.Time
-
-	Status.Text = "▶ CP "..cpIndex
-
-	ReplayConnection = RunService.Heartbeat:Connect(function()
-
-		if not Replaying then
-			return
-		end
-
-		if not Root then
-			return
-		end
-
-		local elapsed = os.clock() - replayStart
-		local targetTime = baseTime + elapsed
-
-		local frame = Frames[startFrame]
-
-		while startFrame < #Frames
-			and Frames[startFrame + 1].Time <= targetTime do
-
-			startFrame += 1
-			frame = Frames[startFrame]
-		end
-
-		if frame then
-			Root.CFrame = frame.CFrame
-		end
-
-		if startFrame >= #Frames then
-			StopReplay()
-			Status.Text = "Replay selesai"
-		end
-
-	end)
-
-end
-
---------------------------------------------------
--- BUTTONS
---------------------------------------------------
-
-RecordButton.MouseButton1Click:Connect(function()
-
-	if Recording then
-		return
-	end
-
-	StartRecord()
-
-end)
-
-StopButton.MouseButton1Click:Connect(function()
-
-	if Recording then
-		StopRecord()
-	end
+	LastPosition = nil
 
 	if Replaying then
 		StopReplay()
 	end
-
 end)
 
-ClearButton.MouseButton1Click:Connect(function()
-
-	StopReplay()
-
-	Frames = {}
-	Checkpoints = {}
-
-	RecordTime = 0
-
-	Timer.Text = "--:--:--"
-	UpdateMini()
-
-	Status.Text = "Cleared"
-
-	RefreshList()
-
-end)
-
---------------------------------------------------
--- MINIMIZE
---------------------------------------------------
-
-local minimized = false
-
-Minimize.MouseButton1Click:Connect(function()
-
-	minimized = true
-
-	-- simpan posisi
-	Mini.Position = Main.Position
-
-	Main.Visible = false
-	Mini.Visible = true
-
-end)
-
-Mini.MouseButton1Click:Connect(function()
-
-	minimized = false
-
-	Main.Position = Mini.Position
-
-	Mini.Visible = false
-	Main.Visible = true
-
-end)
-
---------------------------------------------------
--- DRAG MAIN
---------------------------------------------------
-
-local draggingMain = false
-local dragStart
-local startPosition
-
-Title.InputBegan:Connect(function(input)
-
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		draggingMain = true
-		dragStart = input.Position
-		startPosition = Main.Position
-
-	end
-
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-
-	if not draggingMain then
-		return
-	end
-
-	if input.UserInputType ~= Enum.UserInputType.MouseMovement
-		and input.UserInputType ~= Enum.UserInputType.Touch then
-		return
-	end
-
-	local delta = input.Position - dragStart
-
-	Main.Position = UDim2.new(
-		startPosition.X.Scale,
-		startPosition.X.Offset + delta.X,
-		startPosition.Y.Scale,
-		startPosition.Y.Offset + delta.Y
-	)
-
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		draggingMain = false
-
-	end
-
-end)
-
---------------------------------------------------
--- DRAG MINI
---------------------------------------------------
-
-local draggingMini = false
-local miniDragStart
-local miniStartPosition
-
-Mini.InputBegan:Connect(function(input)
-
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		draggingMini = true
-		miniDragStart = input.Position
-		miniStartPosition = Mini.Position
-
-	end
-
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-
-	if not draggingMini then
-		return
-	end
-
-	if input.UserInputType ~= Enum.UserInputType.MouseMovement
-		and input.UserInputType ~= Enum.UserInputType.Touch then
-		return
-	end
-
-	local delta = input.Position - miniDragStart
-
-	Mini.Position = UDim2.new(
-		miniStartPosition.X.Scale,
-		miniStartPosition.X.Offset + delta.X,
-		miniStartPosition.Y.Scale,
-		miniStartPosition.Y.Offset + delta.Y
-	)
-
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		draggingMini = false
-
-	end
-
-end)
-
---------------------------------------------------
+--==================================================
 -- INITIAL
---------------------------------------------------
+--==================================================
 
+RefreshCPList()
 Timer.Text = "--:--:--"
-Mini.Text = "⏱ --:--:--"
-Status.Text = "Ready"
+Mini.Text = "--:--:--"
+Status.Text = "Idle"
