@@ -1,38 +1,204 @@
---// ANIMATION ONLY - LOCAL SCRIPT
---// No GUI / No Mode / No ServerScript
+--// ANIMATION CONTROL UI
+--// SCRIPT BY CHALLO BOY
+--// LocalScript
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
 
+--==================================================
+-- SETTINGS
+--==================================================
+
+local AnimationEnabled = true
+local Minimized = false
+
+--==================================================
+-- GUI
+--==================================================
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "ChalloAnimationUI"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.Parent = Player:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 190, 0, 95)
+Main.Position = UDim2.new(0, 12, 0.5, -47)
+Main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = Main
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 1
+Stroke.Color = Color3.fromRGB(70, 70, 80)
+Stroke.Parent = Main
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -45, 0, 28)
+Title.Position = UDim2.new(0, 10, 0, 3)
+Title.BackgroundTransparency = 1
+Title.Text = "ANIMATION"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Main
+
+-- Minimize
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.new(0, 28, 0, 24)
+Minimize.Position = UDim2.new(1, -33, 0, 5)
+Minimize.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+Minimize.Text = "—"
+Minimize.TextColor3 = Color3.fromRGB(255, 255, 255)
+Minimize.TextSize = 16
+Minimize.Font = Enum.Font.GothamBold
+Minimize.Parent = Main
+
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 6)
+MiniCorner.Parent = Minimize
+
+-- Toggle
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(1, -20, 0, 38)
+Toggle.Position = UDim2.new(0, 10, 0, 39)
+Toggle.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+Toggle.TextSize = 13
+Toggle.Font = Enum.Font.GothamBold
+Toggle.Parent = Main
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 7)
+ToggleCorner.Parent = Toggle
+
+local function updateToggle()
+	if AnimationEnabled then
+		Toggle.Text = "ANIMATION  •  ON"
+		Toggle.BackgroundColor3 = Color3.fromRGB(35, 110, 65)
+	else
+		Toggle.Text = "ANIMATION  •  OFF"
+		Toggle.BackgroundColor3 = Color3.fromRGB(110, 40, 40)
+	end
+end
+
+updateToggle()
+
+--==================================================
+-- FPS DISPLAY
+--==================================================
+
+local FPS = 60
+local Frames = 0
+local LastFPSUpdate = tick()
+
+local FPSLabel = Instance.new("TextLabel")
+FPSLabel.Size = UDim2.new(1, -20, 0, 22)
+FPSLabel.Position = UDim2.new(0, 10, 0, 65)
+FPSLabel.BackgroundTransparency = 1
+FPSLabel.Text = "FPS: 60"
+FPSLabel.TextColor3 = Color3.fromRGB(210, 210, 210)
+FPSLabel.TextSize = 11
+FPSLabel.Font = Enum.Font.Gotham
+FPSLabel.TextXAlignment = Enum.TextXAlignment.Left
+FPSLabel.Parent = Main
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+Minimize.MouseButton1Click:Connect(function()
+	Minimized = not Minimized
+
+	if Minimized then
+		Main.Size = UDim2.new(0, 110, 0, 32)
+
+		Title.Visible = false
+		Toggle.Visible = false
+
+		Minimize.Position = UDim2.new(1, -33, 0, 4)
+
+		FPSLabel.Size = UDim2.new(1, -40, 1, 0)
+		FPSLabel.Position = UDim2.new(0, 8, 0, 0)
+		FPSLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+		Minimize.Text = "+"
+	else
+		Main.Size = UDim2.new(0, 190, 0, 95)
+
+		Title.Visible = true
+		Toggle.Visible = true
+
+		Minimize.Position = UDim2.new(1, -33, 0, 5)
+
+		FPSLabel.Size = UDim2.new(1, -20, 0, 22)
+		FPSLabel.Position = UDim2.new(0, 10, 0, 65)
+
+		Minimize.Text = "—"
+	end
+end)
+
+--==================================================
+-- TOGGLE ANIMATION
+--==================================================
+
+Toggle.MouseButton1Click:Connect(function()
+	AnimationEnabled = not AnimationEnabled
+	updateToggle()
+end)
+
+--==================================================
+-- CHARACTER / ANIMATION
+--==================================================
+
 local Character
 local Humanoid
 local RootPart
 local RootJoint
 
-local Connection
+local AnimationConnection
 local DeathConnection
+
+local function findRootJoint()
+	if not Character or not RootPart then
+		return nil
+	end
+
+	local joint = RootPart:FindFirstChild("RootJoint")
+
+	if joint and joint:IsA("Motor6D") then
+		return joint
+	end
+
+	for _, obj in ipairs(Character:GetDescendants()) do
+		if obj:IsA("Motor6D") then
+			if obj.Name == "RootJoint"
+				or obj.Part0 == RootPart then
+				return obj
+			end
+		end
+	end
+
+	return nil
+end
 
 local function setupCharacter(char)
 	Character = char
 	Humanoid = char:WaitForChild("Humanoid")
 	RootPart = char:WaitForChild("HumanoidRootPart")
 
-	RootJoint = RootPart:FindFirstChild("RootJoint")
-
-	if not RootJoint then
-		RootJoint = RootPart:FindFirstChildWhichIsA("Motor6D")
-	end
-
-	if not RootJoint then
-		return
-	end
-
-	-- Hapus koneksi lama
-	if Connection then
-		Connection:Disconnect()
-		Connection = nil
+	if AnimationConnection then
+		AnimationConnection:Disconnect()
+		AnimationConnection = nil
 	end
 
 	if DeathConnection then
@@ -40,155 +206,167 @@ local function setupCharacter(char)
 		DeathConnection = nil
 	end
 
-	local startTime = tick()
-	local dead = false
-	local deathStart = 0
+	RootJoint = findRootJoint()
 
-	-- Simpan transform asli
-	local baseTransform = RootJoint.Transform
+	if not RootJoint then
+		return
+	end
 
-	--// DEATH
+	local BaseTransform = RootJoint.Transform
+	local StartTime = tick()
+
+	-- Tetap ON setelah mati
 	DeathConnection = Humanoid.Died:Connect(function()
-		dead = true
-		deathStart = tick()
+		-- Jangan matikan AnimationEnabled
+		-- Efek kematian akan tetap dijalankan
 	end)
 
-	--// MAIN ANIMATION LOOP
-	Connection = RunService.RenderStepped:Connect(function()
+	AnimationConnection = RunService.RenderStepped:Connect(function()
 		if not Character
 			or not Character.Parent
-			or not Humanoid
-			or Humanoid.Health <= 0 and not dead
 			or not RootJoint
-			or not RootPart then
+			or not RootJoint.Parent then
 			return
 		end
 
-		local time = tick() - startTime
+		if not AnimationEnabled then
+			RootJoint.Transform = RootJoint.Transform:Lerp(
+				BaseTransform,
+				0.15
+			)
+			return
+		end
 
-		-- Kecepatan karakter
-		local velocity = RootPart.AssemblyLinearVelocity
-		local horizontalVelocity = Vector3.new(
-			velocity.X,
+		local Time = tick() - StartTime
+		local State = Humanoid:GetState()
+
+		local Velocity = RootPart.AssemblyLinearVelocity
+		local HorizontalSpeed = Vector3.new(
+			Velocity.X,
 			0,
-			velocity.Z
+			Velocity.Z
 		).Magnitude
 
-		local verticalVelocity = velocity.Y
+		local VerticalSpeed = Velocity.Y
 
-		local state = Humanoid:GetState()
+		local Y = 0
+		local XRot = 0
+		local ZRot = 0
 
-		local offsetY = 0
-		local tiltX = 0
-		local tiltZ = 0
+		--==============================
+		-- DEAD
+		--==============================
 
-		--==================================================
+		if Humanoid.Health <= 0 then
+			local DeathTime = math.clamp(
+				Time,
+				0,
+				0.8
+			)
+
+			local Smooth = 1 - (1 - DeathTime / 0.8)^3
+
+			XRot = math.rad(55) * Smooth
+			Y = -0.16 * Smooth
+			ZRot = math.rad(7) * Smooth
+
+		--==============================
 		-- IDLE
-		--==================================================
-		if horizontalVelocity < 1 and
-			state ~= Enum.HumanoidStateType.Jumping and
-			state ~= Enum.HumanoidStateType.Freefall then
+		--==============================
 
-			-- Naik turun lembut
-			offsetY = math.sin(time * 2.2) * 0.055
+		elseif HorizontalSpeed < 1
+			and State ~= Enum.HumanoidStateType.Jumping
+			and State ~= Enum.HumanoidStateType.Freefall then
 
-			-- Sedikit sway supaya tidak kaku
-			tiltZ = math.sin(time * 1.4) * math.rad(0.7)
+			Y = math.sin(Time * 2.2) * 0.045
+			ZRot = math.sin(Time * 1.4) * math.rad(0.5)
 
-		--==================================================
-		-- WALK / RUN
-		--==================================================
-		elseif horizontalVelocity >= 1 and
-			state ~= Enum.HumanoidStateType.Jumping and
-			state ~= Enum.HumanoidStateType.Freefall then
+		--==============================
+		-- WALK
+		--==============================
 
-			-- Gerakan sangat kecil agar animasi
-			-- berjalan bawaan Roblox tetap natural
-			offsetY = math.sin(time * 8) * 0.018
+		elseif HorizontalSpeed >= 1
+			and State ~= Enum.HumanoidStateType.Jumping
+			and State ~= Enum.HumanoidStateType.Freefall then
 
-			tiltZ = math.sin(time * 4) * math.rad(0.35)
+			-- Sangat kecil agar animasi
+			-- jalan bawaan Roblox tetap normal
+			Y = math.sin(Time * 8) * 0.012
+			ZRot = math.sin(Time * 4) * math.rad(0.25)
 
-		--==================================================
+		--==============================
 		-- JUMP
-		--==================================================
-		elseif state == Enum.HumanoidStateType.Jumping then
+		--==============================
 
-			-- Naik sedikit saat lompat
-			offsetY = math.sin(time * 7) * 0.025
+		elseif State == Enum.HumanoidStateType.Jumping then
 
-			tiltX = math.rad(-2)
+			Y = math.sin(Time * 7) * 0.025
+			XRot = math.rad(-2)
 
-		--==================================================
+		--==============================
 		-- FALL
-		--==================================================
-		elseif state == Enum.HumanoidStateType.Freefall then
+		--==============================
 
-			-- Saat jatuh, badan sedikit melayang
-			offsetY = math.sin(time * 4) * 0.035
+		elseif State == Enum.HumanoidStateType.Freefall then
 
-			-- Semakin cepat jatuh, sedikit condong
-			local fallAmount = math.clamp(
-				math.abs(verticalVelocity) / 70,
+			Y = math.sin(Time * 4) * 0.025
+
+			local FallAmount = math.clamp(
+				math.abs(VerticalSpeed) / 70,
 				0,
 				1
 			)
 
-			tiltX = math.rad(4) * fallAmount
-
+			XRot = math.rad(4) * FallAmount
 		end
 
-		--==================================================
-		-- DEATH ANIMATION
-		--==================================================
-		if dead then
-			local elapsed = tick() - deathStart
+		local Target =
+			BaseTransform
+			* CFrame.new(0, Y, 0)
+			* CFrame.Angles(XRot, 0, ZRot)
 
-			-- Durasi animasi mati
-			local progress = math.clamp(elapsed / 0.65, 0, 1)
-
-			-- Ease-out
-			local eased = 1 - (1 - progress)^3
-
-			-- Badan perlahan jatuh ke depan
-			tiltX = math.rad(65) * eased
-
-			-- Sedikit miring ke samping
-			tiltZ = math.rad(10) * math.sin(progress * math.pi)
-
-			-- Sedikit turun
-			offsetY = -0.18 * eased
-
-			-- Setelah selesai jangan terus bergerak
-			if progress >= 1 then
-				offsetY = -0.18
-				tiltX = math.rad(65)
-				tiltZ = 0
-			end
-		end
-
-		--==================================================
-		-- APPLY
-		--==================================================
-		local targetTransform =
-			baseTransform
-			* CFrame.new(0, offsetY, 0)
-			* CFrame.Angles(tiltX, 0, tiltZ)
-
-		-- Smooth agar tidak patah-patah
 		RootJoint.Transform = RootJoint.Transform:Lerp(
-			targetTransform,
+			Target,
 			0.12
 		)
 	end)
 end
 
--- Karakter pertama
+--==================================================
+-- FPS COUNTER
+--==================================================
+
+RunService.RenderStepped:Connect(function()
+	Frames += 1
+
+	local Now = tick()
+
+	if Now - LastFPSUpdate >= 0.5 then
+		FPS = math.floor(
+			Frames / (Now - LastFPSUpdate) + 0.5
+		)
+
+		Frames = 0
+		LastFPSUpdate = Now
+
+		FPSLabel.Text = "FPS: " .. tostring(FPS)
+	end
+end)
+
+--==================================================
+-- START
+--==================================================
+
 if Player.Character then
-	setupCharacter(Player.Character)
+	task.spawn(function()
+		setupCharacter(Player.Character)
+	end)
 end
 
--- Otomatis aktif lagi setelah respawn
 Player.CharacterAdded:Connect(function(char)
 	task.wait(0.15)
+
+	-- AnimationEnabled sengaja tidak di-reset
+	-- jadi setelah mati/respawn tetap ON
 	setupCharacter(char)
 end)
