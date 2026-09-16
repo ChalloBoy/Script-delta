@@ -406,7 +406,7 @@ local main = New("Frame", {
 	ZIndex = 20
 }, gui)
 
-Corner(main, 16)
+Corner(main, 18)
 Stroke(main, 2, 0.12)
 
 -- Background utama
@@ -421,7 +421,7 @@ local mainImage = New("ImageLabel", {
 	ZIndex = 20
 }, main)
 
-Corner(mainImage, 16)
+Corner(mainImage, 18)
 
 -- Overlay tipis
 local mainOverlay = New("Frame", {
@@ -432,7 +432,7 @@ local mainOverlay = New("Frame", {
 	ZIndex = 21
 }, main)
 
-Corner(mainOverlay, 16)
+Corner(mainOverlay, 18)
 
 --========================================================
 -- HEADER
@@ -481,6 +481,31 @@ local close = New("TextButton", {
 	Font = Enum.Font.GothamBlack,
 	ZIndex = 31
 }, header)
+
+-- Tombol khusus saat UI diminimize.
+-- Bentuk kotak agak bulat + tulisan GOP.
+local gopButton = New("TextButton", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromScale(0.86, 0.86),
+	BackgroundColor3 = Color3.fromRGB(7, 12, 18),
+	BackgroundTransparency = 0.04,
+	BorderSizePixel = 0,
+	Text = "GOP",
+	TextColor3 = Color3.fromRGB(120, 245, 255),
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	Visible = false,
+	ZIndex = 35
+}, main)
+
+Corner(gopButton, 14)
+Stroke(gopButton, 2, 0.18)
+
+local gopScale = New("UIScale", {
+	Scale = 1
+}, gopButton)
 
 --========================================================
 -- TAB BAR
@@ -1116,44 +1141,63 @@ end)
 --========================================================
 
 local normalSize = UDim2.fromScale(0.90, 0.78)
-local minimizedSize = UDim2.fromScale(0.90, 0.055)
+
+-- Ukuran minimize dibuat hampir kotak supaya tidak berubah menjadi bar tipis.
+local minimizedSize = UDim2.fromOffset(72, 72)
 
 local minimized = false
 
-minimize.MouseButton1Click:Connect(function()
-
+local function SetMinimized(state)
+	minimized = state
 	Click()
 
-	minimized = not minimized
-
 	if minimized then
-
+		-- Sembunyikan isi dan kontrol header biasa.
 		tabs.Visible = false
 		content.Visible = false
+		title.Visible = false
+		minimize.Visible = false
+		close.Visible = false
 
-		Tween(main, 0.4, {
+		-- Header menjadi area kecil, lalu tombol GOP muncul di tengah.
+		header.Size = UDim2.fromScale(1, 1)
+		gopButton.Visible = true
+
+		Tween(main, 0.38, {
 			Size = minimizedSize
-		}, Enum.EasingStyle.Quint)
+		}, Enum.EasingStyle.Back)
 
-		minimize.Text = "+"
+		Tween(gopButton, 0.25, {
+			Size = UDim2.fromScale(0.86, 0.86)
+		}, Enum.EasingStyle.Back)
 
 	else
+		gopButton.Visible = false
 
-		Tween(main, 0.4, {
+		Tween(main, 0.38, {
 			Size = normalSize
-		}, Enum.EasingStyle.Quint)
+		}, Enum.EasingStyle.Back)
 
-		task.delay(0.22, function()
-
+		task.delay(0.20, function()
 			if not minimized then
+				header.Size = UDim2.new(1, 0, 0, 70)
+				title.Visible = true
+				minimize.Visible = true
+				close.Visible = true
 				tabs.Visible = true
 				content.Visible = true
 			end
-
 		end)
-
-		minimize.Text = "−"
 	end
+end
+
+minimize.MouseButton1Click:Connect(function()
+	SetMinimized(not minimized)
+end)
+
+-- Saat diminimize, tombol GOP menjadi tombol restore.
+gopButton.MouseButton1Click:Connect(function()
+	SetMinimized(false)
 end)
 
 --========================================================
