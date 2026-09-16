@@ -1,6 +1,6 @@
---==================================================
--- FLY GUI V3 + FLY / HOVER ANIMATION
---==================================================
+-- FLY GUI V3 - PRO EDITION
+-- FLY + ANIMATION
+-- UI ASLI TIDAK DIUBAH
 
 local player = game:GetService("Players").LocalPlayer
 local runService = game:GetService("RunService")
@@ -8,28 +8,23 @@ local userInputService = game:GetService("UserInputService")
 
 local playerGui = player:WaitForChild("PlayerGui")
 
---==================================================
--- VARIABLES
---==================================================
-
+-- Variables de estado
 local flying = false
 local speed = 60
-
 local bv, bg
 
-local currentTrack = nil
-local flyAnimation
-local hoverAnimation
+-- Animation
+local flyTrack = nil
+local hoverTrack = nil
+local animateScript = nil
 
-local hoverTime = 0
-
--- Animation dari script kamu
 local FLY_ANIMATION_ID = "125722696765151"
 local HOVER_ANIMATION_ID = "88138077358201"
 
---==================================================
--- UI
---==================================================
+-- =========================================================
+-- 1. CREACIÓN DE LA INTERFAZ MEJORADA
+-- UI ASLI DIPERTAHANKAN
+-- =========================================================
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "FlyV3_Ultimate"
@@ -63,7 +58,6 @@ flyBtn.Text = "FLY: OFF"
 flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 flyBtn.Font = Enum.Font.GothamBold
 flyBtn.Parent = frame
-
 Instance.new("UICorner", flyBtn)
 
 local speedLabel = Instance.new("TextLabel")
@@ -82,7 +76,6 @@ speedUp.Position = UDim2.new(0.55, 0, 0.75, 0)
 speedUp.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 speedUp.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedUp.Parent = frame
-
 Instance.new("UICorner", speedUp)
 
 local speedDown = Instance.new("TextButton")
@@ -92,70 +85,100 @@ speedDown.Position = UDim2.new(0.05, 0, 0.75, 0)
 speedDown.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 speedDown.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedDown.Parent = frame
-
 Instance.new("UICorner", speedDown)
 
---==================================================
--- ANIMATION SYSTEM
---==================================================
+-- =========================================================
+-- 2. ANIMATION SYSTEM
+-- =========================================================
 
-local function stopAnimation()
-	if currentTrack then
+local function getCharacter()
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+	local root = char:WaitForChild("HumanoidRootPart")
+
+	return char, hum, root
+end
+
+local function stopFlyAnimations()
+	if flyTrack then
 		pcall(function()
-			currentTrack:Stop(0.15)
+			flyTrack:Stop(0.15)
 		end)
+		flyTrack = nil
+	end
 
-		currentTrack = nil
+	if hoverTrack then
+		pcall(function()
+			hoverTrack:Stop(0.15)
+		end)
+		hoverTrack = nil
 	end
 end
 
-local function playAnimation(id)
-	stopAnimation()
+local function loadAnimation(humanoid, id)
+	local animation = Instance.new("Animation")
+	animation.AnimationId = "rbxassetid://" .. id
 
-	local char = player.Character
-	if not char then return end
+	local track
 
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if not hum then return end
-
-	local animator = hum:FindFirstChildOfClass("Animator")
-
-	if not animator then
-		animator = Instance.new("Animator")
-		animator.Parent = hum
-	end
-
-	local anim = Instance.new("Animation")
-	anim.AnimationId = "rbxassetid://" .. id
-
-	local success, track = pcall(function()
-		return animator:LoadAnimation(anim)
+	pcall(function()
+		track = humanoid:LoadAnimation(animation)
 	end)
 
-	if success and track then
+	animation:Destroy()
+
+	if track then
 		track.Looped = true
 		track.Priority = Enum.AnimationPriority.Action
-		track:Play(0.15)
-
-		currentTrack = track
 	end
+
+	return track
 end
 
 local function playFlyAnimation()
-	if not currentTrack then
-		playAnimation(FLY_ANIMATION_ID)
+	local char, hum = getCharacter()
+
+	if not flying then
+		return
+	end
+
+	if not flyTrack then
+		flyTrack = loadAnimation(hum, FLY_ANIMATION_ID)
+	end
+
+	if flyTrack and not flyTrack.IsPlaying then
+		flyTrack:Play(0.15)
+	end
+
+	if hoverTrack then
+		hoverTrack:Stop(0.15)
+		hoverTrack = nil
 	end
 end
 
 local function playHoverAnimation()
-	if not currentTrack then
-		playAnimation(HOVER_ANIMATION_ID)
+	local char, hum = getCharacter()
+
+	if not flying then
+		return
+	end
+
+	if not hoverTrack then
+		hoverTrack = loadAnimation(hum, HOVER_ANIMATION_ID)
+	end
+
+	if hoverTrack and not hoverTrack.IsPlaying then
+		hoverTrack:Play(0.15)
+	end
+
+	if flyTrack then
+		flyTrack:Stop(0.15)
 	end
 end
 
---==================================================
--- MOVEMENT
---==================================================
+-- =========================================================
+-- 3. LÓGICA DE MOVIMIENTO
+-- =========================================================
 
 local function getDirection()
 	local direction = Vector3.new(0, 0, 0)
@@ -181,60 +204,23 @@ local function getDirection()
 		direction += camera.CFrame.RightVector
 	end
 
+	-- Hilangkan gerakan Y dari kamera supaya W/S tidak
+	-- membuat karakter naik/turun secara tidak sengaja.
+	direction = Vector3.new(direction.X, 0, direction.Z)
+
+	if direction.Magnitude > 0 then
+		direction = direction.Unit
+	end
+
 	return direction
 end
 
---==================================================
--- STOP FLY
---==================================================
+-- =========================================================
+-- 4. TOGGLE FLY
+-- =========================================================
 
-local function stopFly()
-
-	flying = false
-	hoverTime = 0
-
-	stopAnimation()
-
-	if bg then
-		bg:Destroy()
-		bg = nil
-	end
-
-	if bv then
-		bv:Destroy()
-		bv = nil
-	end
-
+local function toggleFly()
 	local char = player.Character
-
-	if char then
-		local hum = char:FindFirstChildOfClass("Humanoid")
-
-		if hum then
-			hum.PlatformStand = false
-			hum.AutoRotate = true
-
-			-- Pastikan animasi default Roblox kembali aktif
-			local animate = char:FindFirstChild("Animate")
-
-			if animate then
-				animate.Disabled = false
-			end
-		end
-	end
-
-	flyBtn.Text = "FLY: OFF"
-	flyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-end
-
---==================================================
--- START FLY
---==================================================
-
-local function startFly()
-
-	local char = player.Character
-
 	if not char then
 		return
 	end
@@ -246,161 +232,129 @@ local function startFly()
 		return
 	end
 
-	flying = true
-	hoverTime = 0
-
-	flyBtn.Text = "FLY: ON"
-	flyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-
-	hum.PlatformStand = true
-
-	-- BodyGyro
-	bg = Instance.new("BodyGyro")
-	bg.P = 9e4
-	bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-	bg.CFrame = workspace.CurrentCamera.CFrame
-	bg.Parent = root
-
-	-- BodyVelocity
-	bv = Instance.new("BodyVelocity")
-	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-	bv.P = 9e4
-	bv.Velocity = Vector3.zero
-	bv.Parent = root
-
-	-- Matikan animasi default sementara Fly aktif
-	local animate = char:FindFirstChild("Animate")
-
-	if animate then
-		animate.Disabled = true
-	end
-
-	-- Mulai Hover saat pertama aktif
-	playHoverAnimation()
-end
-
---==================================================
--- FLY LOOP
---==================================================
-
-runService.RenderStepped:Connect(function(dt)
-
-	if not flying then
-		return
-	end
-
-	local char = player.Character
-
-	if not char then
-		stopFly()
-		return
-	end
-
-	local root = char:FindFirstChild("HumanoidRootPart")
-	local hum = char:FindFirstChildOfClass("Humanoid")
-
-	if not root or not hum or not bv or not bg then
-		stopFly()
-		return
-	end
-
-	local camera = workspace.CurrentCamera
-
-	if not camera then
-		return
-	end
-
-	local direction = getDirection()
-	local moving = direction.Magnitude > 0.01
-
-	--==================================================
-	-- GERAK FLY
-	--==================================================
-
-	local velocity = direction * speed
-
-	--==================================================
-	-- HOVER NAIK-TURUN
-	--==================================================
-
-	if not moving then
-
-		hoverTime += dt
-
-		-- Gerakan naik turun smooth
-		local hoverY = math.sin(hoverTime * 2.5) * 2
-
-		velocity += Vector3.new(0, hoverY, 0)
-
-		-- Pastikan Hover animation
-		if not currentTrack then
-			playHoverAnimation()
-		end
-
-	else
-
-		-- Reset waktu hover
-		hoverTime = 0
-
-		-- Pastikan Fly animation
-		if not currentTrack then
-			playFlyAnimation()
-		end
-	end
-
-	bv.Velocity = velocity
-
-	--==================================================
-	-- ARAH KARAKTER
-	--==================================================
-
-	bg.CFrame = camera.CFrame
-
-end)
-
---==================================================
--- TOGGLE
---==================================================
-
-local function toggleFly()
+	flying = not flying
 
 	if flying then
-		stopFly()
-	else
-		startFly()
-	end
 
+		flyBtn.Text = "FLY: ON"
+		flyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+
+		hum.PlatformStand = true
+
+		-- BodyGyro
+		bg = Instance.new("BodyGyro")
+		bg.P = 9e4
+		bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+		bg.cframe = workspace.CurrentCamera.CFrame
+		bg.Parent = root
+
+		-- BodyVelocity
+		bv = Instance.new("BodyVelocity")
+		bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+		bv.velocity = Vector3.new(0, 0, 0)
+		bv.Parent = root
+
+		-- Mulai hover ketika diam
+		playHoverAnimation()
+
+		task.spawn(function()
+
+			while flying and root.Parent and bv and bg do
+
+				local dir = getDirection()
+
+				if dir.Magnitude > 0 then
+
+					-- GERAK FLY
+					bv.velocity = dir * speed
+
+					-- Fly animation
+					playFlyAnimation()
+
+				else
+
+					-- IDLE / HOVER
+					-- sedikit naik-turun supaya terlihat melayang
+					local t = os.clock()
+					local hoverVelocity = math.sin(t * 2.5) * 1.8
+
+					bv.velocity = Vector3.new(
+						0,
+						hoverVelocity,
+						0
+					)
+
+					playHoverAnimation()
+				end
+
+				-- Arah karakter mengikuti kamera
+				if bg and workspace.CurrentCamera then
+					bg.cframe = workspace.CurrentCamera.CFrame
+				end
+
+				runService.RenderStepped:Wait()
+			end
+
+			if bg then
+				bg:Destroy()
+				bg = nil
+			end
+
+			if bv then
+				bv:Destroy()
+				bv = nil
+			end
+
+			if hum and hum.Parent then
+				hum.PlatformStand = false
+			end
+
+		end)
+
+	else
+
+		flyBtn.Text = "FLY: OFF"
+		flyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+
+		-- Matikan physics Fly
+		if bg then
+			bg:Destroy()
+			bg = nil
+		end
+
+		if bv then
+			bv:Destroy()
+			bv = nil
+		end
+
+		-- Matikan animasi custom
+		stopFlyAnimations()
+
+		-- Kembalikan karakter normal
+		hum.PlatformStand = false
+		hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+	end
 end
+
+-- =========================================================
+-- 5. EVENT BUTTON
+-- =========================================================
 
 flyBtn.MouseButton1Click:Connect(toggleFly)
 
---==================================================
--- SPEED UP
---==================================================
-
 speedUp.MouseButton1Click:Connect(function()
-
 	speed = math.clamp(speed + 20, 10, 500)
-
 	speedLabel.Text = "Velocidad: " .. speed
-
 end)
-
---==================================================
--- SPEED DOWN
---==================================================
 
 speedDown.MouseButton1Click:Connect(function()
-
 	speed = math.clamp(speed - 20, 10, 500)
-
 	speedLabel.Text = "Velocidad: " .. speed
-
 end)
 
---==================================================
--- F KEY
---==================================================
+-- =========================================================
+-- 6. TEKAN F
+-- =========================================================
 
 userInputService.InputBegan:Connect(function(input, gpe)
 
@@ -414,14 +368,31 @@ userInputService.InputBegan:Connect(function(input, gpe)
 
 end)
 
---==================================================
--- RESPAWN SAFETY
---==================================================
+-- =========================================================
+-- 7. RESPAWN
+-- =========================================================
 
 player.CharacterAdded:Connect(function()
 
-	if flying then
-		stopFly()
+	flying = false
+
+	stopFlyAnimations()
+
+	if bv then
+		bv:Destroy()
+		bv = nil
+	end
+
+	if bg then
+		bg:Destroy()
+		bg = nil
+	end
+
+	task.wait(0.5)
+
+	if flyBtn then
+		flyBtn.Text = "FLY: OFF"
+		flyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 	end
 
 end)
