@@ -1,0 +1,611 @@
+-- CHALLO ADMIN - ONE LOCAL SCRIPT
+-- Semua pemain bisa memakai command
+-- Prefix: ; dan /
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local flying = false
+local noclip = false
+local invisible = false
+local spinning = false
+local antiFling = false
+
+local flySpeed = 100
+local orbitTarget = nil
+local orbiting = false
+local orbitDistance = 8
+local orbitSpeed = 2
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
+
+local GUI = Instance.new("ScreenGui")
+GUI.Name = "ChalloAdmin"
+GUI.ResetOnSpawn = false
+GUI.IgnoreGuiInset = true
+GUI.Parent = Player:WaitForChild("PlayerGui")
+
+-- COMMAND BUTTON
+local ListButton = Instance.new("TextButton")
+ListButton.Name = "CommandButton"
+ListButton.Size = UDim2.fromOffset(42,42)
+ListButton.Position = UDim2.new(0,10,0.5,0)
+ListButton.Text = "☰"
+ListButton.TextSize = 22
+ListButton.BackgroundTransparency = 0.15
+ListButton.Parent = GUI
+
+Instance.new("UICorner",ListButton).CornerRadius = UDim.new(0,10)
+
+-- COMMAND LIST
+local ListFrame = Instance.new("Frame")
+ListFrame.Name = "CommandList"
+ListFrame.Size = UDim2.fromOffset(220,330)
+ListFrame.Position = UDim2.new(0,60,0.5,-165)
+ListFrame.Visible = false
+ListFrame.BackgroundTransparency = 0.08
+ListFrame.Parent = GUI
+
+Instance.new("UICorner",ListFrame).CornerRadius = UDim.new(0,10)
+
+local ListTitle = Instance.new("TextLabel")
+ListTitle.Size = UDim2.new(1,0,0,38)
+ListTitle.BackgroundTransparency = 1
+ListTitle.Text = "CHALLO ADMIN"
+ListTitle.TextSize = 18
+ListTitle.TextColor3 = Color3.new(1,1,1)
+ListTitle.Parent = ListFrame
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Position = UDim2.fromOffset(5,40)
+Scroll.Size = UDim2.new(1,-10,1,-45)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 3
+Scroll.Parent = ListFrame
+
+local Commands = {
+	";fly / /fly",
+	";unfly / /unfly",
+	";speed 100",
+	";jump 100",
+	";respawn",
+	";noclip / /noclip",
+	";unoclip / /unoclip",
+	";invisible / /invisible",
+	";visible / /visible",
+	";spin [target]",
+	";bang [target]",
+	";sit [target]",
+	";lay [target]",
+	";antifling",
+	";orbit [target]",
+	";unorbit"
+}
+
+for i,v in ipairs(Commands) do
+	local L = Instance.new("TextLabel")
+	L.Size = UDim2.new(1,-8,0,27)
+	L.Position = UDim2.fromOffset(4,(i-1)*28)
+	L.BackgroundTransparency = 1
+	L.Text = v
+	L.TextXAlignment = Enum.TextXAlignment.Left
+	L.TextSize = 14
+	L.TextColor3 = Color3.new(1,1,1)
+	L.Parent = Scroll
+end
+
+Scroll.CanvasSize = UDim2.fromOffset(0,#Commands*28)
+
+ListButton.MouseButton1Click:Connect(function()
+	ListFrame.Visible = not ListFrame.Visible
+end)
+
+--------------------------------------------------
+-- FLY UI
+--------------------------------------------------
+
+local FlyFrame = Instance.new("Frame")
+FlyFrame.Name = "FlyUI"
+FlyFrame.Size = UDim2.fromOffset(190,110)
+FlyFrame.Position = UDim2.new(1,-205,0.45,0)
+FlyFrame.Visible = false
+FlyFrame.BackgroundTransparency = 0.08
+FlyFrame.Parent = GUI
+
+Instance.new("UICorner",FlyFrame).CornerRadius = UDim.new(0,10)
+
+local FlyTitle = Instance.new("TextLabel")
+FlyTitle.Size = UDim2.new(1,-60,0,30)
+FlyTitle.Text = "✈ FLY"
+FlyTitle.TextSize = 16
+FlyTitle.BackgroundTransparency = 1
+FlyTitle.Parent = FlyFrame
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(28,28)
+Close.Position = UDim2.new(1,-30,0,2)
+Close.Text = "X"
+Close.Parent = FlyFrame
+
+local ON = Instance.new("TextButton")
+ON.Size = UDim2.fromOffset(55,28)
+ON.Position = UDim2.fromOffset(8,35)
+ON.Text = "ON"
+ON.Parent = FlyFrame
+
+local OFF = Instance.new("TextButton")
+OFF.Size = UDim2.fromOffset(55,28)
+OFF.Position = UDim2.fromOffset(68,35)
+OFF.Text = "OFF"
+OFF.Parent = FlyFrame
+
+local SpeedBox = Instance.new("TextBox")
+SpeedBox.Size = UDim2.fromOffset(100,28)
+SpeedBox.Position = UDim2.fromOffset(8,73)
+SpeedBox.Text = "100"
+SpeedBox.PlaceholderText = "Speed"
+SpeedBox.ClearTextOnFocus = false
+SpeedBox.Parent = FlyFrame
+
+local Mini = Instance.new("TextButton")
+Mini.Size = UDim2.fromOffset(25,25)
+Mini.Position = UDim2.new(1,-30,1,-30)
+Mini.Text = "-"
+Mini.Parent = FlyFrame
+
+--------------------------------------------------
+-- DRAG UI
+--------------------------------------------------
+
+local function makeDraggable(obj, handle)
+
+	local dragging = false
+	local dragStart
+	local startPos
+
+	handle = handle or obj
+
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = true
+			dragStart = input.Position
+			startPos = obj.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if not dragging then return end
+
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+			local delta = input.Position - dragStart
+
+			obj.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+makeDraggable(ListFrame,ListTitle)
+makeDraggable(FlyFrame,FlyTitle)
+
+--------------------------------------------------
+-- CHARACTER
+--------------------------------------------------
+
+local function getChar()
+	return Player.Character
+end
+
+local function getHumanoid()
+	local c = getChar()
+	return c and c:FindFirstChildOfClass("Humanoid")
+end
+
+local function getRoot()
+	local c = getChar()
+	return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+--------------------------------------------------
+-- FLY
+--------------------------------------------------
+
+local function StopFly()
+	flying = false
+
+	local root = getRoot()
+	local hum = getHumanoid()
+
+	if root then
+		root.AssemblyLinearVelocity = Vector3.zero
+	end
+
+	if hum then
+		hum.PlatformStand = false
+		hum.AutoRotate = true
+	end
+end
+
+local function StartFly()
+	local root = getRoot()
+	local hum = getHumanoid()
+
+	if not root or not hum then return end
+
+	flying = true
+	hum.PlatformStand = true
+	hum.AutoRotate = false
+end
+
+RunService.RenderStepped:Connect(function()
+
+	if flying then
+
+		local root = getRoot()
+
+		if root then
+
+			local look = Camera.CFrame.LookVector
+
+			-- arah camera menentukan gerakan
+			root.AssemblyLinearVelocity = look * flySpeed
+
+			-- badan tetap tegak
+			local flat = Vector3.new(look.X,0,look.Z)
+
+			if flat.Magnitude > 0 then
+				root.CFrame = CFrame.lookAt(
+					root.Position,
+					root.Position + flat
+				)
+			end
+		end
+	end
+
+	if noclip then
+		local c = getChar()
+
+		if c then
+			for _,v in ipairs(c:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.CanCollide = false
+				end
+			end
+		end
+	end
+
+	if spinning then
+		local root = getRoot()
+
+		if root then
+			root.CFrame =
+				root.CFrame * CFrame.Angles(0,math.rad(8),0)
+		end
+	end
+
+	if orbiting and orbitTarget then
+
+		local targetRoot =
+			orbitTarget.Character
+			and orbitTarget.Character:FindFirstChild("HumanoidRootPart")
+
+		local root = getRoot()
+
+		if targetRoot and root then
+
+			local t = os.clock() * orbitSpeed
+
+			local offset = Vector3.new(
+				math.cos(t) * orbitDistance,
+				2,
+				math.sin(t) * orbitDistance
+			)
+
+			root.CFrame = CFrame.lookAt(
+				targetRoot.Position + offset,
+				targetRoot.Position
+			)
+		end
+	end
+end)
+
+ON.MouseButton1Click:Connect(StartFly)
+OFF.MouseButton1Click:Connect(StopFly)
+
+SpeedBox.FocusLost:Connect(function()
+	local n = tonumber(SpeedBox.Text)
+
+	if n then
+		flySpeed = math.clamp(n,1,500)
+		SpeedBox.Text = tostring(flySpeed)
+	else
+		SpeedBox.Text = tostring(flySpeed)
+	end
+end)
+
+Close.MouseButton1Click:Connect(function()
+	FlyFrame.Visible = false
+end)
+
+local minimized = false
+
+Mini.MouseButton1Click:Connect(function()
+
+	minimized = not minimized
+
+	if minimized then
+		FlyFrame.Size = UDim2.fromOffset(190,35)
+		ON.Visible = false
+		OFF.Visible = false
+		SpeedBox.Visible = false
+		Mini.Text = "+"
+	else
+		FlyFrame.Size = UDim2.fromOffset(190,110)
+		ON.Visible = true
+		OFF.Visible = true
+		SpeedBox.Visible = true
+		Mini.Text = "-"
+	end
+end)
+
+--------------------------------------------------
+-- TARGET
+--------------------------------------------------
+
+local function findTarget(text)
+
+	if not text or text == "" or text:lower() == "me" then
+		return Player
+	end
+
+	text = text:lower()
+
+	local matches = {}
+
+	for _,p in ipairs(Players:GetPlayers()) do
+
+		if p.Name:lower() == text
+		or p.DisplayName:lower() == text then
+			return p
+		end
+
+		if p.Name:lower():sub(1,#text) == text
+		or p.DisplayName:lower():sub(1,#text) == text then
+			table.insert(matches,p)
+		end
+	end
+
+	if #matches == 1 then
+		return matches[1]
+	end
+end
+
+--------------------------------------------------
+-- COMMAND
+--------------------------------------------------
+
+local function command(message)
+
+	local prefix = message:sub(1,1)
+
+	if prefix ~= ";" and prefix ~= "/" then
+		return
+	end
+
+	local args = message:sub(2):split(" ")
+	local cmd = (args[1] or ""):lower()
+
+	table.remove(args,1)
+
+	local target = findTarget(args[1])
+
+	-- FLY
+	if cmd == "fly" then
+
+		FlyFrame.Visible = true
+		StartFly()
+
+	elseif cmd == "unfly" then
+
+		StopFly()
+
+	-- SPEED SELF ONLY
+	elseif cmd == "speed" then
+
+		local n = tonumber(args[1])
+		local hum = getHumanoid()
+
+		if n and hum then
+			hum.WalkSpeed = math.clamp(n,0,500)
+		end
+
+	-- JUMP SELF ONLY
+	elseif cmd == "jump" then
+
+		local n = tonumber(args[1])
+		local hum = getHumanoid()
+
+		if n and hum then
+			hum.UseJumpPower = true
+			hum.JumpPower = math.clamp(n,0,500)
+		end
+
+	-- RESPAWN
+	elseif cmd == "respawn" then
+		Player:LoadCharacter()
+
+	-- NOCLIP
+	elseif cmd == "noclip" then
+		noclip = true
+
+	elseif cmd == "unoclip" then
+		noclip = false
+
+	-- INVISIBLE SELF
+	elseif cmd == "invisible" then
+
+		invisible = true
+
+		local c = getChar()
+
+		if c then
+			for _,v in ipairs(c:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.LocalTransparencyModifier = 1
+				elseif v:IsA("Decal") then
+					v.Transparency = 1
+				end
+			end
+		end
+
+	elseif cmd == "visible" then
+
+		invisible = false
+
+		local c = getChar()
+
+		if c then
+			for _,v in ipairs(c:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.LocalTransparencyModifier = 0
+				elseif v:IsA("Decal") then
+					v.Transparency = 0
+				end
+			end
+		end
+
+	-- SPIN
+	elseif cmd == "spin" then
+
+		if target then
+			if target == Player then
+				spinning = not spinning
+			else
+				local r = target.Character
+				and target.Character:FindFirstChild("HumanoidRootPart")
+
+				if r then
+					r.AssemblyAngularVelocity =
+						Vector3.new(0,10,0)
+				end
+			end
+		end
+
+	-- BANG / GAMEPLAY EFFECT
+	elseif cmd == "bang" then
+
+		if target and target ~= Player then
+
+			local r =
+				target.Character
+				and target.Character:FindFirstChild("HumanoidRootPart")
+
+			if r then
+				r.AssemblyLinearVelocity =
+					r.CFrame.LookVector * 35
+					+ Vector3.new(0,15,0)
+			end
+		end
+
+	-- SIT
+	elseif cmd == "sit" then
+
+		if target then
+			local h = target.Character
+			and target.Character:FindFirstChildOfClass("Humanoid")
+
+			if h then
+				h.Sit = true
+			end
+		end
+
+	-- LAY
+	elseif cmd == "lay" then
+
+		if target then
+
+			local c = target.Character
+			local r = c and c:FindFirstChild("HumanoidRootPart")
+			local h = c and c:FindFirstChildOfClass("Humanoid")
+
+			if r and h then
+				h.Sit = true
+				r.CFrame =
+					r.CFrame * CFrame.Angles(math.rad(90),0,0)
+			end
+		end
+
+	-- ANTIFLING SELF
+	elseif cmd == "antifling" then
+
+		antiFling = not antiFling
+
+		local c = getChar()
+
+		if c then
+			for _,v in ipairs(c:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.Massless = antiFling
+				end
+			end
+		end
+
+	-- ORBIT
+	elseif cmd == "orbit" then
+
+		if target and target ~= Player then
+			orbitTarget = target
+			orbiting = true
+		end
+
+	elseif cmd == "unorbit" then
+
+		orbiting = false
+		orbitTarget = nil
+	end
+end
+
+--------------------------------------------------
+-- CHAT
+--------------------------------------------------
+
+Player.Chatted:Connect(command)
+
+--------------------------------------------------
+-- RESET AFTER RESPAWN
+--------------------------------------------------
+
+Player.CharacterAdded:Connect(function()
+
+	task.wait(0.5)
+
+	flying = false
+	noclip = false
+	spinning = false
+	invisible = false
+	orbiting = false
+	orbitTarget = nil
+
+	FlyFrame.Visible = false
+end)
