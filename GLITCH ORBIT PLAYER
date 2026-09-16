@@ -1,6 +1,9 @@
 --========================================================
--- 👾 GLITCH ORBIT V2
--- Roblox Studio - LocalScript
+-- 👾 GLITCH ORBIT V3
+-- PLAYER + SYSTEM SEPARATED
+-- MOBILE FRIENDLY
+--
+-- LocalScript
 -- StarterPlayer > StarterPlayerScripts
 --========================================================
 
@@ -8,20 +11,21 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local ContentProvider = game:GetService("ContentProvider")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 --========================================================
--- ASSETS
+-- ASSET
 --========================================================
 
-local INTRO_BACKGROUND = "rbxassetid://7671493255"
-local MAIN_BACKGROUND = "rbxassetid://7112218128"
+local INTRO_BG_ID = "rbxassetid://7671493255"
+local MAIN_BG_ID = "rbxassetid://7112218128"
 
-local CLICK_SOUND_ID = "rbxassetid://138567614125924"
-local START_SOUND_ID = "rbxassetid://117570443671176"
-local BEGIN_SOUND_ID = "rbxassetid://128842283247970"
+local CLICK_ID = "rbxassetid://138567614125924"
+local START_ID = "rbxassetid://117570443671176"
+local BEGIN_ID = "rbxassetid://128842283247970"
 
 --========================================================
 -- SETTINGS
@@ -39,83 +43,52 @@ local orbitAngle = 0
 
 local targetPlayer = nil
 
-local minimized = false
-local mainNormalSize = UDim2.fromScale(0.62, 0.35)
-local mainMinimizedSize = UDim2.fromScale(0.62, 0.035)
-
 --========================================================
--- HELPER
+-- HELPERS
 --========================================================
 
-local function Create(className, properties, parent)
-	local object = Instance.new(className)
+local function New(class, properties, parent)
+	local obj = Instance.new(class)
 
 	for property, value in pairs(properties or {}) do
-		object[property] = value
+		obj[property] = value
 	end
 
-	object.Parent = parent
-	return object
+	obj.Parent = parent
+	return obj
 end
 
-local function AddCorner(object, radius)
-	return Create("UICorner", {
+local function Corner(obj, radius)
+	return New("UICorner", {
 		CornerRadius = UDim.new(0, radius)
-	}, object)
+	}, obj)
 end
 
-local function AddStroke(object, thickness, transparency)
-	return Create("UIStroke", {
+local function Stroke(obj, thickness, transparency)
+	return New("UIStroke", {
 		Thickness = thickness or 1,
 		Transparency = transparency or 0.3
-	}, object)
+	}, obj)
 end
 
-local function Tween(object, time, properties, style, direction)
+local function Tween(obj, duration, properties, style, direction)
 	local info = TweenInfo.new(
-		time,
+		duration,
 		style or Enum.EasingStyle.Quint,
 		direction or Enum.EasingDirection.Out
 	)
 
-	return TweenService:Create(object, info, properties)
+	local tween = TweenService:Create(obj, info, properties)
+	tween:Play()
+
+	return tween
 end
 
 --========================================================
--- SOUND
+-- SCREEN GUI
 --========================================================
 
-local soundFolder = Create("Folder", {
-	Name = "GlitchOrbitSounds"
-}, gui)
-
-local clickSound = Create("Sound", {
-	Name = "UIClick",
-	SoundId = CLICK_SOUND_ID,
-	Volume = 0.65
-}, soundFolder)
-
-local startSound = Create("Sound", {
-	Name = "StartSound",
-	SoundId = START_SOUND_ID,
-	Volume = 0.8
-}, soundFolder)
-
-local beginSound = Create("Sound", {
-	Name = "BeginSound",
-	SoundId = BEGIN_SOUND_ID,
-	Volume = 0.75
-}, soundFolder)
-
-local function PlayClick()
-	clickSound:Play()
-end
-
---========================================================
--- GUI ROOT
---========================================================
-
-local gui = Create("ScreenGui", {
+local gui = New("ScreenGui", {
 	Name = "GLITCH_ORBIT",
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
@@ -123,228 +96,294 @@ local gui = Create("ScreenGui", {
 }, PlayerGui)
 
 --========================================================
+-- SOUND
+--========================================================
+
+local sounds = New("Folder", {
+	Name = "Sounds"
+}, gui)
+
+local clickSound = New("Sound", {
+	SoundId = CLICK_ID,
+	Volume = 0.65
+}, sounds)
+
+local startSound = New("Sound", {
+	SoundId = START_ID,
+	Volume = 0.8
+}, sounds)
+
+local beginSound = New("Sound", {
+	SoundId = BEGIN_ID,
+	Volume = 0.8
+}, sounds)
+
+local function Click()
+	clickSound:Play()
+end
+
+--========================================================
 -- INTRO
 --========================================================
 
-local intro = Create("Frame", {
-	Name = "Intro",
+local intro = New("Frame", {
+	Name = "INTRO",
 	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = Color3.fromRGB(3, 3, 8),
+	BackgroundColor3 = Color3.fromRGB(4, 5, 10),
 	BorderSizePixel = 0,
 	ClipsDescendants = true
 }, gui)
 
-local introBG = Create("ImageLabel", {
-	Size = UDim2.fromScale(1.08, 1.08),
-	Position = UDim2.fromScale(-0.04, -0.04),
+-- Background
+local introImage = New("ImageLabel", {
+	Name = "Background",
+	Size = UDim2.fromScale(1.12, 1.12),
+	Position = UDim2.fromScale(-0.06, -0.06),
 	BackgroundTransparency = 1,
-	Image = INTRO_BACKGROUND,
+	Image = INTRO_BG_ID,
+	ImageTransparency = 0,
 	ScaleType = Enum.ScaleType.Crop,
-	ImageTransparency = 1
+	ZIndex = 1
 }, intro)
 
-local introDark = Create("Frame", {
+-- fallback glow supaya tidak blank
+local introGlow = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(20, 35, 50),
+	BackgroundTransparency = 0.28,
+	BorderSizePixel = 0,
+	ZIndex = 2
+}, intro)
+
+local introOverlay = New("Frame", {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-	BackgroundTransparency = 0.32,
-	BorderSizePixel = 0
+	BackgroundTransparency = 0.48,
+	BorderSizePixel = 0,
+	ZIndex = 3
 }, intro)
 
--- Scanlines
-local scanlines = Create("Frame", {
+-- Scanline
+local scan = New("Frame", {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundTransparency = 1,
-	ClipsDescendants = true
+	ZIndex = 4
 }, intro)
 
-for i = 1, 28 do
-	Create("Frame", {
+for i = 1, 35 do
+	New("Frame", {
 		Size = UDim2.new(1, 0, 0, 1),
-		Position = UDim2.new(0, 0, i / 28, 0),
+		Position = UDim2.new(0, 0, i / 35, 0),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 0.94,
 		BorderSizePixel = 0
-	}, scanlines)
+	}, scan)
 end
 
-local introContent = Create("Frame", {
+-- Main intro container
+local introBox = New("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromScale(0.5, 0.54),
-	Size = UDim2.fromScale(0.42, 0.62),
-	BackgroundTransparency = 1
+	Position = UDim2.fromScale(0.5, 0.56),
+	Size = UDim2.fromScale(0.42, 0.7),
+	BackgroundTransparency = 1,
+	ZIndex = 5
 }, intro)
 
-local avatarHolder = Create("Frame", {
+-- Avatar
+local avatarFrame = New("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromScale(0.5, 0),
-	Size = UDim2.fromOffset(118, 118),
-	BackgroundColor3 = Color3.fromRGB(10, 15, 22),
-	BackgroundTransparency = 0.12
-}, introContent)
+	Position = UDim2.fromScale(0.5, 0.03),
+	Size = UDim2.fromOffset(135, 135),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 18),
+	BackgroundTransparency = 0.1,
+	ZIndex = 6
+}, introBox)
 
-AddCorner(avatarHolder, 60)
-AddStroke(avatarHolder, 2, 0.15)
+Corner(avatarFrame, 100)
+Stroke(avatarFrame, 3, 0.15)
 
-local avatar = Create("ImageLabel", {
+local avatar = New("ImageLabel", {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
 	Size = UDim2.fromScale(0.88, 0.88),
-	BackgroundTransparency = 1
-}, avatarHolder)
+	BackgroundTransparency = 1,
+	ZIndex = 7
+}, avatarFrame)
 
-AddCorner(avatar, 60)
+Corner(avatar, 100)
 
 task.spawn(function()
-	local success, image = pcall(function()
+	local ok, image = pcall(function()
 		return Players:GetUserThumbnailAsync(
 			LocalPlayer.UserId,
 			Enum.ThumbnailType.HeadShot,
-			Enum.ThumbnailSize.Size150x150
+			Enum.ThumbnailSize.Size420x420
 		)
 	end)
 
-	if success then
+	if ok then
 		avatar.Image = image
 	end
 end)
 
-local glitchTitle = Create("TextLabel", {
+-- Title
+local introTitle = New("TextLabel", {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromScale(0.5, 0.34),
-	Size = UDim2.fromScale(1.3, 0.12),
+	Position = UDim2.fromScale(0.5, 0.31),
+	Size = UDim2.fromScale(1.3, 0.13),
 	BackgroundTransparency = 1,
 	Text = "GLITCH ORBIT",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	TextScaled = true,
 	Font = Enum.Font.GothamBlack,
-	TextTransparency = 1
-}, introContent)
+	TextTransparency = 1,
+	ZIndex = 7
+}, introBox)
 
-local welcome = Create("TextLabel", {
+-- Glitch copy
+local glitchCopy = New("TextLabel", {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromScale(0.5, 0.47),
-	Size = UDim2.fromScale(1, 0.08),
+	Position = UDim2.fromScale(0.5, 0.31),
+	Size = UDim2.fromScale(1.3, 0.13),
 	BackgroundTransparency = 1,
-	Text = "WELCOME",
-	TextColor3 = Color3.fromRGB(170, 255, 255),
+	Text = "GLITCH ORBIT",
+	TextColor3 = Color3.fromRGB(80, 240, 255),
 	TextScaled = true,
-	Font = Enum.Font.GothamBold,
-	TextTransparency = 1
-}, introContent)
+	Font = Enum.Font.GothamBlack,
+	TextTransparency = 1,
+	ZIndex = 6
+}, introBox)
 
-local username = Create("TextLabel", {
+local welcome = New("TextLabel", {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromScale(0.5, 0.56),
+	Position = UDim2.fromScale(0.5, 0.46),
 	Size = UDim2.fromScale(1, 0.07),
 	BackgroundTransparency = 1,
+	Text = "WELCOME",
+	TextColor3 = Color3.fromRGB(150, 245, 255),
+	TextScaled = true,
+	Font = Enum.Font.GothamBold,
+	TextTransparency = 1,
+	ZIndex = 7
+}, introBox)
+
+local userName = New("TextLabel", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.54),
+	Size = UDim2.fromScale(1, 0.06),
+	BackgroundTransparency = 1,
 	Text = "@" .. LocalPlayer.Name,
-	TextColor3 = Color3.fromRGB(220, 220, 230),
+	TextColor3 = Color3.fromRGB(230, 230, 240),
 	TextScaled = true,
 	Font = Enum.Font.Gotham,
-	TextTransparency = 1
-}, introContent)
+	TextTransparency = 1,
+	ZIndex = 7
+}, introBox)
 
-local startButton = Create("TextButton", {
+-- Start
+local start = New("TextButton", {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromScale(0.5, 0.69),
-	Size = UDim2.fromScale(0.48, 0.115),
-	BackgroundColor3 = Color3.fromRGB(12, 18, 24),
-	BackgroundTransparency = 1,
-	BorderSizePixel = 0,
+	Position = UDim2.fromScale(0.5, 0.66),
+	Size = UDim2.fromScale(0.48, 0.12),
+	BackgroundColor3 = Color3.fromRGB(10, 20, 27),
+	BackgroundTransparency = 0.08,
 	Text = "▶  START",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	TextScaled = true,
 	Font = Enum.Font.GothamBlack,
 	TextTransparency = 1,
-	AutoButtonColor = false
-}, introContent)
+	AutoButtonColor = false,
+	ZIndex = 8
+}, introBox)
 
-AddCorner(startButton, 12)
-AddStroke(startButton, 2, 0.25)
+Corner(start, 12)
+Stroke(start, 2, 0.2)
 
---========================================================
--- INTRO ANIMATION
---========================================================
-
+-- Intro animation
 task.spawn(function()
+
+	-- mulai sound
+	beginSound:Play()
+
+	Tween(introImage, 1.3, {
+		Position = UDim2.fromScale(-0.01, -0.01),
+		Size = UDim2.fromScale(1.02, 1.02)
+	})
+
 	task.wait(0.15)
 
-	Tween(introBG, 1.1, {
-		ImageTransparency = 0
-	}, Enum.EasingStyle.Quint):Play()
-
-	Tween(introContent, 0.9, {
+	Tween(introBox, 0.8, {
 		Position = UDim2.fromScale(0.5, 0.5)
-	}, Enum.EasingStyle.Quint):Play()
-
-	task.wait(0.25)
-
-	Tween(avatarHolder, 0.65, {
-		Size = UDim2.fromOffset(118, 118)
-	}, Enum.EasingStyle.Back):Play()
+	}, Enum.EasingStyle.Back)
 
 	task.wait(0.15)
 
-	Tween(glitchTitle, 0.5, {
-		TextTransparency = 0
-	}, Enum.EasingStyle.Quint):Play()
-
-	task.wait(0.15)
-
-	Tween(welcome, 0.4, {
-		TextTransparency = 0
-	}, Enum.EasingStyle.Quint):Play()
-
-	Tween(username, 0.4, {
-		TextTransparency = 0
-	}, Enum.EasingStyle.Quint):Play()
+	Tween(avatarFrame, 0.65, {
+		Size = UDim2.fromOffset(135, 135)
+	}, Enum.EasingStyle.Back)
 
 	task.wait(0.2)
 
-	Tween(startButton, 0.45, {
-		BackgroundTransparency = 0.12,
+	Tween(introTitle, 0.45, {
 		TextTransparency = 0
-	}, Enum.EasingStyle.Back):Play()
+	})
 
-	-- Glitch title animation
+	Tween(glitchCopy, 0.35, {
+		TextTransparency = 0.55
+	})
+
+	task.wait(0.1)
+
+	Tween(welcome, 0.4, {
+		TextTransparency = 0
+	})
+
+	Tween(userName, 0.4, {
+		TextTransparency = 0
+	})
+
+	task.wait(0.15)
+
+	Tween(start, 0.45, {
+		TextTransparency = 0,
+		BackgroundTransparency = 0.08
+	}, Enum.EasingStyle.Back)
+
+	-- glitch animation
 	task.spawn(function()
 		while intro.Visible do
-			task.wait(math.random(10, 20) / 10)
+
+			task.wait(math.random(12, 25) / 10)
 
 			if not intro.Visible then
 				break
 			end
 
-			local original = glitchTitle.Position
+			local oldPos = introTitle.Position
 
-			glitchTitle.Position = original + UDim2.fromOffset(math.random(-4,4), 0)
-			glitchTitle.TextTransparency = 0.25
+			introTitle.Position =
+				oldPos + UDim2.fromOffset(math.random(-5, 5), 0)
+
+			glitchCopy.Position =
+				oldPos + UDim2.fromOffset(math.random(-8, 8), 0)
 
 			task.wait(0.045)
 
-			glitchTitle.Position = original
-			glitchTitle.TextTransparency = 0
+			introTitle.Position = oldPos
+			glitchCopy.Position = oldPos
 		end
 	end)
 end)
 
---========================================================
--- START BUTTON
---========================================================
-
-startButton.MouseEnter:Connect(function()
-	Tween(startButton, 0.15, {
-		Size = UDim2.fromScale(0.53, 0.125),
-		BackgroundTransparency = 0
+start.MouseEnter:Connect(function()
+	Tween(start, 0.15, {
+		Size = UDim2.fromScale(0.53, 0.13)
 	}):Play()
-
-	PlayClick()
 end)
 
-startButton.MouseLeave:Connect(function()
-	Tween(startButton, 0.15, {
-		Size = UDim2.fromScale(0.48, 0.115),
-		BackgroundTransparency = 0.12
+start.MouseLeave:Connect(function()
+	Tween(start, 0.15, {
+		Size = UDim2.fromScale(0.48, 0.12)
 	}):Play()
 end)
 
@@ -352,49 +391,63 @@ end)
 -- MAIN UI
 --========================================================
 
-local main = Create("Frame", {
+local main = New("Frame", {
 	Name = "Main",
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
-	Size = mainNormalSize,
-	BackgroundColor3 = Color3.fromRGB(8, 8, 13),
+
+	-- LEBIH BESAR
+	Size = UDim2.fromScale(0.90, 0.78),
+
+	BackgroundColor3 = Color3.fromRGB(7, 8, 13),
 	BorderSizePixel = 0,
 	Visible = false,
-	ClipsDescendants = true
+	ClipsDescendants = true,
+	ZIndex = 20
 }, gui)
 
-AddCorner(main, 15)
-AddStroke(main, 2, 0.15)
+Corner(main, 16)
+Stroke(main, 2, 0.12)
 
-local mainBG = Create("ImageLabel", {
+-- Background utama
+local mainImage = New("ImageLabel", {
+	Name = "Background",
 	Size = UDim2.fromScale(1, 1),
-	BackgroundTransparency = 1,
-	Image = MAIN_BACKGROUND,
+	BackgroundColor3 = Color3.fromRGB(18, 25, 34),
+	BackgroundTransparency = 0,
+	Image = MAIN_BG_ID,
+	ImageTransparency = 0,
 	ScaleType = Enum.ScaleType.Crop,
-	ImageTransparency = 0.18
+	ZIndex = 20
 }, main)
 
-local mainOverlay = Create("Frame", {
+Corner(mainImage, 16)
+
+-- Overlay tipis
+local mainOverlay = New("Frame", {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-	BackgroundTransparency = 0.4,
-	BorderSizePixel = 0
+	BackgroundTransparency = 0.68,
+	BorderSizePixel = 0,
+	ZIndex = 21
 }, main)
+
+Corner(mainOverlay, 16)
 
 --========================================================
 -- HEADER
 --========================================================
 
-local header = Create("Frame", {
-	Size = UDim2.new(1, 0, 0, 48),
-	BackgroundColor3 = Color3.fromRGB(7, 8, 13),
+local header = New("Frame", {
+	Size = UDim2.new(1, 0, 0, 70),
+	BackgroundColor3 = Color3.fromRGB(4, 5, 9),
 	BackgroundTransparency = 0.08,
 	BorderSizePixel = 0,
-	ZIndex = 10
+	ZIndex = 30
 }, main)
 
-local title = Create("TextLabel", {
-	Position = UDim2.fromOffset(14, 0),
+local title = New("TextLabel", {
+	Position = UDim2.fromOffset(20, 0),
 	Size = UDim2.new(0.65, 0, 1, 0),
 	BackgroundTransparency = 1,
 	Text = "👾  GLITCH ORBIT",
@@ -402,313 +455,474 @@ local title = Create("TextLabel", {
 	TextScaled = true,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	Font = Enum.Font.GothamBlack,
-	ZIndex = 11
+	ZIndex = 31
 }, header)
 
-local minimize = Create("TextButton", {
+local minimize = New("TextButton", {
 	AnchorPoint = Vector2.new(1, 0.5),
-	Position = UDim2.new(1, -46, 0.5, 0),
-	Size = UDim2.fromOffset(32, 32),
+	Position = UDim2.new(1, -52, 0.5, 0),
+	Size = UDim2.fromOffset(40, 40),
 	BackgroundTransparency = 1,
 	Text = "−",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	TextScaled = true,
-	Font = Enum.Font.GothamBold,
-	ZIndex = 11
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 31
 }, header)
 
-local close = Create("TextButton", {
+local close = New("TextButton", {
 	AnchorPoint = Vector2.new(1, 0.5),
 	Position = UDim2.new(1, -8, 0.5, 0),
-	Size = UDim2.fromOffset(32, 32),
+	Size = UDim2.fromOffset(40, 40),
 	BackgroundTransparency = 1,
 	Text = "×",
-	TextColor3 = Color3.fromRGB(255, 100, 120),
+	TextColor3 = Color3.fromRGB(255, 80, 100),
 	TextScaled = true,
-	Font = Enum.Font.GothamBold,
-	ZIndex = 11
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 31
 }, header)
 
 --========================================================
--- SCROLL
+-- TAB BAR
 --========================================================
 
-local scroll = Create("ScrollingFrame", {
-	Position = UDim2.new(0, 7, 0, 55),
-	Size = UDim2.new(1, -14, 1, -62),
+local tabs = New("Frame", {
+	Position = UDim2.new(0, 12, 0, 78),
+	Size = UDim2.new(1, -24, 0, 48),
 	BackgroundTransparency = 1,
-	BorderSizePixel = 0,
-	CanvasSize = UDim2.new(0, 0, 0, 0),
-	AutomaticCanvasSize = Enum.AutomaticSize.Y,
-	ScrollBarThickness = 4,
-	ScrollBarImageTransparency = 0.2,
-	ZIndex = 5
+	ZIndex = 32
 }, main)
 
-Create("UIPadding", {
-	PaddingTop = UDim.new(0, 5),
-	PaddingLeft = UDim.new(0, 5),
-	PaddingRight = UDim.new(0, 5),
-	PaddingBottom = UDim.new(0, 10)
-}, scroll)
+local playerTab = New("TextButton", {
+	Position = UDim2.fromScale(0, 0),
+	Size = UDim2.new(0.5, -5, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(25, 40, 48),
+	Text = "👤  PLAYER",
+	TextColor3 = Color3.fromRGB(120, 245, 255),
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 33
+}, tabs)
 
-Create("UIListLayout", {
-	Padding = UDim.new(0, 7),
+Corner(playerTab, 10)
+Stroke(playerTab, 1, 0.25)
+
+local systemTab = New("TextButton", {
+	Position = UDim2.new(0.5, 5, 0, 0),
+	Size = UDim2.new(0.5, -5, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(12, 15, 20),
+	Text = "⚙  SYSTEM",
+	TextColor3 = Color3.fromRGB(180, 185, 195),
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 33
+}, tabs)
+
+Corner(systemTab, 10)
+Stroke(systemTab, 1, 0.45)
+
+--========================================================
+-- CONTENT CONTAINER
+--========================================================
+
+local content = New("Frame", {
+	Position = UDim2.new(0, 12, 0, 134),
+	Size = UDim2.new(1, -24, 1, -146),
+	BackgroundTransparency = 1,
+	ZIndex = 30
+}, main)
+
+--========================================================
+-- PLAYER PAGE
+--========================================================
+
+local playerPage = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Visible = true,
+	ZIndex = 30
+}, content)
+
+local playerScroll = New("ScrollingFrame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(5, 7, 11),
+	BackgroundTransparency = 0.28,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 5,
+	ScrollBarImageTransparency = 0.25,
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ZIndex = 31
+}, playerPage)
+
+Corner(playerScroll, 12)
+
+New("UIPadding", {
+	PaddingTop = UDim.new(0, 10),
+	PaddingBottom = UDim.new(0, 12),
+	PaddingLeft = UDim.new(0, 10),
+	PaddingRight = UDim.new(0, 10)
+}, playerScroll)
+
+New("UIListLayout", {
+	Padding = UDim.new(0, 8),
 	SortOrder = Enum.SortOrder.LayoutOrder
-}, scroll)
+}, playerScroll)
 
---========================================================
--- SEARCH
---========================================================
-
-local search = Create("TextBox", {
-	Size = UDim2.new(1, -10, 0, 42),
-	BackgroundColor3 = Color3.fromRGB(13, 15, 21),
-	BackgroundTransparency = 0.08,
-	PlaceholderText = "🔎  Search player...",
-	PlaceholderColor3 = Color3.fromRGB(150, 155, 165),
+-- Search
+local search = New("TextBox", {
+	Size = UDim2.new(1, 0, 0, 48),
+	BackgroundColor3 = Color3.fromRGB(14, 18, 24),
 	Text = "",
+	PlaceholderText = "🔎  Search player...",
+	PlaceholderColor3 = Color3.fromRGB(145, 150, 160),
 	TextColor3 = Color3.fromRGB(255, 255, 255),
-	TextSize = 14,
+	TextSize = 15,
 	Font = Enum.Font.Gotham,
 	ClearTextOnFocus = false,
 	LayoutOrder = 1,
-	ZIndex = 6
-}, scroll)
+	ZIndex = 33
+}, playerScroll)
 
-AddCorner(search, 10)
-AddStroke(search, 1, 0.45)
+Corner(search, 10)
+Stroke(search, 1, 0.4)
 
-local playerList = Create("Frame", {
-	Size = UDim2.new(1, -10, 0, 0),
+-- Target
+local targetLabel = New("TextLabel", {
+	Size = UDim2.new(1, 0, 0, 48),
+	BackgroundColor3 = Color3.fromRGB(10, 18, 23),
+	BackgroundTransparency = 0.12,
+	Text = "🎯  TARGET: NONE",
+	TextColor3 = Color3.fromRGB(130, 245, 255),
+	TextSize = 14,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBlack,
+	LayoutOrder = 2,
+	ZIndex = 33
+}, playerScroll)
+
+Corner(targetLabel, 10)
+Stroke(targetLabel, 1, 0.35)
+
+New("UIPadding", {
+	PaddingLeft = UDim.new(0, 14)
+}, targetLabel)
+
+-- Player list
+local playerList = New("Frame", {
+	Size = UDim2.new(1, 0, 0, 0),
 	BackgroundTransparency = 1,
 	AutomaticSize = Enum.AutomaticSize.Y,
-	LayoutOrder = 2,
-	ZIndex = 6
-}, scroll)
+	LayoutOrder = 3,
+	ZIndex = 33
+}, playerScroll)
 
-Create("UIListLayout", {
-	Padding = UDim.new(0, 5),
+New("UIListLayout", {
+	Padding = UDim.new(0, 7),
 	SortOrder = Enum.SortOrder.LayoutOrder
 }, playerList)
 
-local targetLabel = Create("TextLabel", {
-	Size = UDim2.new(1, -10, 0, 35),
+--========================================================
+-- SYSTEM PAGE
+--========================================================
+
+local systemPage = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
 	BackgroundTransparency = 1,
-	Text = "🎯  Target: NONE",
-	TextColor3 = Color3.fromRGB(175, 255, 255),
-	TextSize = 14,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Font = Enum.Font.GothamBold,
-	LayoutOrder = 3,
-	ZIndex = 6
-}, scroll)
+	Visible = false,
+	ZIndex = 30
+}, content)
+
+local systemScroll = New("ScrollingFrame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(5, 7, 11),
+	BackgroundTransparency = 0.28,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 5,
+	ScrollBarImageTransparency = 0.25,
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ZIndex = 31
+}, systemPage)
+
+Corner(systemScroll, 12)
+
+New("UIPadding", {
+	PaddingTop = UDim.new(0, 10),
+	PaddingBottom = UDim.new(0, 12),
+	PaddingLeft = UDim.new(0, 10),
+	PaddingRight = UDim.new(0, 10)
+}, systemScroll)
+
+New("UIListLayout", {
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder
+}, systemScroll)
 
 --========================================================
--- TOGGLE
+-- SYSTEM TOGGLE
 --========================================================
 
-local function CreateToggle(text, default, callback, order)
-	local button = Create("TextButton", {
-		Size = UDim2.new(1, -10, 0, 42),
-		BackgroundColor3 = Color3.fromRGB(13, 15, 21),
+local function Toggle(text, default, callback, order)
+
+	local button = New("TextButton", {
+		Size = UDim2.new(1, 0, 0, 52),
+		BackgroundColor3 = Color3.fromRGB(13, 17, 23),
 		BackgroundTransparency = 0.08,
 		Text = "",
 		AutoButtonColor = false,
 		LayoutOrder = order,
-		ZIndex = 6
-	}, scroll)
+		ZIndex = 33
+	}, systemScroll)
 
-	AddCorner(button, 10)
-	AddStroke(button, 1, 0.45)
+	Corner(button, 10)
+	Stroke(button, 1, 0.4)
 
-	Create("TextLabel", {
-		Position = UDim2.fromOffset(13, 0),
+	New("TextLabel", {
+		Position = UDim2.fromOffset(15, 0),
 		Size = UDim2.new(0.7, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Text = text,
-		TextColor3 = Color3.fromRGB(235, 235, 240),
+		TextColor3 = Color3.fromRGB(240, 240, 245),
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Font = Enum.Font.GothamBold,
-		ZIndex = 7
+		ZIndex = 34
 	}, button)
 
 	local state = default
 
-	local stateLabel = Create("TextLabel", {
+	local status = New("TextLabel", {
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -12, 0.5, 0),
-		Size = UDim2.fromOffset(65, 27),
+		Position = UDim2.new(1, -14, 0.5, 0),
+		Size = UDim2.fromOffset(65, 30),
 		BackgroundTransparency = 1,
 		Text = state and "ON" or "OFF",
 		TextColor3 = state
-			and Color3.fromRGB(90, 255, 180)
-			or Color3.fromRGB(255, 100, 110),
+			and Color3.fromRGB(80, 255, 175)
+			or Color3.fromRGB(255, 100, 115),
 		TextSize = 12,
 		Font = Enum.Font.GothamBlack,
-		ZIndex = 7
+		ZIndex = 34
 	}, button)
 
 	button.MouseButton1Click:Connect(function()
-		PlayClick()
+
+		Click()
 
 		state = not state
 
-		stateLabel.Text = state and "ON" or "OFF"
-		stateLabel.TextColor3 = state
-			and Color3.fromRGB(90, 255, 180)
-			or Color3.fromRGB(255, 100, 110)
+		status.Text = state and "ON" or "OFF"
+		status.TextColor3 = state
+			and Color3.fromRGB(80, 255, 175)
+			or Color3.fromRGB(255, 100, 115)
 
 		callback(state)
 	end)
-
-	return button
 end
 
 --========================================================
 -- SLIDER
 --========================================================
 
-local function CreateSlider(text, minValue, maxValue, defaultValue, callback, order)
-	local holder = Create("Frame", {
-		Size = UDim2.new(1, -10, 0, 58),
-		BackgroundColor3 = Color3.fromRGB(13, 15, 21),
+local function Slider(text, minValue, maxValue, defaultValue, callback, order)
+
+	local holder = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 68),
+		BackgroundColor3 = Color3.fromRGB(13, 17, 23),
 		BackgroundTransparency = 0.08,
 		LayoutOrder = order,
-		ZIndex = 6
-	}, scroll)
+		ZIndex = 33
+	}, systemScroll)
 
-	AddCorner(holder, 10)
-	AddStroke(holder, 1, 0.45)
+	Corner(holder, 10)
+	Stroke(holder, 1, 0.4)
 
-	Create("TextLabel", {
-		Position = UDim2.fromOffset(12, 4),
-		Size = UDim2.new(0.65, 0, 0, 23),
+	New("TextLabel", {
+		Position = UDim2.fromOffset(14, 5),
+		Size = UDim2.new(0.7, 0, 0, 25),
 		BackgroundTransparency = 1,
 		Text = text,
-		TextColor3 = Color3.fromRGB(235, 235, 240),
-		TextSize = 13,
+		TextColor3 = Color3.fromRGB(240, 240, 245),
+		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Font = Enum.Font.GothamBold,
-		ZIndex = 7
+		ZIndex = 34
 	}, holder)
 
-	local valueLabel = Create("TextLabel", {
+	local valueText = New("TextLabel", {
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 4),
-		Size = UDim2.fromOffset(65, 23),
+		Position = UDim2.new(1, -14, 0, 5),
+		Size = UDim2.fromOffset(75, 25),
 		BackgroundTransparency = 1,
 		Text = tostring(defaultValue),
-		TextColor3 = Color3.fromRGB(165, 255, 255),
+		TextColor3 = Color3.fromRGB(100, 240, 255),
 		TextSize = 13,
-		Font = Enum.Font.GothamBold,
-		ZIndex = 7
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 34
 	}, holder)
 
-	local bar = Create("Frame", {
-		Position = UDim2.new(0, 12, 1, -18),
-		Size = UDim2.new(1, -24, 0, 7),
-		BackgroundColor3 = Color3.fromRGB(43, 45, 54),
+	local bar = New("Frame", {
+		Position = UDim2.new(0, 14, 1, -22),
+		Size = UDim2.new(1, -28, 0, 8),
+		BackgroundColor3 = Color3.fromRGB(42, 45, 53),
 		BorderSizePixel = 0,
-		ZIndex = 7
+		ZIndex = 34
 	}, holder)
 
-	AddCorner(bar, 5)
+	Corner(bar, 8)
 
-	local fill = Create("Frame", {
-		Size = UDim2.new(
-			(defaultValue - minValue) / (maxValue - minValue),
-			0, 1, 0
-		),
-		BackgroundColor3 = Color3.fromRGB(120, 240, 255),
+	local percent =
+		(defaultValue - minValue) /
+		(maxValue - minValue)
+
+	local fill = New("Frame", {
+		Size = UDim2.new(percent, 0, 1, 0),
+		BackgroundColor3 = Color3.fromRGB(95, 235, 255),
 		BorderSizePixel = 0,
-		ZIndex = 8
+		ZIndex = 35
 	}, bar)
 
-	AddCorner(fill, 5)
+	Corner(fill, 8)
 
-	local draggingSlider = false
+	local dragging = false
 
-	local function setValue(x)
-		local percentage = math.clamp(
-			(x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
+	local function SetValue(x)
+
+		local pct = math.clamp(
+			(x - bar.AbsolutePosition.X) /
+			bar.AbsoluteSize.X,
 			0,
 			1
 		)
 
-		local value = minValue + (maxValue - minValue) * percentage
+		local value =
+			minValue +
+			(maxValue - minValue) * pct
+
 		value = math.floor(value * 10 + 0.5) / 10
 
-		fill.Size = UDim2.new(percentage, 0, 1, 0)
-		valueLabel.Text = tostring(value)
+		fill.Size = UDim2.new(pct, 0, 1, 0)
+		valueText.Text = tostring(value)
 
 		callback(value)
 	end
 
 	bar.InputBegan:Connect(function(input)
+
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch then
 
-			draggingSlider = true
-			setValue(input.Position.X)
+			dragging = true
+			SetValue(input.Position.X)
 		end
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
-		if draggingSlider and (
+
+		if dragging and (
 			input.UserInputType == Enum.UserInputType.MouseMovement
 			or input.UserInputType == Enum.UserInputType.Touch
 		) then
-			setValue(input.Position.X)
+
+			SetValue(input.Position.X)
 		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(input)
+
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch then
-			draggingSlider = false
+
+			dragging = false
 		end
 	end)
 end
 
 --========================================================
--- CONTROLS
+-- SYSTEM CONTROLS
 --========================================================
 
-CreateToggle("🌀  Orbit", false, function(value)
+Toggle("🌀  ORBIT", false, function(value)
 	orbitEnabled = value
+end, 1)
+
+Slider("⚡  ORBIT SPEED", 1, 250, orbitSpeed, function(value)
+	orbitSpeed = value
+end, 2)
+
+Slider("📏  ORBIT DISTANCE", 2, 50, orbitDistance, function(value)
+	orbitDistance = value
+end, 3)
+
+Toggle("🚀  SUPER TP", false, function(value)
+	superTP = value
 end, 4)
 
-CreateSlider("⚡  Orbit Speed", 1, 250, orbitSpeed, function(value)
-	orbitSpeed = value
+Toggle("👾  GLITCH / ERROR FX", true, function(value)
+	glitchFX = value
 end, 5)
 
-CreateSlider("📏  Orbit Distance", 2, 50, orbitDistance, function(value)
-	orbitDistance = value
+Toggle("👻  AFTERIMAGE", true, function(value)
+	afterimageEnabled = value
 end, 6)
 
-CreateToggle("🚀  Super TP", false, function(value)
-	superTP = value
+Toggle("💫  TRAIL", true, function(value)
+	trailEnabled = value
 end, 7)
 
-CreateToggle("👾  Glitch / ERROR FX", true, function(value)
-	glitchFX = value
-end, 8)
-
-CreateToggle("👻  Afterimage", true, function(value)
-	afterimageEnabled = value
-end, 9)
-
-CreateToggle("💫  Trail", true, function(value)
-	trailEnabled = value
-end, 10)
-
 --========================================================
--- PLAYER SEARCH
+-- TAB SYSTEM
 --========================================================
 
-local function ClearPlayerList()
+playerTab.MouseButton1Click:Connect(function()
+
+	Click()
+
+	playerPage.Visible = true
+	systemPage.Visible = false
+
+	playerTab.BackgroundColor3 =
+		Color3.fromRGB(25, 40, 48)
+
+	playerTab.TextColor3 =
+		Color3.fromRGB(120, 245, 255)
+
+	systemTab.BackgroundColor3 =
+		Color3.fromRGB(12, 15, 20)
+
+	systemTab.TextColor3 =
+		Color3.fromRGB(180, 185, 195)
+end)
+
+systemTab.MouseButton1Click:Connect(function()
+
+	Click()
+
+	playerPage.Visible = false
+	systemPage.Visible = true
+
+	playerTab.BackgroundColor3 =
+		Color3.fromRGB(12, 15, 20)
+
+	playerTab.TextColor3 =
+		Color3.fromRGB(180, 185, 195)
+
+	systemTab.BackgroundColor3 =
+		Color3.fromRGB(25, 40, 48)
+
+	systemTab.TextColor3 =
+		Color3.fromRGB(120, 245, 255)
+end)
+
+--========================================================
+-- PLAYER LIST
+--========================================================
+
+local function ClearPlayers()
+
 	for _, object in ipairs(playerList:GetChildren()) do
 		if object:IsA("GuiObject") then
 			object:Destroy()
@@ -716,105 +930,132 @@ local function ClearPlayerList()
 	end
 end
 
-local function SelectPlayer(player)
+local function SelectTarget(player)
+
 	targetPlayer = player
-	targetLabel.Text = "🎯  Target: " .. player.DisplayName .. "  @" .. player.Name
+
+	targetLabel.Text =
+		"🎯  TARGET: "
+		.. player.DisplayName
+		.. "  @"
+		.. player.Name
 end
 
-local function CreatePlayerButton(player)
-	local button = Create("TextButton", {
-		Size = UDim2.new(1, 0, 0, 55),
-		BackgroundColor3 = Color3.fromRGB(13, 15, 21),
-		BackgroundTransparency = 0.08,
+local function AddPlayer(player)
+
+	local button = New("TextButton", {
+		Size = UDim2.new(1, 0, 0, 65),
+		BackgroundColor3 = Color3.fromRGB(13, 17, 23),
+		BackgroundTransparency = 0.05,
 		Text = "",
 		AutoButtonColor = false,
-		ZIndex = 7
+		ZIndex = 34
 	}, playerList)
 
-	AddCorner(button, 10)
-	AddStroke(button, 1, 0.5)
+	Corner(button, 10)
+	Stroke(button, 1, 0.42)
 
-	local image = Create("ImageLabel", {
-		Position = UDim2.fromOffset(7, 7),
-		Size = UDim2.fromOffset(41, 41),
+	local image = New("ImageLabel", {
+		Position = UDim2.fromOffset(9, 9),
+		Size = UDim2.fromOffset(47, 47),
 		BackgroundTransparency = 1,
-		ZIndex = 8
+		ZIndex = 35
 	}, button)
 
-	AddCorner(image, 25)
+	Corner(image, 50)
 
 	task.spawn(function()
-		local success, thumbnail = pcall(function()
+
+		local ok, thumb = pcall(function()
+
 			return Players:GetUserThumbnailAsync(
 				player.UserId,
 				Enum.ThumbnailType.HeadShot,
-				Enum.ThumbnailSize.Size100x100
+				Enum.ThumbnailSize.Size150x150
 			)
+
 		end)
 
-		if success then
-			image.Image = thumbnail
+		if ok then
+			image.Image = thumb
 		end
 	end)
 
-	Create("TextLabel", {
-		Position = UDim2.fromOffset(58, 5),
-		Size = UDim2.new(1, -65, 0, 22),
+	New("TextLabel", {
+		Position = UDim2.fromOffset(68, 8),
+		Size = UDim2.new(1, -78, 0, 24),
 		BackgroundTransparency = 1,
 		Text = player.DisplayName,
 		TextColor3 = Color3.fromRGB(255, 255, 255),
-		TextSize = 14,
+		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Font = Enum.Font.GothamBold,
-		ZIndex = 8
+		ZIndex = 35
 	}, button)
 
-	Create("TextLabel", {
-		Position = UDim2.fromOffset(58, 28),
-		Size = UDim2.new(1, -65, 0, 18),
+	New("TextLabel", {
+		Position = UDim2.fromOffset(68, 34),
+		Size = UDim2.new(1, -78, 0, 20),
 		BackgroundTransparency = 1,
 		Text = "@" .. player.Name,
-		TextColor3 = Color3.fromRGB(160, 220, 230),
-		TextSize = 11,
+		TextColor3 = Color3.fromRGB(145, 225, 235),
+		TextSize = 12,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Font = Enum.Font.Gotham,
-		ZIndex = 8
+		ZIndex = 35
 	}, button)
 
 	button.MouseButton1Click:Connect(function()
-		PlayClick()
-		SelectPlayer(player)
+
+		Click()
+		SelectTarget(player)
+
 	end)
 end
 
 local function RefreshPlayers()
-	ClearPlayerList()
+
+	ClearPlayers()
 
 	local query = string.lower(search.Text)
 
 	for _, player in ipairs(Players:GetPlayers()) do
+
 		if player ~= LocalPlayer then
+
+			local username =
+				string.lower(player.Name)
+
+			local display =
+				string.lower(player.DisplayName)
 
 			local matches =
 				query == ""
-				or string.find(string.lower(player.Name), query, 1, true)
-				or string.find(string.lower(player.DisplayName), query, 1, true)
+				or string.find(username, query, 1, true)
+				or string.find(display, query, 1, true)
 
 			if matches then
-				CreatePlayerButton(player)
+				AddPlayer(player)
 			end
 		end
 	end
 end
 
-search:GetPropertyChangedSignal("Text"):Connect(RefreshPlayers)
+search:GetPropertyChangedSignal("Text"):Connect(
+	RefreshPlayers
+)
 
-Players.PlayerAdded:Connect(RefreshPlayers)
+Players.PlayerAdded:Connect(
+	RefreshPlayers
+)
 
 Players.PlayerRemoving:Connect(function(player)
+
 	if targetPlayer == player then
+
 		targetPlayer = nil
-		targetLabel.Text = "🎯  Target: NONE"
+		targetLabel.Text =
+			"🎯  TARGET: NONE"
 	end
 
 	RefreshPlayers()
@@ -823,41 +1064,46 @@ end)
 RefreshPlayers()
 
 --========================================================
--- DRAG UI
+-- DRAG
 --========================================================
 
 local draggingUI = false
 local dragStart
-local startPosition
+local startPos
 
 header.InputBegan:Connect(function(input)
+
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 
 		draggingUI = true
 		dragStart = input.Position
-		startPosition = main.Position
+		startPos = main.Position
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
+
 	if draggingUI and (
 		input.UserInputType == Enum.UserInputType.MouseMovement
 		or input.UserInputType == Enum.UserInputType.Touch
 	) then
 
-		local delta = input.Position - dragStart
+		local delta =
+			input.Position - dragStart
 
 		main.Position = UDim2.new(
-			startPosition.X.Scale,
-			startPosition.X.Offset + delta.X,
-			startPosition.Y.Scale,
-			startPosition.Y.Offset + delta.Y
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
 		)
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
+
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 
@@ -866,44 +1112,64 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 --========================================================
--- MINIMIZE 16:1
+-- MINIMIZE
 --========================================================
 
+local normalSize = UDim2.fromScale(0.90, 0.78)
+local minimizedSize = UDim2.fromScale(0.90, 0.055)
+
+local minimized = false
+
 minimize.MouseButton1Click:Connect(function()
-	PlayClick()
+
+	Click()
 
 	minimized = not minimized
 
 	if minimized then
 
-		scroll.Visible = false
-		mainOverlay.Visible = false
+		tabs.Visible = false
+		content.Visible = false
 
 		Tween(main, 0.4, {
-			Size = mainMinimizedSize
-		}, Enum.EasingStyle.Quint):Play()
+			Size = minimizedSize
+		}, Enum.EasingStyle.Quint)
 
 		minimize.Text = "+"
 
 	else
 
 		Tween(main, 0.4, {
-			Size = mainNormalSize
-		}, Enum.EasingStyle.Quint):Play()
+			Size = normalSize
+		}, Enum.EasingStyle.Quint)
 
-		task.delay(0.2, function()
+		task.delay(0.22, function()
+
 			if not minimized then
-				scroll.Visible = true
-				mainOverlay.Visible = true
+				tabs.Visible = true
+				content.Visible = true
 			end
+
 		end)
 
 		minimize.Text = "−"
 	end
 end)
 
+--========================================================
+-- CLOSE
+--========================================================
+
 close.MouseButton1Click:Connect(function()
-	PlayClick()
+
+	Click()
+
+	Tween(main, 0.25, {
+		Size = UDim2.fromScale(0.75, 0.02)
+	})
+
+	task.wait(0.25)
+
 	main.Visible = false
 end)
 
@@ -911,12 +1177,21 @@ end)
 -- AFTERIMAGE
 --========================================================
 
-local function CreateAfterimage(character)
-	if not character or not character.Parent then
+local function Afterimage(character)
+
+	if not character then
 		return
 	end
 
-	local clone = character:Clone()
+	local clone
+
+	local ok = pcall(function()
+		clone = character:Clone()
+	end)
+
+	if not ok or not clone then
+		return
+	end
 
 	for _, object in ipairs(clone:GetDescendants()) do
 
@@ -932,19 +1207,22 @@ local function CreateAfterimage(character)
 			object.CanCollide = false
 			object.CanTouch = false
 			object.CanQuery = false
-			object.Transparency = 0.75
+			object.Transparency = 0.72
 
 		elseif object:IsA("Decal") then
-			object.Transparency = 0.75
+
+			object.Transparency = 0.72
 		end
 	end
 
 	clone.Parent = workspace
 
-	task.delay(0.22, function()
+	task.delay(0.18, function()
+
 		if clone and clone.Parent then
 			clone:Destroy()
 		end
+
 	end)
 end
 
@@ -953,17 +1231,17 @@ end
 --========================================================
 
 local trail
-local trailA
-local trailB
 
 local function SetupTrail()
+
 	local character = LocalPlayer.Character
 
 	if not character then
 		return
 	end
 
-	local root = character:FindFirstChild("HumanoidRootPart")
+	local root =
+		character:FindFirstChild("HumanoidRootPart")
 
 	if not root then
 		return
@@ -973,26 +1251,18 @@ local function SetupTrail()
 		trail:Destroy()
 	end
 
-	if trailA then
-		trailA:Destroy()
-	end
-
-	if trailB then
-		trailB:Destroy()
-	end
-
-	trailA = Create("Attachment", {
-		Position = Vector3.new(0, 1.4, 0)
+	local attachment0 = New("Attachment", {
+		Position = Vector3.new(0, 1.5, 0)
 	}, root)
 
-	trailB = Create("Attachment", {
-		Position = Vector3.new(0, -1.4, 0)
+	local attachment1 = New("Attachment", {
+		Position = Vector3.new(0, -1.5, 0)
 	}, root)
 
-	trail = Create("Trail", {
-		Attachment0 = trailA,
-		Attachment1 = trailB,
-		Lifetime = 0.18,
+	trail = New("Trail", {
+		Attachment0 = attachment0,
+		Attachment1 = attachment1,
+		Lifetime = 0.2,
 		MinLength = 0.05,
 		FaceCamera = true,
 		Enabled = trailEnabled
@@ -1000,14 +1270,18 @@ local function SetupTrail()
 end
 
 LocalPlayer.CharacterAdded:Connect(function()
+
 	task.wait(1)
+
 	SetupTrail()
 end)
 
 SetupTrail()
 
 task.spawn(function()
+
 	while gui.Parent do
+
 		if trail then
 			trail.Enabled = trailEnabled
 		end
@@ -1017,12 +1291,12 @@ task.spawn(function()
 end)
 
 --========================================================
--- ORBIT SYSTEM
+-- ORBIT
 --========================================================
 
 local lastAfterimage = 0
 
-RunService.RenderStepped:Connect(function(deltaTime)
+RunService.RenderStepped:Connect(function(delta)
 
 	if not orbitEnabled then
 		return
@@ -1032,124 +1306,151 @@ RunService.RenderStepped:Connect(function(deltaTime)
 		return
 	end
 
-	local character = LocalPlayer.Character
-	local targetCharacter = targetPlayer.Character
+	local character =
+		LocalPlayer.Character
+
+	local targetCharacter =
+		targetPlayer.Character
 
 	if not character or not targetCharacter then
 		return
 	end
 
-	local root = character:FindFirstChild("HumanoidRootPart")
-	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+	local root =
+		character:FindFirstChild("HumanoidRootPart")
+
+	local targetRoot =
+		targetCharacter:FindFirstChild("HumanoidRootPart")
 
 	if not root or not targetRoot then
 		return
 	end
 
-	local multiplier = superTP and 5 or 1
+	local multiplier =
+		superTP and 5 or 1
 
 	orbitAngle +=
 		math.rad(orbitSpeed)
 		* multiplier
-		* deltaTime
+		* delta
 
-	-- Orbit circle
-	local x = math.cos(orbitAngle) * orbitDistance
-	local z = math.sin(orbitAngle) * orbitDistance
+	local x =
+		math.cos(orbitAngle)
+		* orbitDistance
 
-	-- Glitch movement
-	local glitchX = 0
-	local glitchY = 0
-	local glitchZ = 0
+	local z =
+		math.sin(orbitAngle)
+		* orbitDistance
+
+	local gx = 0
+	local gy = 0
+	local gz = 0
 
 	if glitchFX then
-		local time = os.clock()
 
-		glitchX = math.sin(time * 43) * 0.13
-		glitchY = math.sin(time * 61) * 0.09
-		glitchZ = math.cos(time * 47) * 0.13
+		local t = os.clock()
+
+		gx = math.sin(t * 43) * 0.15
+		gy = math.sin(t * 67) * 0.10
+		gz = math.cos(t * 51) * 0.15
+
 	end
 
 	local position =
 		targetRoot.Position
 		+ Vector3.new(
-			x + glitchX,
-			glitchY,
-			z + glitchZ
+			x + gx,
+			gy,
+			z + gz
 		)
 
-	root.CFrame = CFrame.lookAt(
-		position,
-		targetRoot.Position
-	)
+	root.CFrame =
+		CFrame.lookAt(
+			position,
+			targetRoot.Position
+		)
 
-	-- Afterimage
-	if afterimageEnabled and os.clock() - lastAfterimage > 0.055 then
+	if afterimageEnabled
+		and os.clock() - lastAfterimage > 0.055 then
+
 		lastAfterimage = os.clock()
-		CreateAfterimage(character)
+
+		Afterimage(character)
 	end
 end)
 
 --========================================================
--- START
+-- START INTRO
 --========================================================
 
-startButton.MouseButton1Click:Connect(function()
+start.MouseButton1Click:Connect(function()
 
-	startButton.Active = false
+	start.Active = false
 
-	-- START sound
+	Click()
 	startSound:Play()
 
-	-- Intro movement
-	Tween(introContent, 0.3, {
-		Size = UDim2.fromScale(0.5, 0.7)
-	}, Enum.EasingStyle.Back):Play()
+	-- Zoom intro
+	Tween(introBox, 0.45, {
+		Size = UDim2.fromScale(0.5, 0.78)
+	}, Enum.EasingStyle.Back)
+
+	Tween(avatarFrame, 0.4, {
+		Size = UDim2.fromOffset(155, 155)
+	}, Enum.EasingStyle.Back)
 
 	task.wait(0.12)
 
-	-- Fade everything
-	Tween(introBG, 0.55, {
+	-- fade
+	Tween(introImage, 0.55, {
 		ImageTransparency = 1
-	}):Play()
+	})
 
-	Tween(introDark, 0.55, {
+	Tween(introOverlay, 0.55, {
 		BackgroundTransparency = 1
-	}):Play()
+	})
 
-	Tween(glitchTitle, 0.35, {
+	Tween(introGlow, 0.55, {
+		BackgroundTransparency = 1
+	})
+
+	Tween(introTitle, 0.3, {
 		TextTransparency = 1
-	}):Play()
+	})
 
-	Tween(welcome, 0.35, {
+	Tween(glitchCopy, 0.3, {
 		TextTransparency = 1
-	}):Play()
+	})
 
-	Tween(username, 0.35, {
+	Tween(welcome, 0.3, {
 		TextTransparency = 1
-	}):Play()
+	})
 
-	Tween(startButton, 0.35, {
+	Tween(userName, 0.3, {
+		TextTransparency = 1
+	})
+
+	Tween(start, 0.3, {
 		TextTransparency = 1,
 		BackgroundTransparency = 1
-	}):Play()
-
-	Tween(avatarHolder, 0.35, {
-		Size = UDim2.fromOffset(145, 145)
-	}):Play()
+	})
 
 	task.wait(0.55)
 
 	intro.Visible = false
 
-	-- Main UI
-	main.Visible = true
-	main.Size = UDim2.fromScale(0.02, 0.02)
+	--====================================================
+	-- SHOW MAIN
+	--====================================================
 
-	-- Beginning sound
+	main.Visible = true
+
+	main.Size =
+		UDim2.fromScale(0.08, 0.05)
+
 	beginSound:Play()
 
 	Tween(main, 0.65, {
-		Size = mainNormalSize
-	}, Enum.EasingStyle.Back):Play()
+		Size = normalSize
+	}, Enum.EasingStyle.Back)
 end)
