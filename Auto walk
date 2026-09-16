@@ -1,9 +1,13 @@
---// AUTO OBSTACLE
---// WASD STYLE + AUTO JUMP + RAYCAST
+--// FULLY AUTO PLAYER OBSTACLE
 --// LocalScript
 --// StarterPlayer > StarterPlayerScripts
+--
+--// Kamera hanya untuk melihat.
+--// Player bergerak otomatis.
+--// Menggunakan Pathfinding + Raycast + Auto Jump.
 
 local Players = game:GetService("Players")
+local PathfindingService = game:GetService("PathfindingService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -15,68 +19,143 @@ local Root
 
 local Enabled = false
 local Minimized = false
-local Jumping = false
+local JumpCooldown = false
+
+local Path = nil
+local Waypoints = {}
+local WaypointIndex = 1
 
 --==================================================
 -- CHARACTER
 --==================================================
 
-local function LoadCharacter(char)
-	Character = char
-	Humanoid = char:WaitForChild("Humanoid")
-	Root = char:WaitForChild("HumanoidRootPart")
+local function SetupCharacter(Char)
 
-	Humanoid.AutoRotate = true
+	Character = Char
+	Humanoid = Char:WaitForChild("Humanoid")
+	Root = Char:WaitForChild("HumanoidRootPart")
+
+	Path = nil
+	Waypoints = {}
+	WaypointIndex = 1
+
 end
 
-LoadCharacter(Player.Character or Player.CharacterAdded:Wait())
+SetupCharacter(
+	Player.Character or Player.CharacterAdded:Wait()
+)
 
-Player.CharacterAdded:Connect(function(char)
-	LoadCharacter(char)
+Player.CharacterAdded:Connect(function(Char)
 
 	Enabled = false
 
-	task.wait(0.2)
+	SetupCharacter(Char)
+
+	task.wait(0.3)
 
 	if Toggle then
 		Toggle.Text = "AUTO: OFF"
-		Toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
+		Toggle.BackgroundColor3 =
+			Color3.fromRGB(55,55,65)
 	end
 
 	if Status then
 		Status.Text = "Ready"
 	end
+
 end)
 
 --==================================================
 -- UI
 --==================================================
 
-local GUI = Instance.new("ScreenGui")
-GUI.Name = "AutoObstacle"
-GUI.ResetOnSpawn = false
-GUI.Parent = Player:WaitForChild("PlayerGui")
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "FullyAutoObstacle"
+Gui.ResetOnSpawn = false
+Gui.Parent = Player:WaitForChild("PlayerGui")
 
 local Main = Instance.new("Frame")
-Main.Size = UDim2.fromOffset(200,125)
-Main.Position = UDim2.new(0.5,-100,0.65,0)
-Main.BackgroundColor3 = Color3.fromRGB(25,25,32)
+Main.Size = UDim2.fromOffset(205,130)
+Main.Position = UDim2.new(0.5,-102,0.65,0)
+Main.BackgroundColor3 = Color3.fromRGB(24,24,31)
 Main.BackgroundTransparency = 0.05
 Main.BorderSizePixel = 0
 Main.Active = true
-Main.Parent = GUI
+Main.Parent = Gui
 
 local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0,12)
 Corner.Parent = Main
 
 local Stroke = Instance.new("UIStroke")
+Stroke.Transparency = 0.4
 Stroke.Thickness = 1
-Stroke.Transparency = 0.45
 Stroke.Parent = Main
 
 --==================================================
--- DRAG
+-- TITLE
+--==================================================
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1,-45,0,32)
+Title.Position = UDim2.fromOffset(12,4)
+Title.BackgroundTransparency = 1
+Title.Text = "AUTO OBSTACLE"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextSize = 14
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Main
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.fromOffset(30,30)
+Minimize.Position = UDim2.new(1,-36,0,4)
+Minimize.BackgroundTransparency = 1
+Minimize.Text = "−"
+Minimize.TextColor3 = Color3.new(1,1,1)
+Minimize.TextSize = 21
+Minimize.Font = Enum.Font.GothamBold
+Minimize.Parent = Main
+
+--==================================================
+-- TOGGLE
+--==================================================
+
+Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(1,-24,0,42)
+Toggle.Position = UDim2.fromOffset(12,42)
+Toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
+Toggle.BorderSizePixel = 0
+Toggle.Text = "AUTO: OFF"
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.TextSize = 14
+Toggle.Font = Enum.Font.GothamBold
+Toggle.Parent = Main
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0,9)
+ToggleCorner.Parent = Toggle
+
+--==================================================
+-- STATUS
+--==================================================
+
+Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1,-24,0,25)
+Status.Position = UDim2.fromOffset(12,92)
+Status.BackgroundTransparency = 1
+Status.Text = "Ready"
+Status.TextColor3 = Color3.fromRGB(170,170,180)
+Status.TextSize = 10
+Status.Font = Enum.Font.Gotham
+Status.Parent = Main
+
+--==================================================
+-- DRAG UI
 --==================================================
 
 local Dragging = false
@@ -92,13 +171,6 @@ Main.InputBegan:Connect(function(Input)
 		DragStart = Input.Position
 		StartPosition = Main.Position
 
-		Input.Changed:Connect(function()
-
-			if Input.UserInputState == Enum.UserInputState.End then
-				Dragging = false
-			end
-
-		end)
 	end
 
 end)
@@ -117,7 +189,6 @@ UserInputService.InputChanged:Connect(function(Input)
 		Main.Position = UDim2.new(
 			StartPosition.X.Scale,
 			StartPosition.X.Offset + Delta.X,
-
 			StartPosition.Y.Scale,
 			StartPosition.Y.Offset + Delta.Y
 		)
@@ -126,91 +197,12 @@ UserInputService.InputChanged:Connect(function(Input)
 
 end)
 
---==================================================
--- TITLE
---==================================================
+UserInputService.InputEnded:Connect(function(Input)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,-45,0,32)
-Title.Position = UDim2.fromOffset(12,4)
-Title.BackgroundTransparency = 1
-Title.Text = "AUTO OBSTACLE"
-Title.TextColor3 = Color3.fromRGB(255,255,255)
-Title.TextSize = 14
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = Main
+	if Input.UserInputType == Enum.UserInputType.MouseButton1
+		or Input.UserInputType == Enum.UserInputType.Touch then
 
---==================================================
--- MINIMIZE
---==================================================
-
-local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(30,30)
-Minimize.Position = UDim2.new(1,-36,0,4)
-Minimize.BackgroundTransparency = 1
-Minimize.Text = "−"
-Minimize.TextColor3 = Color3.fromRGB(255,255,255)
-Minimize.TextSize = 21
-Minimize.Font = Enum.Font.GothamBold
-Minimize.Parent = Main
-
---==================================================
--- TOGGLE
---==================================================
-
-Toggle = Instance.new("TextButton")
-Toggle.Size = UDim2.new(1,-24,0,42)
-Toggle.Position = UDim2.fromOffset(12,42)
-Toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
-Toggle.BorderSizePixel = 0
-Toggle.Text = "AUTO: OFF"
-Toggle.TextColor3 = Color3.fromRGB(255,255,255)
-Toggle.TextSize = 14
-Toggle.Font = Enum.Font.GothamBold
-Toggle.Parent = Main
-
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0,9)
-ToggleCorner.Parent = Toggle
-
---==================================================
--- STATUS
---==================================================
-
-Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(1,-24,0,25)
-Status.Position = UDim2.fromOffset(12,90)
-Status.BackgroundTransparency = 1
-Status.Text = "Ready"
-Status.TextColor3 = Color3.fromRGB(170,170,180)
-Status.TextSize = 10
-Status.Font = Enum.Font.Gotham
-Status.Parent = Main
-
---==================================================
--- TOGGLE
---==================================================
-
-Toggle.MouseButton1Click:Connect(function()
-
-	Enabled = not Enabled
-
-	if Enabled then
-
-		Toggle.Text = "AUTO: ON"
-		Toggle.BackgroundColor3 = Color3.fromRGB(45,140,85)
-		Status.Text = "Walking..."
-
-	else
-
-		Toggle.Text = "AUTO: OFF"
-		Toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
-		Status.Text = "Ready"
-
-		if Humanoid then
-			Humanoid:Move(Vector3.zero,false)
-		end
+		Dragging = false
 
 	end
 
@@ -235,7 +227,7 @@ Minimize.MouseButton1Click:Connect(function()
 
 	else
 
-		Main.Size = UDim2.fromOffset(200,125)
+		Main.Size = UDim2.fromOffset(205,130)
 
 		Toggle.Visible = true
 		Status.Visible = true
@@ -253,7 +245,7 @@ end)
 local RayParams = RaycastParams.new()
 RayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-local function Raycast(Origin, Direction)
+local function Cast(Origin, Direction)
 
 	RayParams.FilterDescendantsInstances = {
 		Character
@@ -268,7 +260,7 @@ local function Raycast(Origin, Direction)
 end
 
 --==================================================
--- CHECK OBSTACLE
+-- DETECT OBSTACLE
 --==================================================
 
 local function ObstacleAhead()
@@ -277,9 +269,8 @@ local function ObstacleAhead()
 		return false
 	end
 
-	local Look = Root.CFrame.LookVector
+	local Forward = Root.CFrame.LookVector
 
-	-- 3 raycast dengan ketinggian berbeda
 	local Heights = {
 		0.5,
 		1.5,
@@ -288,20 +279,16 @@ local function ObstacleAhead()
 
 	for _, Height in ipairs(Heights) do
 
-		local Origin =
-			Root.Position
-			+ Vector3.new(0,Height,0)
+		local Result = Cast(
+			Root.Position +
+				Vector3.new(0,Height,0),
 
-		local Result = Raycast(
-			Origin,
-			Look * 5
+			Forward * 4.5
 		)
 
-		if Result then
+		if Result and Result.Instance then
 
-			local Part = Result.Instance
-
-			if Part:IsA("BasePart") then
+			if Result.Instance:IsA("BasePart") then
 				return true
 			end
 
@@ -310,31 +297,7 @@ local function ObstacleAhead()
 	end
 
 	return false
-end
 
---==================================================
--- CHECK GROUND
---==================================================
-
-local function GroundAhead()
-
-	if not Root then
-		return true
-	end
-
-	local Look = Root.CFrame.LookVector
-
-	local Origin =
-		Root.Position
-		+ Look * 4
-		+ Vector3.new(0,2,0)
-
-	local Result = Raycast(
-		Origin,
-		Vector3.new(0,-8,0)
-	)
-
-	return Result ~= nil
 end
 
 --==================================================
@@ -343,7 +306,7 @@ end
 
 local function AutoJump()
 
-	if Jumping then
+	if JumpCooldown then
 		return
 	end
 
@@ -355,35 +318,189 @@ local function AutoJump()
 		return
 	end
 
-	Jumping = true
+	JumpCooldown = true
 
 	Humanoid.Jump = true
 
-	task.delay(0.7,function()
-		Jumping = false
+	task.delay(0.65,function()
+		JumpCooldown = false
 	end)
 
 end
 
 --==================================================
--- WASD STYLE MOVEMENT
+-- CREATE PATH
 --==================================================
 
-local function MoveForward()
+local function CreatePath(Target)
+
+	if not Root then
+		return false
+	end
+
+	local NewPath = PathfindingService:CreatePath({
+		AgentRadius = 2,
+		AgentHeight = 5,
+		AgentCanJump = true,
+		AgentCanClimb = true,
+
+		WaypointSpacing = 3
+	})
+
+	local Success = pcall(function()
+
+		NewPath:ComputeAsync(
+			Root.Position,
+			Target
+		)
+
+	end)
+
+	if not Success then
+		return false
+	end
+
+	if NewPath.Status ~= Enum.PathStatus.Success then
+		return false
+	end
+
+	Path = NewPath
+	Waypoints = NewPath:GetWaypoints()
+	WaypointIndex = 1
+
+	return #Waypoints > 0
+
+end
+
+--==================================================
+-- FIND TARGET
+--==================================================
+
+local function FindTarget()
+
+	if not Root then
+		return nil
+	end
+
+	-- Mencoba mencari area di depan.
+	-- Pathfinding akan memilih jalur yang tersedia.
+
+	local Forward = Root.CFrame.LookVector
+
+	local Distance = 40
+
+	local Target =
+		Root.Position +
+		Forward * Distance
+
+	return Target
+
+end
+
+--==================================================
+-- FOLLOW PATH
+--==================================================
+
+local function FollowPath()
 
 	if not Humanoid or not Root then
 		return
 	end
 
-	-- Arah depan karakter
-	local Direction = Root.CFrame.LookVector
+	if not Path or #Waypoints == 0 then
 
-	-- Sama konsepnya dengan menekan W
-	Humanoid:Move(Direction,false)
+		local Target = FindTarget()
+
+		if Target then
+			CreatePath(Target)
+		end
+
+		return
+	end
+
+	local Waypoint = Waypoints[WaypointIndex]
+
+	if not Waypoint then
+
+		Path = nil
+		Waypoints = {}
+		WaypointIndex = 1
+
+		return
+	end
+
+	-- Lompat jika waypoint membutuhkan jump
+	if Waypoint.Action ==
+		Enum.PathWaypointAction.Jump then
+
+		AutoJump()
+
+	end
+
+	local Direction =
+		Waypoint.Position -
+		Root.Position
+
+	local Horizontal =
+		Vector3.new(
+			Direction.X,
+			0,
+			Direction.Z
+		)
+
+	-- Sudah dekat waypoint
+	if Horizontal.Magnitude < 3 then
+
+		WaypointIndex += 1
+
+		return
+	end
+
+	if Horizontal.Magnitude > 0 then
+
+		Horizontal =
+			Horizontal.Unit
+
+		-- Gerakan Player sendiri
+		Humanoid:Move(
+			Horizontal,
+			false
+		)
+
+	end
+
 end
 
 --==================================================
--- MAIN LOOP
+-- REBUILD PATH
+--==================================================
+
+local LastPathUpdate = 0
+
+local function UpdatePath()
+
+	if not Root then
+		return
+	end
+
+	local Now = os.clock()
+
+	if Now - LastPathUpdate < 1.2 then
+		return
+	end
+
+	LastPathUpdate = Now
+
+	local Target = FindTarget()
+
+	if Target then
+		CreatePath(Target)
+	end
+
+end
+
+--==================================================
+-- MAIN
 --==================================================
 
 RunService.Heartbeat:Connect(function()
@@ -402,29 +519,63 @@ RunService.Heartbeat:Connect(function()
 		return
 	end
 
-	-- Jalan terus
-	MoveForward()
+	-- Perbarui jalur
+	UpdatePath()
 
-	-- Rintangan
+	-- Ikuti jalur
+	FollowPath()
+
+	-- Raycast rintangan
 	if ObstacleAhead() then
 
-		Status.Text = "Obstacle → Jump"
+		Status.Text = "Obstacle → JUMP"
 
 		AutoJump()
 
 	else
 
-		-- Lubang / tidak ada tanah
-		if not GroundAhead() then
+		Status.Text = "Auto Walking"
 
-			Status.Text = "Gap → Jump"
+	end
 
-			AutoJump()
+end)
 
-		else
+--==================================================
+-- TOGGLE
+--==================================================
 
-			Status.Text = "Walking..."
+Toggle.MouseButton1Click:Connect(function()
 
+	Enabled = not Enabled
+
+	if Enabled then
+
+		Path = nil
+		Waypoints = {}
+		WaypointIndex = 1
+		LastPathUpdate = 0
+
+		Toggle.Text = "AUTO: ON"
+
+		Toggle.BackgroundColor3 =
+			Color3.fromRGB(40,145,80)
+
+		Status.Text = "Starting..."
+
+	else
+
+		Toggle.Text = "AUTO: OFF"
+
+		Toggle.BackgroundColor3 =
+			Color3.fromRGB(55,55,65)
+
+		Status.Text = "Ready"
+
+		if Humanoid then
+			Humanoid:Move(
+				Vector3.zero,
+				false
+			)
 		end
 
 	end
