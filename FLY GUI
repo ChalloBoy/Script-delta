@@ -1,0 +1,174 @@
+--// SIMPLE FLY + ANIMATION
+--// LocalScript | StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+-- SETTINGS
+local FLY_SPEED = 60
+local VERTICAL_SPEED = 45
+
+local flying = false
+local up = false
+local down = false
+
+local character
+local humanoid
+local root
+
+local bodyVelocity
+local bodyGyro
+
+--// CHARACTER
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+
+	if flying then
+		task.wait(0.5)
+		flying = false
+	end
+end)
+
+--// UI
+local gui = Instance.new("ScreenGui")
+gui.Name = "FlyUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(150, 65)
+frame.Position = UDim2.new(0, 20, 0.5, -30)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+frame.BackgroundTransparency = 0.1
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = frame
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1, -10, 1, -10)
+button.Position = UDim2.fromOffset(5, 5)
+button.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+button.TextColor3 = Color3.new(1, 1, 1)
+button.TextSize = 20
+button.Font = Enum.Font.GothamBold
+button.Text = "FLY : OFF"
+button.Parent = frame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 10)
+buttonCorner.Parent = button
+
+--// FLY
+local function stopFly()
+	flying = false
+
+	if bodyVelocity then
+		bodyVelocity:Destroy()
+		bodyVelocity = nil
+	end
+
+	if bodyGyro then
+		bodyGyro:Destroy()
+		bodyGyro = nil
+	end
+
+	if humanoid then
+		humanoid.AutoRotate = true
+	end
+
+	button.Text = "FLY : OFF"
+end
+
+local function startFly()
+	if not character or not humanoid or not root then
+		return
+	end
+
+	flying = true
+	button.Text = "FLY : ON"
+
+	humanoid.AutoRotate = false
+
+	bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+	bodyVelocity.P = 5000
+	bodyVelocity.Velocity = Vector3.zero
+	bodyVelocity.Parent = root
+
+	bodyGyro = Instance.new("BodyGyro")
+	bodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+	bodyGyro.P = 10000
+	bodyGyro.CFrame = root.CFrame
+	bodyGyro.Parent = root
+end
+
+button.MouseButton1Click:Connect(function()
+	if flying then
+		stopFly()
+	else
+		startFly()
+	end
+end)
+
+--// KEYBOARD
+UIS.InputBegan:Connect(function(input, processed)
+	if processed then return end
+
+	if input.KeyCode == Enum.KeyCode.Space then
+		up = true
+	elseif input.KeyCode == Enum.KeyCode.LeftControl then
+		down = true
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.Space then
+		up = false
+	elseif input.KeyCode == Enum.KeyCode.LeftControl then
+		down = false
+	end
+end)
+
+--// MOVEMENT
+RunService.RenderStepped:Connect(function()
+	if not flying or not root or not bodyVelocity or not bodyGyro then
+		return
+	end
+
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
+	local move = humanoid.MoveDirection
+
+	local velocity = move * FLY_SPEED
+
+	if up then
+		velocity += Vector3.new(0, VERTICAL_SPEED, 0)
+	end
+
+	if down then
+		velocity -= Vector3.new(0, VERTICAL_SPEED, 0)
+	end
+
+	bodyVelocity.Velocity = velocity
+
+	-- Menghadap arah kamera
+	local look = camera.CFrame.LookVector
+	bodyGyro.CFrame = CFrame.lookAt(
+		root.Position,
+		root.Position + Vector3.new(look.X, 0, look.Z)
+	)
+end)
