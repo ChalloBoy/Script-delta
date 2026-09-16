@@ -1,648 +1,194 @@
---// FLY GUI V3 + ANIMATION SYSTEM
---// LOCAL SCRIPT ONLY
+--// ANIMATION ONLY - LOCAL SCRIPT
+--// No GUI / No Mode / No ServerScript
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
+local Player = Players.LocalPlayer
 
---==================================================
--- CHARACTER
---==================================================
+local Character
+local Humanoid
+local RootPart
+local RootJoint
 
-local character
-local humanoid
-local hrp
-
-local currentConnection = nil
-local currentTrack = nil
-local bobConnection = nil
-local tiltConnection = nil
-
---==================================================
--- UI - TIDAK DIUBAH
---==================================================
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ModeGui"
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
-
-local TextLabel = Instance.new("TextLabel")
-TextLabel.Parent = ScreenGui
-TextLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-TextLabel.Position = UDim2.new(0.5,0,0.85,0)
-TextLabel.Size = UDim2.new(0,400,0,80)
-TextLabel.BackgroundTransparency = 1
-TextLabel.TextScaled = true
-TextLabel.TextColor3 = Color3.new(1,1,1)
-TextLabel.Font = Enum.Font.GothamBold
-TextLabel.TextTransparency = 1
-
---==================================================
--- VARIABLES
---==================================================
-
-local mode = 1
-local effects = {}
-
---==================================================
--- CHARACTER SETUP
---==================================================
+local Connection
+local DeathConnection
 
 local function setupCharacter(char)
-	character = char
-	humanoid = character:WaitForChild("Humanoid")
-	hrp = character:WaitForChild("HumanoidRootPart")
+	Character = char
+	Humanoid = char:WaitForChild("Humanoid")
+	RootPart = char:WaitForChild("HumanoidRootPart")
 
-	currentTrack = nil
+	RootJoint = RootPart:FindFirstChild("RootJoint")
+
+	if not RootJoint then
+		RootJoint = RootPart:FindFirstChildWhichIsA("Motor6D")
+	end
+
+	if not RootJoint then
+		return
+	end
 
 	-- Hapus koneksi lama
-	if bobConnection then
-		bobConnection:Disconnect()
-		bobConnection = nil
+	if Connection then
+		Connection:Disconnect()
+		Connection = nil
 	end
 
-	--================================================
-	-- BOB / IDLE ANIMATION
-	--================================================
-
-	local rootJoint = hrp:FindFirstChild("RootJoint")
-
-	if not rootJoint then
-		for _, obj in ipairs(hrp:GetChildren()) do
-			if obj:IsA("Motor6D") then
-				rootJoint = obj
-				break
-			end
-		end
+	if DeathConnection then
+		DeathConnection:Disconnect()
+		DeathConnection = nil
 	end
 
-	if rootJoint then
-		local startTime = os.clock()
+	local startTime = tick()
+	local dead = false
+	local deathStart = 0
 
-		bobConnection = RunService.RenderStepped:Connect(function()
-			if not character
-				or not character.Parent
-				or not humanoid
-				or humanoid.Health <= 0
-				or not rootJoint.Parent then
-				return
-			end
+	-- Simpan transform asli
+	local baseTransform = RootJoint.Transform
 
-			local t = os.clock() - startTime
-			local state = humanoid:GetState()
-			local moving = humanoid.MoveDirection.Magnitude > 0.05
-
-			local y = 0
-			local pitch = 0
-
-			-- IDLE
-			if not moving
-				and state ~= Enum.HumanoidStateType.Jumping
-				and state ~= Enum.HumanoidStateType.Freefall then
-
-				y = math.sin(t * 2.2) * 0.055
-
-			-- WALK / RUN
-			elseif moving
-				and state == Enum.HumanoidStateType.Running then
-
-				y = math.sin(t * 7) * 0.035
-				pitch = math.sin(t * 7) * math.rad(1.2)
-
-			-- JUMP
-			elseif state == Enum.HumanoidStateType.Jumping then
-
-				y = math.sin(t * 3) * 0.045
-				pitch = math.sin(t * 2.5) * math.rad(2)
-
-			-- FALL
-			elseif state == Enum.HumanoidStateType.Freefall then
-
-				y = math.sin(t * 2.8) * 0.05
-				pitch = math.sin(t * 2.2) * math.rad(2.5)
-			end
-
-			rootJoint.Transform =
-				CFrame.new(0, y, 0)
-				* CFrame.Angles(pitch, 0, 0)
-		end)
-	end
-
-	--================================================
-	-- DEATH
-	--================================================
-
-	humanoid.Died:Connect(function()
-		if bobConnection then
-			bobConnection:Disconnect()
-			bobConnection = nil
-		end
-
-		if rootJoint then
-			rootJoint.Transform =
-				CFrame.Angles(math.rad(-12), 0, math.rad(8))
-		end
-	end)
-end
-
---==================================================
--- EFFECT CLEANUP
---==================================================
-
-local function clearEffects()
-	for _, v in pairs(effects) do
-		if v and v.Parent then
-			v:Destroy()
-		end
-	end
-
-	effects = {}
-
-	if currentConnection then
-		currentConnection:Disconnect()
-		currentConnection = nil
-	end
-
-	if currentTrack then
-		pcall(function()
-			currentTrack:Stop()
-		end)
-		currentTrack = nil
-	end
-end
-
---==================================================
--- TEXT
---==================================================
-
-local function showText(text, color)
-	TextLabel.Text = text
-	TextLabel.TextColor3 = color
-
-	local tweenIn = TweenService:Create(
-		TextLabel,
-		TweenInfo.new(
-			0.3,
-			Enum.EasingStyle.Quad,
-			Enum.EasingDirection.Out
-		),
-		{TextTransparency = 0}
-	)
-
-	local tweenOut = TweenService:Create(
-		TextLabel,
-		TweenInfo.new(
-			0.5,
-			Enum.EasingStyle.Quad,
-			Enum.EasingDirection.In
-		),
-		{TextTransparency = 1}
-	)
-
-	tweenIn:Play()
-
-	tweenIn.Completed:Connect(function()
-		task.delay(0.8, function()
-			if TextLabel then
-				tweenOut:Play()
-			end
-		end)
-	end)
-end
-
---==================================================
--- ANIMATION
---==================================================
-
-local function playAnim(id)
-	if not humanoid then
-		return nil
-	end
-
-	if currentTrack then
-		pcall(function()
-			currentTrack:Stop()
-		end)
-	end
-
-	local anim = Instance.new("Animation")
-	anim.AnimationId = "rbxassetid://" .. id
-
-	local success, track = pcall(function()
-		return humanoid:LoadAnimation(anim)
+	--// DEATH
+	DeathConnection = Humanoid.Died:Connect(function()
+		dead = true
+		deathStart = tick()
 	end)
 
-	if not success or not track then
-		anim:Destroy()
-		return nil
-	end
-
-	track:Play()
-	currentTrack = track
-
-	anim:Destroy()
-
-	return track
-end
-
---==================================================
--- EXOTIC
---==================================================
-
-local function modeExotic()
-	clearEffects()
-
-	if not hrp then
-		return
-	end
-
-	showText(
-		"EXOTIC",
-		Color3.fromRGB(255,255,255)
-	)
-
-	playAnim("125722696765151")
-
-	local attach1 = Instance.new("Attachment")
-	attach1.Parent = hrp
-	attach1.Position = Vector3.new(2,0,-1)
-
-	local attach2 = Instance.new("Attachment")
-	attach2.Parent = hrp
-	attach2.Position = Vector3.new(-2,0,-1)
-
-	for _, wing in pairs({attach1, attach2}) do
-		local p = Instance.new("ParticleEmitter")
-		p.Parent = wing
-		p.Texture = "rbxassetid://241837157"
-		p.Lifetime = NumberRange.new(1)
-		p.Rate = 40
-		p.Speed = NumberRange.new(2,5)
-		p.Size = NumberSequence.new(1.5)
-		p.LightEmission = 1
-		p.Rotation = NumberRange.new(0,360)
-		p.RotSpeed = NumberRange.new(-90,90)
-		p.Transparency = NumberSequence.new(0,1)
-		p.Color = ColorSequence.new(
-			Color3.fromRGB(255,255,255)
-		)
-	end
-
-	table.insert(effects, attach1)
-	table.insert(effects, attach2)
-end
-
---==================================================
--- CHROMATIC
---==================================================
-
-local function modeChromatic()
-	clearEffects()
-
-	if not hrp then
-		return
-	end
-
-	showText(
-		"CHROMATIC",
-		Color3.fromRGB(255,50,50)
-	)
-
-	playAnim("87449122230956")
-
-	local auraAttach = Instance.new("Attachment")
-	auraAttach.Parent = hrp
-
-	local aura = Instance.new("ParticleEmitter")
-	aura.Parent = auraAttach
-	aura.Texture = "rbxassetid://243098098"
-	aura.Lifetime = NumberRange.new(0.6)
-	aura.Rate = 120
-	aura.Speed = NumberRange.new(1,2)
-	aura.Size = NumberSequence.new(2)
-	aura.Transparency = NumberSequence.new(0,1)
-	aura.LightEmission = 1
-	aura.Color = ColorSequence.new(
-		Color3.fromRGB(255,0,0)
-	)
-
-	table.insert(effects, auraAttach)
-end
-
---==================================================
--- AURA
---==================================================
-
-local function modeAura()
-	clearEffects()
-
-	if not hrp or not character then
-		return
-	end
-
-	showText(
-		"AURA",
-		Color3.fromRGB(255,60,60)
-	)
-
-	playAnim("123127694191310")
-
-	local outline = Instance.new("SelectionBox")
-	outline.Parent = character
-	outline.LineThickness = 0.05
-	outline.Color3 = Color3.fromRGB(255,0,0)
-	outline.Adornee = character
-
-	table.insert(effects, outline)
-
-	local fireAttach = Instance.new("Attachment")
-	fireAttach.Parent = hrp
-
-	local fire = Instance.new("ParticleEmitter")
-	fire.Parent = fireAttach
-	fire.Texture = "rbxassetid://241837157"
-	fire.Lifetime = NumberRange.new(0.3,0.8)
-	fire.Rate = 100
-	fire.Speed = NumberRange.new(3,7)
-
-	fire.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0,3),
-		NumberSequenceKeypoint.new(1,0)
-	})
-
-	fire.LightEmission = 1
-
-	fire.Color = ColorSequence.new(
-		Color3.fromRGB(50,100,255)
-	)
-
-	table.insert(effects, fireAttach)
-end
-
---==================================================
--- LEVITATION
---==================================================
-
-local function modeLevitation()
-	clearEffects()
-
-	if not hrp then
-		return
-	end
-
-	showText(
-		"LEVITATION",
-		Color3.fromRGB(255,255,100)
-	)
-
-	playAnim("88138077358201")
-
-	local stars = {}
-	local numStars = 10
-	local radius = 3
-
-	for i = 1, numStars do
-		local part = Instance.new("Part")
-
-		part.Size = Vector3.new(
-			0.2,
-			0.2,
-			0.2
-		)
-
-		part.Anchored = true
-		part.CanCollide = false
-		part.Material = Enum.Material.Neon
-		part.Color = Color3.fromRGB(255,255,255)
-		part.Parent = workspace
-
-		table.insert(stars, part)
-		table.insert(effects, part)
-	end
-
-	local angle = 0
-
-	currentConnection = RunService.RenderStepped:Connect(function()
-		if not hrp or not hrp.Parent then
+	--// MAIN ANIMATION LOOP
+	Connection = RunService.RenderStepped:Connect(function()
+		if not Character
+			or not Character.Parent
+			or not Humanoid
+			or Humanoid.Health <= 0 and not dead
+			or not RootJoint
+			or not RootPart then
 			return
 		end
 
-		angle += 0.02
+		local time = tick() - startTime
 
-		for i, star in ipairs(stars) do
-			if star and star.Parent then
-				local offsetAngle =
-					(i / numStars) * math.pi * 2
+		-- Kecepatan karakter
+		local velocity = RootPart.AssemblyLinearVelocity
+		local horizontalVelocity = Vector3.new(
+			velocity.X,
+			0,
+			velocity.Z
+		).Magnitude
 
-				local x =
-					math.cos(angle + offsetAngle) * radius
+		local verticalVelocity = velocity.Y
 
-				local z =
-					math.sin(angle + offsetAngle) * radius
+		local state = Humanoid:GetState()
 
-				star.Position =
-					hrp.Position
-					+ Vector3.new(x,2,z)
+		local offsetY = 0
+		local tiltX = 0
+		local tiltZ = 0
+
+		--==================================================
+		-- IDLE
+		--==================================================
+		if horizontalVelocity < 1 and
+			state ~= Enum.HumanoidStateType.Jumping and
+			state ~= Enum.HumanoidStateType.Freefall then
+
+			-- Naik turun lembut
+			offsetY = math.sin(time * 2.2) * 0.055
+
+			-- Sedikit sway supaya tidak kaku
+			tiltZ = math.sin(time * 1.4) * math.rad(0.7)
+
+		--==================================================
+		-- WALK / RUN
+		--==================================================
+		elseif horizontalVelocity >= 1 and
+			state ~= Enum.HumanoidStateType.Jumping and
+			state ~= Enum.HumanoidStateType.Freefall then
+
+			-- Gerakan sangat kecil agar animasi
+			-- berjalan bawaan Roblox tetap natural
+			offsetY = math.sin(time * 8) * 0.018
+
+			tiltZ = math.sin(time * 4) * math.rad(0.35)
+
+		--==================================================
+		-- JUMP
+		--==================================================
+		elseif state == Enum.HumanoidStateType.Jumping then
+
+			-- Naik sedikit saat lompat
+			offsetY = math.sin(time * 7) * 0.025
+
+			tiltX = math.rad(-2)
+
+		--==================================================
+		-- FALL
+		--==================================================
+		elseif state == Enum.HumanoidStateType.Freefall then
+
+			-- Saat jatuh, badan sedikit melayang
+			offsetY = math.sin(time * 4) * 0.035
+
+			-- Semakin cepat jatuh, sedikit condong
+			local fallAmount = math.clamp(
+				math.abs(verticalVelocity) / 70,
+				0,
+				1
+			)
+
+			tiltX = math.rad(4) * fallAmount
+
+		end
+
+		--==================================================
+		-- DEATH ANIMATION
+		--==================================================
+		if dead then
+			local elapsed = tick() - deathStart
+
+			-- Durasi animasi mati
+			local progress = math.clamp(elapsed / 0.65, 0, 1)
+
+			-- Ease-out
+			local eased = 1 - (1 - progress)^3
+
+			-- Badan perlahan jatuh ke depan
+			tiltX = math.rad(65) * eased
+
+			-- Sedikit miring ke samping
+			tiltZ = math.rad(10) * math.sin(progress * math.pi)
+
+			-- Sedikit turun
+			offsetY = -0.18 * eased
+
+			-- Setelah selesai jangan terus bergerak
+			if progress >= 1 then
+				offsetY = -0.18
+				tiltX = math.rad(65)
+				tiltZ = 0
 			end
 		end
+
+		--==================================================
+		-- APPLY
+		--==================================================
+		local targetTransform =
+			baseTransform
+			* CFrame.new(0, offsetY, 0)
+			* CFrame.Angles(tiltX, 0, tiltZ)
+
+		-- Smooth agar tidak patah-patah
+		RootJoint.Transform = RootJoint.Transform:Lerp(
+			targetTransform,
+			0.12
+		)
 	end)
 end
 
---==================================================
--- MODE SWITCH
---==================================================
-
-local function switchMode()
-	mode += 1
-
-	if mode > 4 then
-		mode = 1
-	end
-
-	if mode == 1 then
-		modeExotic()
-
-	elseif mode == 2 then
-		modeChromatic()
-
-	elseif mode == 3 then
-		modeAura()
-
-	else
-		modeLevitation()
-	end
+-- Karakter pertama
+if Player.Character then
+	setupCharacter(Player.Character)
 end
 
---==================================================
--- INITIAL CHARACTER
---==================================================
-
-setupCharacter(
-	player.Character or player.CharacterAdded:Wait()
-)
-
---==================================================
--- START MODE
---==================================================
-
-modeExotic()
-
---==================================================
--- F KEY
---==================================================
-
-UserInputService.InputBegan:Connect(function(input, gpe)
-	if gpe then
-		return
-	end
-
-	if input.KeyCode == Enum.KeyCode.F then
-		switchMode()
-	end
-end)
-
---==================================================
--- RESPAWN SYSTEM
---==================================================
-
-player.CharacterAdded:Connect(function(char)
-	-- Tunggu character benar-benar siap
-	task.wait(0.2)
-
-	-- Bersihkan efek character lama
-	clearEffects()
-
-	-- Pasang ulang sistem animation
+-- Otomatis aktif lagi setelah respawn
+Player.CharacterAdded:Connect(function(char)
+	task.wait(0.15)
 	setupCharacter(char)
-
-	-- Mode aktif otomatis lagi
-	task.wait(0.1)
-
-	if mode == 1 then
-		modeExotic()
-	elseif mode == 2 then
-		modeChromatic()
-	elseif mode == 3 then
-		modeAura()
-	else
-		modeLevitation()
-	end
-end)
-
---==================================================
--- TILT SYSTEM
---==================================================
-
-getgenv().tilt = true
-
-local cfg = {
-	ptime = 0.25,
-	smooth = 5,
-	pred = 0.4,
-	base = 0.1,
-	dead = 0.05,
-	side = 25,
-	sideSmooth = 5
-}
-
-local px, py = 0, 0
-
-if tiltConnection then
-	tiltConnection:Disconnect()
-end
-
-tiltConnection = RunService.RenderStepped:Connect(function(dt)
-
-	if not getgenv().tilt then
-		return
-	end
-
-	if not character
-		or not character.Parent
-		or not humanoid
-		or not hrp
-		or humanoid.Health <= 0 then
-		return
-	end
-
-	local mv = humanoid.MoveDirection
-
-	local sx = 0
-	local sp = 0
-
-	if mv.Magnitude > 0 then
-
-		local rel =
-			hrp.CFrame:VectorToObjectSpace(mv)
-
-		sx = -rel.X * cfg.side
-
-		local pos = hrp.Position
-		local vel = hrp.Velocity
-
-		local fut =
-			pos + vel * cfg.ptime
-
-		local dy =
-			fut.Y - pos.Y
-
-		if math.abs(dy) > cfg.dead then
-
-			local look =
-				Vector3.new(
-					hrp.CFrame.LookVector.X,
-					0,
-					hrp.CFrame.LookVector.Z
-				)
-
-			if look.Magnitude > 0 then
-				look = look.Unit
-			end
-
-			local dist =
-				(
-					Vector3.new(
-						fut.X,
-						pos.Y,
-						fut.Z
-					) - pos
-				).Magnitude
-
-			if dist > 0 then
-				sp +=
-					math.atan2(dy, dist)
-					* cfg.pred
-			end
-		end
-
-		sp += rel.Z * cfg.base
-	end
-
-	py +=
-		(sx - py)
-		* math.min(dt * cfg.sideSmooth, 1)
-
-	px +=
-		(sp - px)
-		* math.clamp(dt * cfg.smooth, 0, 1)
-
-	local yaw =
-		CFrame.Angles(
-			0,
-			math.rad(hrp.Orientation.Y),
-			0
-		)
-
-	-- Tilt tanpa mengubah posisi karakter
-	hrp.CFrame =
-		CFrame.new(hrp.Position)
-		* yaw
-		* CFrame.Angles(
-			px,
-			0,
-			math.rad(py)
-		)
 end)
