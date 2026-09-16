@@ -1,460 +1,427 @@
---// RGB FLY SYSTEM
---// LocalScript
---// StarterPlayer > StarterPlayerScripts
-
-local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
-local Player = Players.LocalPlayer
-
 --==================================================
--- SETTINGS
+-- FLY GUI V3 + FLY / HOVER ANIMATION
 --==================================================
 
-local FLY_SPEED = 60
-local VERTICAL_SPEED = 45
+local player = game:GetService("Players").LocalPlayer
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
 
--- Animation IDs
-local FLY_ANIMATION_ID = "rbxassetid://139612150175034"
-local IDLE_ANIMATION_ID = "rbxassetid://99496791481602"
+local playerGui = player:WaitForChild("PlayerGui")
 
 --==================================================
 -- VARIABLES
 --==================================================
 
-local Character
-local Humanoid
-local Root
+local flying = false
+local speed = 60
 
-local Flying = false
-local Up = false
-local Down = false
+local bv, bg
 
-local BodyVelocity
-local BodyGyro
+local currentTrack = nil
+local flyAnimation
+local hoverAnimation
 
-local FlyTrack
-local IdleTrack
+local hoverTime = 0
+
+-- Animation dari script kamu
+local FLY_ANIMATION_ID = "125722696765151"
+local HOVER_ANIMATION_ID = "88138077358201"
 
 --==================================================
--- CHARACTER SETUP
+-- UI
 --==================================================
 
-local function SetupCharacter(Char)
-	Character = Char
-	Humanoid = Char:WaitForChild("Humanoid")
-	Root = Char:WaitForChild("HumanoidRootPart")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlyV3_Ultimate"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
-	FlyTrack = nil
-	IdleTrack = nil
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 160, 0, 130)
+frame.Position = UDim2.new(0, 20, 0.5, -65)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel")
+title.Text = "FLY V3 CONTROLS"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.TextColor3 = Color3.fromRGB(200, 200, 200)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.TextSize = 12
+title.Parent = frame
+
+local flyBtn = Instance.new("TextButton")
+flyBtn.Name = "Toggle"
+flyBtn.Size = UDim2.new(0.9, 0, 0, 35)
+flyBtn.Position = UDim2.new(0.05, 0, 0.25, 0)
+flyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+flyBtn.Text = "FLY: OFF"
+flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyBtn.Font = Enum.Font.GothamBold
+flyBtn.Parent = frame
+
+Instance.new("UICorner", flyBtn)
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Text = "Velocidad: " .. speed
+speedLabel.Size = UDim2.new(1, 0, 0, 25)
+speedLabel.Position = UDim2.new(0, 0, 0.55, 0)
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.Parent = frame
+
+local speedUp = Instance.new("TextButton")
+speedUp.Text = "+"
+speedUp.Size = UDim2.new(0.4, 0, 0, 25)
+speedUp.Position = UDim2.new(0.55, 0, 0.75, 0)
+speedUp.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+speedUp.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedUp.Parent = frame
+
+Instance.new("UICorner", speedUp)
+
+local speedDown = Instance.new("TextButton")
+speedDown.Text = "-"
+speedDown.Size = UDim2.new(0.4, 0, 0, 25)
+speedDown.Position = UDim2.new(0.05, 0, 0.75, 0)
+speedDown.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+speedDown.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedDown.Parent = frame
+
+Instance.new("UICorner", speedDown)
+
+--==================================================
+-- ANIMATION SYSTEM
+--==================================================
+
+local function stopAnimation()
+	if currentTrack then
+		pcall(function()
+			currentTrack:Stop(0.15)
+		end)
+
+		currentTrack = nil
+	end
 end
 
-SetupCharacter(Player.Character or Player.CharacterAdded:Wait())
+local function playAnimation(id)
+	stopAnimation()
 
-Player.CharacterAdded:Connect(function(Char)
-	if Flying then
-		Flying = false
+	local char = player.Character
+	if not char then return end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+
+	local animator = hum:FindFirstChildOfClass("Animator")
+
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = hum
 	end
 
-	SetupCharacter(Char)
-end)
+	local anim = Instance.new("Animation")
+	anim.AnimationId = "rbxassetid://" .. id
 
---==================================================
--- ANIMATION
---==================================================
-
-local function LoadAnimations()
-	if not Humanoid then
-		return
-	end
-
-	local Animator = Humanoid:FindFirstChildOfClass("Animator")
-
-	if not Animator then
-		Animator = Instance.new("Animator")
-		Animator.Parent = Humanoid
-	end
-
-	-- Fly animation
-	local FlyAnimation = Instance.new("Animation")
-	FlyAnimation.AnimationId = FLY_ANIMATION_ID
-
-	local Success1, Result1 = pcall(function()
-		return Animator:LoadAnimation(FlyAnimation)
+	local success, track = pcall(function()
+		return animator:LoadAnimation(anim)
 	end)
 
-	if Success1 and Result1 then
-		FlyTrack = Result1
-		FlyTrack.Looped = true
-		FlyTrack.Priority = Enum.AnimationPriority.Action
-	end
+	if success and track then
+		track.Looped = true
+		track.Priority = Enum.AnimationPriority.Action
+		track:Play(0.15)
 
-	-- Hover / Idle animation
-	local IdleAnimation = Instance.new("Animation")
-	IdleAnimation.AnimationId = IDLE_ANIMATION_ID
-
-	local Success2, Result2 = pcall(function()
-		return Animator:LoadAnimation(IdleAnimation)
-	end)
-
-	if Success2 and Result2 then
-		IdleTrack = Result2
-		IdleTrack.Looped = true
-		IdleTrack.Priority = Enum.AnimationPriority.Action
+		currentTrack = track
 	end
 end
 
-local function StopAnimations()
-	if FlyTrack then
-		FlyTrack:Stop(0.15)
-	end
-
-	if IdleTrack then
-		IdleTrack:Stop(0.15)
+local function playFlyAnimation()
+	if not currentTrack then
+		playAnimation(FLY_ANIMATION_ID)
 	end
 end
 
-local function UpdateAnimation(IsMoving)
-	if not Flying then
-		return
+local function playHoverAnimation()
+	if not currentTrack then
+		playAnimation(HOVER_ANIMATION_ID)
+	end
+end
+
+--==================================================
+-- MOVEMENT
+--==================================================
+
+local function getDirection()
+	local direction = Vector3.new(0, 0, 0)
+
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return direction
 	end
 
-	if IsMoving then
-
-		if IdleTrack and IdleTrack.IsPlaying then
-			IdleTrack:Stop(0.15)
-		end
-
-		if FlyTrack and not FlyTrack.IsPlaying then
-			FlyTrack:Play(0.15)
-		end
-
-	else
-
-		if FlyTrack and FlyTrack.IsPlaying then
-			FlyTrack:Stop(0.15)
-		end
-
-		if IdleTrack and not IdleTrack.IsPlaying then
-			IdleTrack:Play(0.15)
-		end
+	if userInputService:IsKeyDown(Enum.KeyCode.W) then
+		direction += camera.CFrame.LookVector
 	end
+
+	if userInputService:IsKeyDown(Enum.KeyCode.S) then
+		direction -= camera.CFrame.LookVector
+	end
+
+	if userInputService:IsKeyDown(Enum.KeyCode.A) then
+		direction -= camera.CFrame.RightVector
+	end
+
+	if userInputService:IsKeyDown(Enum.KeyCode.D) then
+		direction += camera.CFrame.RightVector
+	end
+
+	return direction
 end
 
 --==================================================
 -- STOP FLY
 --==================================================
 
-local function StopFly()
-	Flying = false
+local function stopFly()
 
-	if BodyVelocity then
-		BodyVelocity:Destroy()
-		BodyVelocity = nil
+	flying = false
+	hoverTime = 0
+
+	stopAnimation()
+
+	if bg then
+		bg:Destroy()
+		bg = nil
 	end
 
-	if BodyGyro then
-		BodyGyro:Destroy()
-		BodyGyro = nil
+	if bv then
+		bv:Destroy()
+		bv = nil
 	end
 
-	StopAnimations()
+	local char = player.Character
 
-	if Humanoid then
-		Humanoid.AutoRotate = true
+	if char then
+		local hum = char:FindFirstChildOfClass("Humanoid")
+
+		if hum then
+			hum.PlatformStand = false
+			hum.AutoRotate = true
+
+			-- Pastikan animasi default Roblox kembali aktif
+			local animate = char:FindFirstChild("Animate")
+
+			if animate then
+				animate.Disabled = false
+			end
+		end
 	end
+
+	flyBtn.Text = "FLY: OFF"
+	flyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 end
 
 --==================================================
 -- START FLY
 --==================================================
 
-local function StartFly()
-	if not Character or not Humanoid or not Root then
+local function startFly()
+
+	local char = player.Character
+
+	if not char then
 		return
 	end
 
-	LoadAnimations()
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
 
-	Flying = true
+	if not root or not hum then
+		return
+	end
 
-	Humanoid.AutoRotate = false
+	flying = true
+	hoverTime = 0
 
-	BodyVelocity = Instance.new("BodyVelocity")
-	BodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-	BodyVelocity.P = 5000
-	BodyVelocity.Velocity = Vector3.zero
-	BodyVelocity.Parent = Root
+	flyBtn.Text = "FLY: ON"
+	flyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
 
-	BodyGyro = Instance.new("BodyGyro")
-	BodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-	BodyGyro.P = 10000
-	BodyGyro.CFrame = Root.CFrame
-	BodyGyro.Parent = Root
+	hum.PlatformStand = true
+
+	-- BodyGyro
+	bg = Instance.new("BodyGyro")
+	bg.P = 9e4
+	bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	bg.CFrame = workspace.CurrentCamera.CFrame
+	bg.Parent = root
+
+	-- BodyVelocity
+	bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	bv.P = 9e4
+	bv.Velocity = Vector3.zero
+	bv.Parent = root
+
+	-- Matikan animasi default sementara Fly aktif
+	local animate = char:FindFirstChild("Animate")
+
+	if animate then
+		animate.Disabled = true
+	end
+
+	-- Mulai Hover saat pertama aktif
+	playHoverAnimation()
 end
 
 --==================================================
--- UI
+-- FLY LOOP
 --==================================================
 
-local GUI = Instance.new("ScreenGui")
-GUI.Name = "RGBFlyUI"
-GUI.ResetOnSpawn = false
-GUI.Parent = Player:WaitForChild("PlayerGui")
+runService.RenderStepped:Connect(function(dt)
 
-local Main = Instance.new("Frame")
-Main.Name = "Main"
-Main.Size = UDim2.fromOffset(190, 125)
-Main.Position = UDim2.new(0, 20, 0.5, -60)
-Main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Main.BorderSizePixel = 0
-Main.Parent = GUI
+	if not flying then
+		return
+	end
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 14)
-MainCorner.Parent = Main
+	local char = player.Character
 
--- RGB border
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Thickness = 2
-MainStroke.Parent = Main
+	if not char then
+		stopFly()
+		return
+	end
 
---==================================================
--- TITLE
---==================================================
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -50, 0, 35)
-Title.Position = UDim2.fromOffset(12, 5)
-Title.BackgroundTransparency = 1
-Title.Text = "✦ RGB FLY"
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.Parent = Main
+	if not root or not hum or not bv or not bg then
+		stopFly()
+		return
+	end
 
---==================================================
--- MINIMIZE BUTTON
---==================================================
+	local camera = workspace.CurrentCamera
 
-local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(30, 30)
-Minimize.Position = UDim2.new(1, -36, 0, 7)
-Minimize.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-Minimize.Text = "−"
-Minimize.TextSize = 22
-Minimize.Font = Enum.Font.GothamBold
-Minimize.Parent = Main
+	if not camera then
+		return
+	end
 
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(1, 0)
-MinCorner.Parent = Minimize
+	local direction = getDirection()
+	local moving = direction.Magnitude > 0.01
 
---==================================================
--- FLY BUTTON
---==================================================
+	--==================================================
+	-- GERAK FLY
+	--==================================================
 
-local FlyButton = Instance.new("TextButton")
-FlyButton.Size = UDim2.new(1, -20, 0, 42)
-FlyButton.Position = UDim2.fromOffset(10, 48)
-FlyButton.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
-FlyButton.Text = "✈  FLY : OFF"
-FlyButton.Font = Enum.Font.GothamBold
-FlyButton.TextSize = 17
-FlyButton.Parent = Main
+	local velocity = direction * speed
 
-local FlyCorner = Instance.new("UICorner")
-FlyCorner.CornerRadius = UDim.new(0, 10)
-FlyCorner.Parent = FlyButton
+	--==================================================
+	-- HOVER NAIK-TURUN
+	--==================================================
 
-local FlyStroke = Instance.new("UIStroke")
-FlyStroke.Thickness = 1.5
-FlyStroke.Parent = FlyButton
+	if not moving then
 
---==================================================
--- STATUS
---==================================================
+		hoverTime += dt
 
-local Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(1, -20, 0, 25)
-Status.Position = UDim2.fromOffset(10, 94)
-Status.BackgroundTransparency = 1
-Status.Text = "● READY"
-Status.Font = Enum.Font.GothamMedium
-Status.TextSize = 12
-Status.Parent = Main
+		-- Gerakan naik turun smooth
+		local hoverY = math.sin(hoverTime * 2.5) * 2
 
---==================================================
--- MINIMIZE
---==================================================
+		velocity += Vector3.new(0, hoverY, 0)
 
-local Minimized = false
-local OldSize = Main.Size
-
-Minimize.MouseButton1Click:Connect(function()
-
-	Minimized = not Minimized
-
-	if Minimized then
-
-		Main.Size = UDim2.fromOffset(55, 55)
-
-		Title.Visible = false
-		FlyButton.Visible = false
-		Status.Visible = false
-
-		Minimize.Size = UDim2.fromOffset(35, 35)
-		Minimize.Position = UDim2.fromOffset(10, 10)
-		Minimize.Text = "✦"
+		-- Pastikan Hover animation
+		if not currentTrack then
+			playHoverAnimation()
+		end
 
 	else
 
-		Main.Size = OldSize
+		-- Reset waktu hover
+		hoverTime = 0
 
-		Title.Visible = true
-		FlyButton.Visible = true
-		Status.Visible = true
-
-		Minimize.Size = UDim2.fromOffset(30, 30)
-		Minimize.Position = UDim2.new(1, -36, 0, 7)
-		Minimize.Text = "−"
+		-- Pastikan Fly animation
+		if not currentTrack then
+			playFlyAnimation()
+		end
 	end
+
+	bv.Velocity = velocity
+
+	--==================================================
+	-- ARAH KARAKTER
+	--==================================================
+
+	bg.CFrame = camera.CFrame
+
 end)
 
 --==================================================
--- FLY BUTTON
+-- TOGGLE
 --==================================================
 
-FlyButton.MouseButton1Click:Connect(function()
+local function toggleFly()
 
-	if Flying then
-
-		StopFly()
-
-		FlyButton.Text = "✈  FLY : OFF"
-		Status.Text = "● READY"
-
+	if flying then
+		stopFly()
 	else
-
-		StartFly()
-
-		FlyButton.Text = "✈  FLY : ON"
-		Status.Text = "● FLYING"
-
+		startFly()
 	end
+
+end
+
+flyBtn.MouseButton1Click:Connect(toggleFly)
+
+--==================================================
+-- SPEED UP
+--==================================================
+
+speedUp.MouseButton1Click:Connect(function()
+
+	speed = math.clamp(speed + 20, 10, 500)
+
+	speedLabel.Text = "Velocidad: " .. speed
+
 end)
 
 --==================================================
--- KEYBOARD
+-- SPEED DOWN
 --==================================================
 
-UIS.InputBegan:Connect(function(Input, Processed)
+speedDown.MouseButton1Click:Connect(function()
 
-	if Processed then
-		return
-	end
+	speed = math.clamp(speed - 20, 10, 500)
 
-	if Input.KeyCode == Enum.KeyCode.Space then
+	speedLabel.Text = "Velocidad: " .. speed
 
-		Up = true
-
-	elseif Input.KeyCode == Enum.KeyCode.LeftControl then
-
-		Down = true
-
-	end
-end)
-
-UIS.InputEnded:Connect(function(Input)
-
-	if Input.KeyCode == Enum.KeyCode.Space then
-
-		Up = false
-
-	elseif Input.KeyCode == Enum.KeyCode.LeftControl then
-
-		Down = false
-
-	end
 end)
 
 --==================================================
--- FLY MOVEMENT
+-- F KEY
 --==================================================
 
-RunService.RenderStepped:Connect(function()
+userInputService.InputBegan:Connect(function(input, gpe)
 
-	if not Flying then
+	if gpe then
 		return
 	end
 
-	if not Root or not BodyVelocity or not BodyGyro then
-		return
+	if input.KeyCode == Enum.KeyCode.F then
+		toggleFly()
 	end
 
-	local Camera = workspace.CurrentCamera
-
-	if not Camera then
-		return
-	end
-
-	local MoveDirection = Humanoid.MoveDirection
-
-	local IsMoving =
-		MoveDirection.Magnitude > 0.05
-		or Up
-		or Down
-
-	local Velocity = MoveDirection * FLY_SPEED
-
-	-- Naik
-	if Up then
-		Velocity += Vector3.new(0, VERTICAL_SPEED, 0)
-	end
-
-	-- Turun
-	if Down then
-		Velocity -= Vector3.new(0, VERTICAL_SPEED, 0)
-	end
-
-	BodyVelocity.Velocity = Velocity
-
-	-- Menghadap arah kamera
-	local Look = Camera.CFrame.LookVector
-
-	BodyGyro.CFrame = CFrame.lookAt(
-		Root.Position,
-		Root.Position + Vector3.new(
-			Look.X,
-			0,
-			Look.Z
-		)
-	)
-
-	UpdateAnimation(IsMoving)
 end)
 
 --==================================================
--- RGB EFFECT
+-- RESPAWN SAFETY
 --==================================================
 
-local Hue = 0
+player.CharacterAdded:Connect(function()
 
-RunService.RenderStepped:Connect(function(DeltaTime)
+	if flying then
+		stopFly()
+	end
 
-	Hue = (Hue + DeltaTime * 0.15) % 1
-
-	local RGB = Color3.fromHSV(
-		Hue,
-		1,
-		1
-	)
-
-	MainStroke.Color = RGB
-	FlyStroke.Color = RGB
-
-	Title.TextColor3 = RGB
-	Minimize.TextColor3 = RGB
-	FlyButton.TextColor3 = RGB
-	Status.TextColor3 = RGB
 end)
