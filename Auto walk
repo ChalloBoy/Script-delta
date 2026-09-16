@@ -1,13 +1,8 @@
---// FULLY AUTO PLAYER OBSTACLE
+--// RECORD + CHECKPOINT REPLAY
 --// LocalScript
 --// StarterPlayer > StarterPlayerScripts
---
---// Kamera hanya untuk melihat.
---// Player bergerak otomatis.
---// Menggunakan Pathfinding + Raycast + Auto Jump.
 
 local Players = game:GetService("Players")
-local PathfindingService = game:GetService("PathfindingService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -17,566 +12,533 @@ local Character
 local Humanoid
 local Root
 
-local Enabled = false
-local Minimized = false
-local JumpCooldown = false
+local Recording = false
+local Replaying = false
 
-local Path = nil
-local Waypoints = {}
-local WaypointIndex = 1
+local Frames = {}
+local Checkpoints = {}
+local CurrentCheckpoint = 0
 
---==================================================
+local RecordConnection
+local ReplayConnection
+
+local SAMPLE_RATE = 0.05 -- semakin kecil = semakin halus
+local lastSample = 0
+
+--------------------------------------------------
 -- CHARACTER
---==================================================
+--------------------------------------------------
 
-local function SetupCharacter(Char)
+local function SetupCharacter(char)
+	Character = char
+	Humanoid = char:WaitForChild("Humanoid")
+	Root = char:WaitForChild("HumanoidRootPart")
 
-	Character = Char
-	Humanoid = Char:WaitForChild("Humanoid")
-	Root = Char:WaitForChild("HumanoidRootPart")
+	-- Kalau sedang replay dan respawn,
+	-- lanjut dari checkpoint terakhir.
+	if Replaying and CurrentCheckpoint > 0 then
+		task.wait(0.5)
 
-	Path = nil
-	Waypoints = {}
-	WaypointIndex = 1
+		local cp = Checkpoints[CurrentCheckpoint]
 
+		if cp then
+			Root.CFrame = cp.CFrame
+		end
+
+		task.wait(0.2)
+
+		-- lanjut replay dari checkpoint
+		-- (dipanggil lagi setelah character siap)
+	end
 end
 
-SetupCharacter(
-	Player.Character or Player.CharacterAdded:Wait()
-)
+if Player.Character then
+	SetupCharacter(Player.Character)
+end
 
-Player.CharacterAdded:Connect(function(Char)
+Player.CharacterAdded:Connect(SetupCharacter)
 
-	Enabled = false
+--------------------------------------------------
+-- CHECKPOINT DETECTION
+--------------------------------------------------
 
-	SetupCharacter(Char)
-
-	task.wait(0.3)
-
-	if Toggle then
-		Toggle.Text = "AUTO: OFF"
-		Toggle.BackgroundColor3 =
-			Color3.fromRGB(55,55,65)
+local function IsCheckpoint(part)
+	if not part:IsA("BasePart") then
+		return false
 	end
 
-	if Status then
-		Status.Text = "Ready"
-	end
+	-- Bisa menggunakan nama:
+	-- Checkpoint
+	-- CP
+	-- Checkpoint1
+	-- CP1
+	return string.find(string.lower(part.Name), "checkpoint")
+		or string.match(string.lower(part.Name), "^cp")
+end
 
+local function SaveCheckpoint()
+	if not Root then return end
+
+	CurrentCheckpoint += 1
+
+	Checkpoints[CurrentCheckpoint] = {
+		CFrame = Root.CFrame,
+		FrameIndex = #Frames + 1
+	}
+
+	print("Checkpoint tersimpan:", CurrentCheckpoint)
+
+	Status.Text = "Checkpoint: " .. CurrentCheckpoint
+end
+
+--------------------------------------------------
+-- DETECT CHECKPOINT
+--------------------------------------------------
+
+local CheckpointDebounce = {}
+
+workspace.DescendantAdded:Connect(function(obj)
+	if IsCheckpoint(obj) then
+		obj.Touched:Connect(function(hit)
+			if not Character then return end
+			if hit:IsDescendantOf(Character) then
+
+				if not CheckpointDebounce[obj] then
+					CheckpointDebounce[obj] = true
+
+					SaveCheckpoint()
+
+					task.delay(1, function()
+						CheckpointDebounce[obj] = nil
+					end)
+				end
+			end
+		end)
+	end
 end)
 
---==================================================
+-- checkpoint yang sudah ada saat script mulai
+for _, obj in ipairs(workspace:GetDescendants()) do
+	if IsCheckpoint(obj) then
+
+		obj.Touched:Connect(function(hit)
+			if not Character then return end
+
+			if hit:IsDescendantOf(Character) then
+				if not CheckpointDebounce[obj] then
+					CheckpointDebounce[obj] = true
+
+					SaveCheckpoint()
+
+					task.delay(1, function()
+						CheckpointDebounce[obj] = nil
+					end)
+				end
+			end
+		end)
+
+	end
+end
+
+--------------------------------------------------
+-- RECORD
+--------------------------------------------------
+
+local function StartRecord()
+
+	if not Root then return end
+
+	Frames = {}
+	Checkpoints = {}
+	CurrentCheckpoint = 0
+
+	Recording = true
+	Replaying = false
+
+	Status.Text = "Recording..."
+
+	if ReplayConnection then
+		ReplayConnection:Disconnect()
+		ReplayConnection = nil
+	end
+
+	if RecordConnection then
+		RecordConnection:Disconnect()
+	end
+
+	lastSample = 0
+
+	RecordConnection = RunService.Heartbeat:Connect(function(dt)
+
+		if not Recording then return end
+		if not Character or not Root then return end
+
+		lastSample += dt
+
+		if lastSample >= SAMPLE_RATE then
+			lastSample = 0
+
+			table.insert(Frames, {
+				Time = os.clock(),
+				CFrame = Root.CFrame
+			})
+		end
+	end)
+end
+
+local function StopRecord()
+
+	Recording = false
+
+	if RecordConnection then
+		RecordConnection:Disconnect()
+		RecordConnection = nil
+	end
+
+	Status.Text = "Recorded: " .. #Frames .. " frames"
+
+	print("Record selesai:", #Frames)
+	print("Checkpoint:", #Checkpoints)
+end
+
+--------------------------------------------------
+-- FIND FRAME
+--------------------------------------------------
+
+local function GetStartFrame()
+
+	if CurrentCheckpoint > 0 then
+		local cp = Checkpoints[CurrentCheckpoint]
+
+		if cp then
+			return cp.FrameIndex
+		end
+	end
+
+	return 1
+end
+
+--------------------------------------------------
+-- REPLAY
+--------------------------------------------------
+
+local function StopReplay()
+
+	Replaying = false
+
+	if ReplayConnection then
+		ReplayConnection:Disconnect()
+		ReplayConnection = nil
+	end
+
+	Status.Text = "Replay stopped"
+end
+
+local function StartReplay()
+
+	if #Frames == 0 then
+		Status.Text = "Belum ada record!"
+		return
+	end
+
+	Recording = false
+	Replaying = true
+
+	if RecordConnection then
+		RecordConnection:Disconnect()
+		RecordConnection = nil
+	end
+
+	if ReplayConnection then
+		ReplayConnection:Disconnect()
+	end
+
+	local frameIndex = GetStartFrame()
+
+	Status.Text = "Replay dari CP " .. CurrentCheckpoint
+
+	local startTime = os.clock()
+	local firstFrame = Frames[frameIndex]
+
+	if not firstFrame then
+		StopReplay()
+		return
+	end
+
+	-- posisi awal
+	if Root then
+		Root.CFrame = firstFrame.CFrame
+	end
+
+	ReplayConnection = RunService.Heartbeat:Connect(function()
+
+		if not Replaying then return end
+		if not Character or not Root or not Humanoid then return end
+
+		local elapsed = os.clock() - startTime
+
+		local frame = Frames[frameIndex]
+
+		if not frame then
+			StopReplay()
+			Status.Text = "Replay selesai!"
+			return
+		end
+
+		-- cari frame berdasarkan waktu
+		while frameIndex < #Frames do
+
+			local nextFrame = Frames[frameIndex + 1]
+
+			if nextFrame.Time - firstFrame.Time <= elapsed then
+				frameIndex += 1
+				frame = Frames[frameIndex]
+			else
+				break
+			end
+		end
+
+		if frame then
+			Root.CFrame = frame.CFrame
+		end
+
+		-- sudah selesai
+		if frameIndex >= #Frames then
+			StopReplay()
+			Status.Text = "Replay selesai!"
+		end
+	end)
+end
+
+--------------------------------------------------
+-- RESPAWN / JATUH
+--------------------------------------------------
+
+Player.CharacterAdded:Connect(function(char)
+
+	Character = char
+	Humanoid = char:WaitForChild("Humanoid")
+	Root = char:WaitForChild("HumanoidRootPart")
+
+	if Replaying and CurrentCheckpoint > 0 then
+
+		task.wait(0.5)
+
+		local cp = Checkpoints[CurrentCheckpoint]
+
+		if cp then
+			Root.CFrame = cp.CFrame
+
+			Status.Text =
+				"Respawn CP " .. CurrentCheckpoint
+		end
+
+		task.wait(0.3)
+
+		-- replay ulang dari checkpoint terakhir
+		StartReplay()
+	end
+end)
+
+--------------------------------------------------
 -- UI
---==================================================
+--------------------------------------------------
 
 local Gui = Instance.new("ScreenGui")
-Gui.Name = "FullyAutoObstacle"
+Gui.Name = "CheckpointRecorder"
 Gui.ResetOnSpawn = false
 Gui.Parent = Player:WaitForChild("PlayerGui")
 
 local Main = Instance.new("Frame")
-Main.Size = UDim2.fromOffset(205,130)
-Main.Position = UDim2.new(0.5,-102,0.65,0)
-Main.BackgroundColor3 = Color3.fromRGB(24,24,31)
-Main.BackgroundTransparency = 0.05
+Main.Size = UDim2.fromOffset(210, 145)
+Main.Position = UDim2.new(0, 15, 0.5, -70)
+Main.BackgroundColor3 = Color3.fromRGB(25,25,25)
 Main.BorderSizePixel = 0
-Main.Active = true
 Main.Parent = Gui
 
 local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0,12)
+Corner.CornerRadius = UDim.new(0,10)
 Corner.Parent = Main
 
-local Stroke = Instance.new("UIStroke")
-Stroke.Transparency = 0.4
-Stroke.Thickness = 1
-Stroke.Parent = Main
-
---==================================================
--- TITLE
---==================================================
-
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,-45,0,32)
-Title.Position = UDim2.fromOffset(12,4)
+Title.Size = UDim2.new(1,-40,0,30)
+Title.Position = UDim2.fromOffset(10,5)
 Title.BackgroundTransparency = 1
-Title.Text = "AUTO OBSTACLE"
+Title.Text = "🎥 Checkpoint Recorder"
 Title.TextColor3 = Color3.new(1,1,1)
 Title.TextSize = 14
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Main
 
---==================================================
--- MINIMIZE
---==================================================
-
 local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(30,30)
-Minimize.Position = UDim2.new(1,-36,0,4)
-Minimize.BackgroundTransparency = 1
-Minimize.Text = "−"
+Minimize.Size = UDim2.fromOffset(28,28)
+Minimize.Position = UDim2.new(1,-33,0,5)
+Minimize.Text = "-"
+Minimize.TextSize = 18
 Minimize.TextColor3 = Color3.new(1,1,1)
-Minimize.TextSize = 21
-Minimize.Font = Enum.Font.GothamBold
+Minimize.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Minimize.Parent = Main
 
---==================================================
--- TOGGLE
---==================================================
+local RecordButton = Instance.new("TextButton")
+RecordButton.Size = UDim2.new(1,-20,0,32)
+RecordButton.Position = UDim2.fromOffset(10,40)
+RecordButton.Text = "🔴 RECORD"
+RecordButton.TextSize = 13
+RecordButton.TextColor3 = Color3.new(1,1,1)
+RecordButton.BackgroundColor3 = Color3.fromRGB(170,45,45)
+RecordButton.Parent = Main
 
-Toggle = Instance.new("TextButton")
-Toggle.Size = UDim2.new(1,-24,0,42)
-Toggle.Position = UDim2.fromOffset(12,42)
-Toggle.BackgroundColor3 = Color3.fromRGB(55,55,65)
-Toggle.BorderSizePixel = 0
-Toggle.Text = "AUTO: OFF"
-Toggle.TextColor3 = Color3.new(1,1,1)
-Toggle.TextSize = 14
-Toggle.Font = Enum.Font.GothamBold
-Toggle.Parent = Main
+local StopButton = Instance.new("TextButton")
+StopButton.Size = UDim2.new(0.48,-10,0,30)
+StopButton.Position = UDim2.fromOffset(10,78)
+StopButton.Text = "■ STOP"
+StopButton.TextSize = 12
+StopButton.TextColor3 = Color3.new(1,1,1)
+StopButton.BackgroundColor3 = Color3.fromRGB(70,70,70)
+StopButton.Parent = Main
 
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0,9)
-ToggleCorner.Parent = Toggle
-
---==================================================
--- STATUS
---==================================================
+local ReplayButton = Instance.new("TextButton")
+ReplayButton.Size = UDim2.new(0.48,-10,0,30)
+ReplayButton.Position = UDim2.new(0.52,0,0,78)
+ReplayButton.Text = "▶ REPLAY"
+ReplayButton.TextSize = 12
+ReplayButton.TextColor3 = Color3.new(1,1,1)
+ReplayButton.BackgroundColor3 = Color3.fromRGB(45,120,65)
+ReplayButton.Parent = Main
 
 Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(1,-24,0,25)
-Status.Position = UDim2.fromOffset(12,92)
+Status.Size = UDim2.new(1,-20,0,25)
+Status.Position = UDim2.fromOffset(10,113)
 Status.BackgroundTransparency = 1
 Status.Text = "Ready"
-Status.TextColor3 = Color3.fromRGB(170,170,180)
-Status.TextSize = 10
+Status.TextColor3 = Color3.fromRGB(200,200,200)
+Status.TextSize = 11
 Status.Font = Enum.Font.Gotham
 Status.Parent = Main
 
---==================================================
--- DRAG UI
---==================================================
+--------------------------------------------------
+-- BUTTONS
+--------------------------------------------------
 
-local Dragging = false
-local DragStart
-local StartPosition
+RecordButton.MouseButton1Click:Connect(function()
 
-Main.InputBegan:Connect(function(Input)
+	if Replaying then
+		StopReplay()
+	end
 
-	if Input.UserInputType == Enum.UserInputType.MouseButton1
-		or Input.UserInputType == Enum.UserInputType.Touch then
+	StartRecord()
 
-		Dragging = true
-		DragStart = Input.Position
-		StartPosition = Main.Position
+end)
 
+StopButton.MouseButton1Click:Connect(function()
+
+	if Recording then
+		StopRecord()
+	end
+
+	if Replaying then
+		StopReplay()
 	end
 
 end)
 
-UserInputService.InputChanged:Connect(function(Input)
+ReplayButton.MouseButton1Click:Connect(function()
 
-	if not Dragging then
-		return
-	end
-
-	if Input.UserInputType == Enum.UserInputType.MouseMovement
-		or Input.UserInputType == Enum.UserInputType.Touch then
-
-		local Delta = Input.Position - DragStart
-
-		Main.Position = UDim2.new(
-			StartPosition.X.Scale,
-			StartPosition.X.Offset + Delta.X,
-			StartPosition.Y.Scale,
-			StartPosition.Y.Offset + Delta.Y
-		)
-
-	end
+	StartReplay()
 
 end)
 
-UserInputService.InputEnded:Connect(function(Input)
-
-	if Input.UserInputType == Enum.UserInputType.MouseButton1
-		or Input.UserInputType == Enum.UserInputType.Touch then
-
-		Dragging = false
-
-	end
-
-end)
-
---==================================================
+--------------------------------------------------
 -- MINIMIZE
---==================================================
+--------------------------------------------------
+
+local minimized = false
 
 Minimize.MouseButton1Click:Connect(function()
 
-	Minimized = not Minimized
+	minimized = not minimized
 
-	if Minimized then
+	for _, obj in ipairs(Main:GetChildren()) do
+		if obj ~= Title and obj ~= Minimize and obj ~= Corner then
+			obj.Visible = not minimized
+		end
+	end
 
-		Main.Size = UDim2.fromOffset(135,42)
-
-		Toggle.Visible = false
-		Status.Visible = false
-
-		Title.Text = "AUTO"
-
+	if minimized then
+		Main.Size = UDim2.fromOffset(150,40)
+		Minimize.Text = "+"
 	else
-
-		Main.Size = UDim2.fromOffset(205,130)
-
-		Toggle.Visible = true
-		Status.Visible = true
-
-		Title.Text = "AUTO OBSTACLE"
-
+		Main.Size = UDim2.fromOffset(210,145)
+		Minimize.Text = "-"
 	end
 
 end)
 
---==================================================
--- RAYCAST
---==================================================
+--------------------------------------------------
+-- DRAG / TOUCH
+--------------------------------------------------
 
-local RayParams = RaycastParams.new()
-RayParams.FilterType = Enum.RaycastFilterType.Exclude
+local dragging = false
+local dragStart
+local startPos
 
-local function Cast(Origin, Direction)
+local function UpdateDrag(input)
 
-	RayParams.FilterDescendantsInstances = {
-		Character
-	}
+	local delta = input.Position - dragStart
 
-	return workspace:Raycast(
-		Origin,
-		Direction,
-		RayParams
+	Main.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
 	)
 
 end
 
---==================================================
--- DETECT OBSTACLE
---==================================================
+Title.InputBegan:Connect(function(input)
 
-local function ObstacleAhead()
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
 
-	if not Root then
-		return false
-	end
-
-	local Forward = Root.CFrame.LookVector
-
-	local Heights = {
-		0.5,
-		1.5,
-		2.5
-	}
-
-	for _, Height in ipairs(Heights) do
-
-		local Result = Cast(
-			Root.Position +
-				Vector3.new(0,Height,0),
-
-			Forward * 4.5
-		)
-
-		if Result and Result.Instance then
-
-			if Result.Instance:IsA("BasePart") then
-				return true
-			end
-
-		end
-
-	end
-
-	return false
-
-end
-
---==================================================
--- AUTO JUMP
---==================================================
-
-local function AutoJump()
-
-	if JumpCooldown then
-		return
-	end
-
-	if not Humanoid then
-		return
-	end
-
-	if Humanoid.FloorMaterial == Enum.Material.Air then
-		return
-	end
-
-	JumpCooldown = true
-
-	Humanoid.Jump = true
-
-	task.delay(0.65,function()
-		JumpCooldown = false
-	end)
-
-end
-
---==================================================
--- CREATE PATH
---==================================================
-
-local function CreatePath(Target)
-
-	if not Root then
-		return false
-	end
-
-	local NewPath = PathfindingService:CreatePath({
-		AgentRadius = 2,
-		AgentHeight = 5,
-		AgentCanJump = true,
-		AgentCanClimb = true,
-
-		WaypointSpacing = 3
-	})
-
-	local Success = pcall(function()
-
-		NewPath:ComputeAsync(
-			Root.Position,
-			Target
-		)
-
-	end)
-
-	if not Success then
-		return false
-	end
-
-	if NewPath.Status ~= Enum.PathStatus.Success then
-		return false
-	end
-
-	Path = NewPath
-	Waypoints = NewPath:GetWaypoints()
-	WaypointIndex = 1
-
-	return #Waypoints > 0
-
-end
-
---==================================================
--- FIND TARGET
---==================================================
-
-local function FindTarget()
-
-	if not Root then
-		return nil
-	end
-
-	-- Mencoba mencari area di depan.
-	-- Pathfinding akan memilih jalur yang tersedia.
-
-	local Forward = Root.CFrame.LookVector
-
-	local Distance = 40
-
-	local Target =
-		Root.Position +
-		Forward * Distance
-
-	return Target
-
-end
-
---==================================================
--- FOLLOW PATH
---==================================================
-
-local function FollowPath()
-
-	if not Humanoid or not Root then
-		return
-	end
-
-	if not Path or #Waypoints == 0 then
-
-		local Target = FindTarget()
-
-		if Target then
-			CreatePath(Target)
-		end
-
-		return
-	end
-
-	local Waypoint = Waypoints[WaypointIndex]
-
-	if not Waypoint then
-
-		Path = nil
-		Waypoints = {}
-		WaypointIndex = 1
-
-		return
-	end
-
-	-- Lompat jika waypoint membutuhkan jump
-	if Waypoint.Action ==
-		Enum.PathWaypointAction.Jump then
-
-		AutoJump()
-
-	end
-
-	local Direction =
-		Waypoint.Position -
-		Root.Position
-
-	local Horizontal =
-		Vector3.new(
-			Direction.X,
-			0,
-			Direction.Z
-		)
-
-	-- Sudah dekat waypoint
-	if Horizontal.Magnitude < 3 then
-
-		WaypointIndex += 1
-
-		return
-	end
-
-	if Horizontal.Magnitude > 0 then
-
-		Horizontal =
-			Horizontal.Unit
-
-		-- Gerakan Player sendiri
-		Humanoid:Move(
-			Horizontal,
-			false
-		)
-
-	end
-
-end
-
---==================================================
--- REBUILD PATH
---==================================================
-
-local LastPathUpdate = 0
-
-local function UpdatePath()
-
-	if not Root then
-		return
-	end
-
-	local Now = os.clock()
-
-	if Now - LastPathUpdate < 1.2 then
-		return
-	end
-
-	LastPathUpdate = Now
-
-	local Target = FindTarget()
-
-	if Target then
-		CreatePath(Target)
-	end
-
-end
-
---==================================================
--- MAIN
---==================================================
-
-RunService.Heartbeat:Connect(function()
-
-	if not Enabled then
-		return
-	end
-
-	if not Character
-		or not Humanoid
-		or not Root then
-		return
-	end
-
-	if Humanoid.Health <= 0 then
-		return
-	end
-
-	-- Perbarui jalur
-	UpdatePath()
-
-	-- Ikuti jalur
-	FollowPath()
-
-	-- Raycast rintangan
-	if ObstacleAhead() then
-
-		Status.Text = "Obstacle → JUMP"
-
-		AutoJump()
-
-	else
-
-		Status.Text = "Auto Walking"
+		dragging = true
+		dragStart = input.Position
+		startPos = Main.Position
 
 	end
 
 end)
 
---==================================================
--- TOGGLE
---==================================================
+Title.InputChanged:Connect(function(input)
 
-Toggle.MouseButton1Click:Connect(function()
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
 
-	Enabled = not Enabled
+		dragStart = dragStart or input.Position
 
-	if Enabled then
+	end
 
-		Path = nil
-		Waypoints = {}
-		WaypointIndex = 1
-		LastPathUpdate = 0
+end)
 
-		Toggle.Text = "AUTO: ON"
+UserInputService.InputChanged:Connect(function(input)
 
-		Toggle.BackgroundColor3 =
-			Color3.fromRGB(40,145,80)
+	if dragging and (
+		input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch
+	) then
 
-		Status.Text = "Starting..."
+		UpdateDrag(input)
 
-	else
+	end
 
-		Toggle.Text = "AUTO: OFF"
+end)
 
-		Toggle.BackgroundColor3 =
-			Color3.fromRGB(55,55,65)
+UserInputService.InputEnded:Connect(function(input)
 
-		Status.Text = "Ready"
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
 
-		if Humanoid then
-			Humanoid:Move(
-				Vector3.zero,
-				false
-			)
-		end
+		dragging = false
 
 	end
 
