@@ -1,12 +1,13 @@
 --========================================================
--- REAL ANIMATION SYSTEM
+-- CUSTOM ANIMATION SYSTEM
+-- LocalScript
 -- R6 + R15
--- LOCAL SCRIPT
+-- IDLE / JUMP / FALL / DEATH
+-- ON/OFF + MINIMIZE FPS
 --========================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -15,62 +16,43 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 -- SETTINGS
 --========================================================
 
-local AnimationEnabled = true
+local ENABLED = true
 
--- Animasi dari script asli kamu
-local CUSTOM_ANIMATION_ID = "125722696765151"
-
--- Kecepatan idle
 local IDLE_SPEED = 2.4
+local IDLE_BOB = 0.10
+local IDLE_TILT = math.rad(2)
 
--- Kekuatan gerakan idle
-local IDLE_BOB = 0.045
-local IDLE_TILT = 0.025
+local JUMP_TILT = math.rad(-10)
+local FALL_TILT = math.rad(8)
 
--- Jump / fall
-local JUMP_TILT = 0.08
-local FALL_TILT = -0.07
-
---========================================================
--- CHARACTER VARIABLES
---========================================================
-
-local Character
-local Humanoid
-local HRP
-local Animator
-
-local RigType
-
-local RootJoint
-local Waist
-local Neck
-
-local OriginalRootC0
-local OriginalWaistC0
-local OriginalNeckC0
-
-local AnimationTrack
-
-local Alive = false
-local CharacterToken = 0
+local DEATH_TIME = 1.2
 
 --========================================================
--- UI
+-- REMOVE OLD GUI
+--========================================================
+
+for _, gui in ipairs(PlayerGui:GetChildren()) do
+	if gui.Name == "ModeGui"
+		or gui.Name == "CustomAnimationGUI"
+		or gui.Name == "AnimationGUI" then
+		gui:Destroy()
+	end
+end
+
+--========================================================
+-- GUI
 --========================================================
 
 local Gui = Instance.new("ScreenGui")
-Gui.Name = "RealAnimationUI"
+Gui.Name = "AnimationGUI"
 Gui.ResetOnSpawn = false
 Gui.IgnoreGuiInset = true
 Gui.Parent = PlayerGui
 
 local Main = Instance.new("Frame")
-Main.Name = "Main"
-Main.Size = UDim2.fromOffset(165, 62)
-Main.Position = UDim2.new(0, 18, 0.5, -31)
-Main.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
-Main.BackgroundTransparency = 0.05
+Main.Size = UDim2.fromOffset(190, 92)
+Main.Position = UDim2.new(0, 18, 0.5, -46)
+Main.BackgroundColor3 = Color3.fromRGB(55, 58, 70)
 Main.BorderSizePixel = 0
 Main.Parent = Gui
 
@@ -84,464 +66,454 @@ Stroke.Parent = Main
 
 local Title = Instance.new("TextLabel")
 Title.BackgroundTransparency = 1
-Title.Size = UDim2.new(1, -10, 0, 25)
-Title.Position = UDim2.fromOffset(5, 3)
-Title.Text = "ANIMATION"
-Title.TextColor3 = Color3.fromRGB(35, 35, 45)
-Title.TextSize = 12
+Title.Position = UDim2.fromOffset(10, 5)
+Title.Size = UDim2.new(1, -45, 0, 25)
 Title.Font = Enum.Font.GothamBold
+Title.Text = "ANIMATION"
+Title.TextSize = 15
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Main
 
+local Minimize = Instance.new("TextButton")
+Minimize.BackgroundTransparency = 1
+Minimize.Position = UDim2.new(1, -35, 0, 4)
+Minimize.Size = UDim2.fromOffset(28, 25)
+Minimize.Text = "—"
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 18
+Minimize.TextColor3 = Color3.new(1,1,1)
+Minimize.Parent = Main
+
 local Toggle = Instance.new("TextButton")
-Toggle.Size = UDim2.new(1, -14, 0, 27)
-Toggle.Position = UDim2.fromOffset(7, 31)
-Toggle.BorderSizePixel = 0
+Toggle.Position = UDim2.fromOffset(10, 36)
+Toggle.Size = UDim2.new(1, -20, 0, 44)
 Toggle.Font = Enum.Font.GothamBold
-Toggle.TextSize = 12
+Toggle.TextSize = 15
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.AutoButtonColor = true
 Toggle.Parent = Main
 
 local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.CornerRadius = UDim.new(0, 9)
 ToggleCorner.Parent = Toggle
 
---========================================================
--- FPS MINI UI
---========================================================
+local FPS = Instance.new("TextButton")
+FPS.Size = UDim2.fromOffset(105, 38)
+FPS.Position = UDim2.new(0, 18, 0.5, -19)
+FPS.BackgroundColor3 = Color3.fromRGB(55, 58, 70)
+FPS.BorderSizePixel = 0
+FPS.Font = Enum.Font.GothamBold
+FPS.TextSize = 14
+FPS.TextColor3 = Color3.new(1,1,1)
+FPS.Text = "FPS: ---"
+FPS.Visible = false
+FPS.Parent = Gui
 
-local Mini = Instance.new("TextButton")
-Mini.Name = "MiniFPS"
-Mini.Size = UDim2.fromOffset(95, 30)
-Mini.Position = Main.Position
-Mini.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
-Mini.BorderSizePixel = 0
-Mini.TextColor3 = Color3.fromRGB(35, 35, 45)
-Mini.TextSize = 12
-Mini.Font = Enum.Font.GothamBold
-Mini.Text = "FPS: ---"
-Mini.Visible = false
-Mini.Parent = Gui
+local FPSCorner = Instance.new("UICorner")
+FPSCorner.CornerRadius = UDim.new(0, 10)
+FPSCorner.Parent = FPS
 
-local MiniCorner = Instance.new("UICorner")
-MiniCorner.CornerRadius = UDim.new(0, 9)
-MiniCorner.Parent = Mini
+local FPSStroke = Instance.new("UIStroke")
+FPSStroke.Thickness = 2
+FPSStroke.Parent = FPS
 
-local MiniStroke = Instance.new("UIStroke")
-MiniStroke.Thickness = 2
-MiniStroke.Parent = Mini
-
---========================================================
--- BUTTON
---========================================================
-
-local function UpdateToggle()
-	if AnimationEnabled then
-		Toggle.Text = "●  ANIMATION ON"
-		Toggle.TextColor3 = Color3.fromRGB(20, 145, 75)
-		Toggle.BackgroundColor3 = Color3.fromRGB(225, 250, 235)
+local function updateToggle()
+	if ENABLED then
+		Toggle.Text = "ANIMATION  •  ON"
+		Toggle.BackgroundColor3 = Color3.fromRGB(65, 190, 105)
 	else
-		Toggle.Text = "○  ANIMATION OFF"
-		Toggle.TextColor3 = Color3.fromRGB(190, 55, 55)
-		Toggle.BackgroundColor3 = Color3.fromRGB(255, 230, 230)
+		Toggle.Text = "ANIMATION  •  OFF"
+		Toggle.BackgroundColor3 = Color3.fromRGB(195, 75, 75)
 	end
 end
 
-UpdateToggle()
-
-Toggle.MouseButton1Click:Connect(function()
-	AnimationEnabled = not AnimationEnabled
-	UpdateToggle()
-
-	if not AnimationEnabled then
-		if RootJoint and OriginalRootC0 then
-			RootJoint.C0 = OriginalRootC0
-		end
-
-		if Waist and OriginalWaistC0 then
-			Waist.C0 = OriginalWaistC0
-		end
-
-		if Neck and OriginalNeckC0 then
-			Neck.C0 = OriginalNeckC0
-		end
-	end
-end)
-
---========================================================
--- MINIMIZE
---========================================================
-
-local function Minimize()
-	Main.Visible = false
-	Mini.Visible = true
-end
-
-local function Restore()
-	Mini.Visible = false
-	Main.Visible = true
-end
-
-Title.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		Minimize()
-	end
-end)
-
-Mini.MouseButton1Click:Connect(function()
-	Restore()
-end)
-
---========================================================
--- FIND JOINT
---========================================================
-
-local function FindJoint()
-	RootJoint = nil
-	Waist = nil
-	Neck = nil
-
-	if not Character then
-		return
-	end
-
-	if RigType == Enum.HumanoidRigType.R6 then
-
-		local Torso = Character:FindFirstChild("Torso")
-
-		if Torso then
-			RootJoint = Torso:FindFirstChild("RootJoint")
-			Neck = Torso:FindFirstChild("Neck")
-		end
-
-	else
-
-		local LowerTorso = Character:FindFirstChild("LowerTorso")
-		local UpperTorso = Character:FindFirstChild("UpperTorso")
-
-		if LowerTorso then
-			RootJoint = LowerTorso:FindFirstChild("Root")
-		end
-
-		if UpperTorso then
-			Waist = UpperTorso:FindFirstChild("Waist")
-			Neck = UpperTorso:FindFirstChild("Neck")
-		end
-
-	end
-
-	-- Simpan C0 asli
-	if RootJoint then
-		OriginalRootC0 = RootJoint.C0
-	end
-
-	if Waist then
-		OriginalWaistC0 = Waist.C0
-	end
-
-	if Neck then
-		OriginalNeckC0 = Neck.C0
-	end
-end
-
---========================================================
--- PLAY REAL ANIMATION
---========================================================
-
-local function StopAnimation()
-	if AnimationTrack then
-		pcall(function()
-			AnimationTrack:Stop(0.15)
-			AnimationTrack:Destroy()
-		end)
-
-		AnimationTrack = nil
-	end
-end
-
-local function PlayCustomAnimation()
-	StopAnimation()
-
-	if not Animator then
-		return
-	end
-
-	local Animation = Instance.new("Animation")
-	Animation.AnimationId = "rbxassetid://" .. CUSTOM_ANIMATION_ID
-
-	local success, track = pcall(function()
-		return Animator:LoadAnimation(Animation)
-	end)
-
-	if success and track then
-		AnimationTrack = track
-
-		AnimationTrack.Priority = Enum.AnimationPriority.Action
-		AnimationTrack.Looped = true
-
-		pcall(function()
-			AnimationTrack:Play(0.2, 1, 1)
-		end)
-	end
-
-	Animation:Destroy()
-end
-
---========================================================
--- CHARACTER SETUP
---========================================================
-
-local function SetupCharacter(NewCharacter)
-
-	CharacterToken += 1
-	local MyToken = CharacterToken
-
-	Alive = false
-
-	StopAnimation()
-
-	Character = NewCharacter
-
-	Humanoid = Character:WaitForChild("Humanoid", 10)
-	HRP = Character:WaitForChild("HumanoidRootPart", 10)
-
-	if not Humanoid or not HRP then
-		return
-	end
-
-	RigType = Humanoid.RigType
-
-	-- Animator
-	Animator = Humanoid:FindFirstChildOfClass("Animator")
-
-	if not Animator then
-		Animator = Instance.new("Animator")
-		Animator.Parent = Humanoid
-	end
-
-	FindJoint()
-
-	Alive = true
-
-	-- Coba jalankan AnimationTrack asli
-	PlayCustomAnimation()
-
-	-- Death
-	Humanoid.Died:Connect(function()
-
-		if MyToken ~= CharacterToken then
-			return
-		end
-
-		Alive = false
-
-		StopAnimation()
-
-		-- Pose jatuh ringan
-		if RootJoint and OriginalRootC0 then
-			RootJoint.C0 =
-				OriginalRootC0 *
-				CFrame.Angles(math.rad(12), 0, 0)
-		end
-
-		if Waist and OriginalWaistC0 then
-			Waist.C0 =
-				OriginalWaistC0 *
-				CFrame.Angles(math.rad(10), 0, 0)
-		end
-	end)
-end
-
---========================================================
--- RESPAWN
---========================================================
-
-Player.CharacterAdded:Connect(function(NewCharacter)
-
-	task.wait(0.15)
-
-	SetupCharacter(NewCharacter)
-
-end)
-
-if Player.Character then
-	SetupCharacter(Player.Character)
-end
-
---========================================================
--- REAL PROCEDURAL BACKUP ANIMATION
---========================================================
--- Ini adalah backup agar tetap ada gerakan visual
--- walaupun Animation ID tidak dapat dimainkan.
--- Tidak mengubah HRP sehingga karakter tetap bisa bergerak.
---========================================================
-
-local AnimationTime = 0
-
-RunService:BindToRenderStep(
-	"RealAnimationSystem",
-	Enum.RenderPriority.Character.Value + 10,
-	function(dt)
-
-		if not AnimationEnabled then
-			return
-		end
-
-		if not Alive then
-			return
-		end
-
-		if not Character
-			or not Humanoid
-			or Humanoid.Health <= 0 then
-			return
-		end
-
-		AnimationTime += dt
-
-		local State = Humanoid:GetState()
-		local Moving = Humanoid.MoveDirection.Magnitude > 0.05
-
-		--================================================
-		-- IDLE
-		--================================================
-
-		if not Moving
-			and State ~= Enum.HumanoidStateType.Jumping
-			and State ~= Enum.HumanoidStateType.Freefall then
-
-			local Wave =
-				math.sin(AnimationTime * IDLE_SPEED)
-
-			local Bob =
-				Wave * IDLE_BOB
-
-			local Tilt =
-				math.sin(AnimationTime * IDLE_SPEED) * IDLE_TILT
-
-			if RigType == Enum.HumanoidRigType.R6 then
-
-				if RootJoint and OriginalRootC0 then
-					RootJoint.C0 =
-						OriginalRootC0 *
-						CFrame.new(0, Bob, 0) *
-						CFrame.Angles(Tilt, 0, 0)
-				end
-
-			else
-
-				if RootJoint and OriginalRootC0 then
-					RootJoint.C0 =
-						OriginalRootC0 *
-						CFrame.new(0, Bob * 0.35, 0)
-				end
-
-				if Waist and OriginalWaistC0 then
-					Waist.C0 =
-						OriginalWaistC0 *
-						CFrame.new(0, Bob * 0.65, 0) *
-						CFrame.Angles(Tilt, 0, 0)
-				end
-			end
-
-		--================================================
-		-- JUMP
-		--================================================
-
-		elseif State == Enum.HumanoidStateType.Jumping then
-
-			if RigType == Enum.HumanoidRigType.R6 then
-
-				if RootJoint and OriginalRootC0 then
-					RootJoint.C0 =
-						OriginalRootC0 *
-						CFrame.Angles(-JUMP_TILT, 0, 0)
-				end
-
-			else
-
-				if Waist and OriginalWaistC0 then
-					Waist.C0 =
-						OriginalWaistC0 *
-						CFrame.Angles(JUMP_TILT, 0, 0)
-				end
-			end
-
-		--================================================
-		-- FALL
-		--================================================
-
-		elseif State == Enum.HumanoidStateType.Freefall then
-
-			if RigType == Enum.HumanoidRigType.R6 then
-
-				if RootJoint and OriginalRootC0 then
-					RootJoint.C0 =
-						OriginalRootC0 *
-						CFrame.Angles(FALL_TILT, 0, 0)
-				end
-
-			else
-
-				if Waist and OriginalWaistC0 then
-					Waist.C0 =
-						OriginalWaistC0 *
-						CFrame.Angles(FALL_TILT, 0, 0)
-				end
-			end
-
-		--================================================
-		-- WALK / OTHER
-		--================================================
-
-		else
-
-			if RootJoint and OriginalRootC0 then
-				RootJoint.C0 = OriginalRootC0
-			end
-
-			if Waist and OriginalWaistC0 then
-				Waist.C0 = OriginalWaistC0
-			end
-		end
-	end
-)
+updateToggle()
 
 --========================================================
 -- FPS
 --========================================================
 
-local FPS = 0
-local Frames = 0
-local FPSTimer = 0
+local frameCount = 0
+local fpsTime = 0
+local currentFPS = 0
 
 RunService.RenderStepped:Connect(function(dt)
 
-	Frames += 1
-	FPSTimer += dt
+	frameCount += 1
+	fpsTime += dt
 
-	if FPSTimer >= 0.5 then
-		FPS = math.floor(Frames / FPSTimer + 0.5)
+	if fpsTime >= 0.5 then
+		currentFPS = math.floor(frameCount / fpsTime + 0.5)
+		frameCount = 0
+		fpsTime = 0
 
-		Frames = 0
-		FPSTimer = 0
-
-		Mini.Text = "FPS: " .. FPS
+		FPS.Text = "FPS: " .. currentFPS
 	end
+end)
+
+--========================================================
+-- GUI BUTTONS
+--========================================================
+
+Toggle.MouseButton1Click:Connect(function()
+
+	ENABLED = not ENABLED
+	updateToggle()
+
+end)
+
+Minimize.MouseButton1Click:Connect(function()
+
+	Main.Visible = false
+	FPS.Visible = true
+
+end)
+
+FPS.MouseButton1Click:Connect(function()
+
+	FPS.Visible = false
+	Main.Visible = true
+
+end)
+
+--========================================================
+-- CHARACTER VARIABLES
+--========================================================
+
+local Character
+local Humanoid
+local Root
+
+local RootJoint
+local Waist
+local Neck
+
+local originalRootTransform = CFrame.identity
+local originalWaistTransform = CFrame.identity
+local originalNeckTransform = CFrame.identity
+
+local deathPlaying = false
+local idleTime = 0
+
+--========================================================
+-- FIND MOTOR
+--========================================================
+
+local function getMotor(parent, name)
+
+	if not parent then
+		return nil
+	end
+
+	local motor = parent:FindFirstChild(name)
+
+	if motor and motor:IsA("Motor6D") then
+		return motor
+	end
+
+	return nil
+end
+
+--========================================================
+-- RESET JOINTS
+--========================================================
+
+local function resetJoints()
+
+	if RootJoint then
+		RootJoint.Transform = originalRootTransform
+	end
+
+	if Waist then
+		Waist.Transform = originalWaistTransform
+	end
+
+	if Neck then
+		Neck.Transform = originalNeckTransform
+	end
+
+end
+
+--========================================================
+-- SETUP CHARACTER
+--========================================================
+
+local function setupCharacter(character)
+
+	Character = character
+
+	Humanoid = character:WaitForChild("Humanoid")
+	Root = character:WaitForChild("HumanoidRootPart")
+
+	RootJoint = nil
+	Waist = nil
+	Neck = nil
+
+	-- Jangan biarkan Roblox langsung mematahkan joint
+	Humanoid.BreakJointsOnDeath = false
+
+	if Humanoid.RigType == Enum.HumanoidRigType.R15 then
+
+		local LowerTorso = character:FindFirstChild("LowerTorso")
+		local UpperTorso = character:FindFirstChild("UpperTorso")
+		local Head = character:FindFirstChild("Head")
+
+		if LowerTorso then
+			RootJoint = getMotor(LowerTorso, "Root")
+		end
+
+		if UpperTorso then
+			Waist = getMotor(UpperTorso, "Waist")
+		end
+
+		if Head then
+			Neck = getMotor(Head, "Neck")
+		end
+
+	else
+
+		local Torso = character:FindFirstChild("Torso")
+
+		if Torso then
+			RootJoint = getMotor(Root, "RootJoint")
+			Neck = getMotor(Torso, "Neck")
+		end
+
+	end
+
+	if RootJoint then
+		originalRootTransform = RootJoint.Transform
+	end
+
+	if Waist then
+		originalWaistTransform = Waist.Transform
+	end
+
+	if Neck then
+		originalNeckTransform = Neck.Transform
+	end
+
+	idleTime = 0
+	deathPlaying = false
+
+	--====================================================
+	-- DEATH
+	--====================================================
+
+	Humanoid.Died:Connect(function()
+
+		if not ENABLED then
+			return
+		end
+
+		if deathPlaying then
+			return
+		end
+
+		deathPlaying = true
+
+		local startTime = os.clock()
+
+		while os.clock() - startTime < DEATH_TIME do
+
+			local alpha = (os.clock() - startTime) / DEATH_TIME
+
+			local fall = math.clamp(alpha, 0, 1)
+
+			if RootJoint then
+				RootJoint.Transform =
+					CFrame.Angles(
+						math.rad(80) * fall,
+						0,
+						math.rad(12) * fall
+					)
+			end
+
+			if Waist then
+				Waist.Transform =
+					CFrame.Angles(
+						math.rad(-35) * fall,
+						0,
+						0
+					)
+			end
+
+			if Neck then
+				Neck.Transform =
+					CFrame.Angles(
+						math.rad(25) * fall,
+						0,
+						0
+					)
+			end
+
+			RunService.RenderStepped:Wait()
+
+		end
+
+	end)
+
+end
+
+--========================================================
+-- CHARACTER ADDED
+--========================================================
+
+Player.CharacterAdded:Connect(function(character)
+
+	task.wait(0.2)
+
+	setupCharacter(character)
+
+end)
+
+if Player.Character then
+	setupCharacter(Player.Character)
+end
+
+--========================================================
+-- ANIMATION
+--========================================================
+
+RunService.RenderStepped:Connect(function(dt)
+
+	if not Character
+		or not Character.Parent
+		or not Humanoid
+		or Humanoid.Health <= 0 then
+		return
+	end
+
+	if not ENABLED then
+
+		resetJoints()
+
+		return
+
+	end
+
+	if deathPlaying then
+		return
+	end
+
+	local state = Humanoid:GetState()
+
+	--====================================================
+	-- JUMP
+	--====================================================
+
+	if state == Enum.HumanoidStateType.Jumping then
+
+		if RootJoint then
+			RootJoint.Transform =
+				CFrame.Angles(JUMP_TILT, 0, 0)
+		end
+
+		if Waist then
+			Waist.Transform =
+				CFrame.Angles(math.rad(8), 0, 0)
+		end
+
+		if Neck then
+			Neck.Transform =
+				CFrame.Angles(math.rad(-5), 0, 0)
+		end
+
+		return
+	end
+
+	--====================================================
+	-- FALL
+	--====================================================
+
+	if state == Enum.HumanoidStateType.Freefall then
+
+		if RootJoint then
+			RootJoint.Transform =
+				CFrame.Angles(FALL_TILT, 0, 0)
+		end
+
+		if Waist then
+			Waist.Transform =
+				CFrame.Angles(math.rad(-6), 0, 0)
+		end
+
+		if Neck then
+			Neck.Transform =
+				CFrame.Angles(math.rad(4), 0, 0)
+		end
+
+		return
+	end
+
+	--====================================================
+	-- IDLE
+	--====================================================
+
+	local moving =
+		Humanoid.MoveDirection.Magnitude > 0.05
+
+	if not moving then
+
+		idleTime += dt * IDLE_SPEED
+
+		local bob =
+			math.sin(idleTime) * IDLE_BOB
+
+		local tilt =
+			math.sin(idleTime * 0.5) * IDLE_TILT
+
+		if RootJoint then
+
+			RootJoint.Transform =
+				CFrame.new(0, bob, 0)
+				* CFrame.Angles(0, 0, tilt)
+
+		end
+
+		if Waist then
+
+			Waist.Transform =
+				CFrame.new(0, bob * 0.35, 0)
+				* CFrame.Angles(0, 0, -tilt)
+
+		end
+
+		if Neck then
+
+			Neck.Transform =
+				CFrame.Angles(0, 0, tilt * 0.5)
+
+		end
+
+		return
+	end
+
+	--====================================================
+	-- WALK / RUN
+	--====================================================
+
+	-- Tidak mengubah animasi berjalan Roblox.
+	-- Roblox tetap memainkan walk/run default.
+
+	resetJoints()
+
 end)
 
 --========================================================
 -- RGB BORDER
 --========================================================
 
-local Hue = 0
+local hue = 0
 
 RunService.RenderStepped:Connect(function(dt)
 
-	Hue = (Hue + dt * 0.18) % 1
+	hue = (hue + dt * 0.25) % 1
 
-	local RGB = Color3.fromHSV(Hue, 0.9, 1)
+	local rgb = Color3.fromHSV(hue, 0.85, 1)
 
-	Stroke.Color = RGB
-	MiniStroke.Color = RGB
+	Stroke.Color = rgb
+	FPSStroke.Color = rgb
+
 end)
