@@ -1,258 +1,1038 @@
--- GLITCH ORBIT PLAYER - CLEAN UI
--- by CHALLO_BOY
--- Retained: Intro, Player Search, Target Player, Target/Orbit menus.
--- Orbit is intentionally empty for now.
+--========================================================
+-- 👾 GLITCH ORBIT V3
+-- PLAYER + SYSTEM SEPARATED
+-- MOBILE FRIENDLY
+--
+-- LocalScript
+-- StarterPlayer > StarterPlayerScripts
+--========================================================
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local LP = Players.LocalPlayer
+local ContentProvider = game:GetService("ContentProvider")
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "GOP_UI"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.Parent = LP:WaitForChild("PlayerGui")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local function C(p,r)
-    local x=Instance.new("UICorner",p); x.CornerRadius=UDim.new(0,r or 14); return x
-end
-local function S(p,t,tr)
-    local x=Instance.new("UIStroke",p); x.Thickness=t or 1; x.Transparency=tr or .2; return x
-end
-local function T(o,d,props)
-    TweenService:Create(o,TweenInfo.new(d,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),props):Play()
+--========================================================
+-- ASSET
+--========================================================
+
+local INTRO_BG_ID = "rbxassetid://7671493255"
+local MAIN_BG_ID = "rbxassetid://7112218128"
+
+local CLICK_ID = "rbxassetid://138567614125924"
+local START_ID = "rbxassetid://117570443671176"
+local BEGIN_ID = "rbxassetid://128842283247970"
+
+--========================================================
+-- SETTINGS
+--========================================================
+
+local targetPlayer = nil
+
+--========================================================
+-- HELPERS
+--========================================================
+
+local function New(class, properties, parent)
+	local obj = Instance.new(class)
+
+	for property, value in pairs(properties or {}) do
+		obj[property] = value
+	end
+
+	obj.Parent = parent
+	return obj
 end
 
+local function Corner(obj, radius)
+	return New("UICorner", {
+		CornerRadius = UDim.new(0, radius)
+	}, obj)
+end
+
+local function Stroke(obj, thickness, transparency)
+	return New("UIStroke", {
+		Thickness = thickness or 1,
+		Transparency = transparency or 0.3
+	}, obj)
+end
+
+local function Tween(obj, duration, properties, style, direction)
+	local info = TweenInfo.new(
+		duration,
+		style or Enum.EasingStyle.Quint,
+		direction or Enum.EasingDirection.Out
+	)
+
+	local tween = TweenService:Create(obj, info, properties)
+	tween:Play()
+
+	return tween
+end
+
+--========================================================
+-- SCREEN GUI
+--========================================================
+
+local gui = New("ScreenGui", {
+	Name = "GLITCH_ORBIT",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 999
+}, PlayerGui)
+
+--========================================================
+-- SOUND
+--========================================================
+
+local sounds = New("Folder", {
+	Name = "Sounds"
+}, gui)
+
+local clickSound = New("Sound", {
+	SoundId = CLICK_ID,
+	Volume = 0.65
+}, sounds)
+
+local startSound = New("Sound", {
+	SoundId = START_ID,
+	Volume = 0.8
+}, sounds)
+
+local beginSound = New("Sound", {
+	SoundId = BEGIN_ID,
+	Volume = 0.8
+}, sounds)
+
+local function Click()
+	clickSound:Play()
+end
+
+--========================================================
 -- INTRO
-local intro=Instance.new("Frame",gui)
-intro.Size=UDim2.fromScale(1,1); intro.BackgroundColor3=Color3.fromRGB(6,8,14); intro.BorderSizePixel=0
-local ig=Instance.new("UIGradient",intro)
-ig.Rotation=35
-ig.Color=ColorSequence.new{
-    ColorSequenceKeypoint.new(0,Color3.fromRGB(7,10,20)),
-    ColorSequenceKeypoint.new(.5,Color3.fromRGB(24,9,34)),
-    ColorSequenceKeypoint.new(1,Color3.fromRGB(5,21,29))
-}
-local card=Instance.new("Frame",intro)
-card.AnchorPoint=Vector2.new(.5,.5); card.Position=UDim2.fromScale(.5,.5)
-card.Size=UDim2.fromScale(.40,.28); card.BackgroundColor3=Color3.fromRGB(15,18,27); card.BorderSizePixel=0
-C(card,24); S(card,1.5,.12)
-local cs=Instance.new("UIScale",card); cs.Scale=.86
-local it=Instance.new("TextLabel",card)
-it.BackgroundTransparency=1; it.Position=UDim2.fromScale(.07,.18); it.Size=UDim2.fromScale(.86,.27)
-it.Font=Enum.Font.GothamBlack; it.Text="WELCOME "..LP.DisplayName; it.TextColor3=Color3.fromRGB(240,245,255); it.TextScaled=true
-local is=Instance.new("TextLabel",card)
-is.BackgroundTransparency=1; is.Position=UDim2.fromScale(.1,.49); is.Size=UDim2.fromScale(.8,.15)
-is.Font=Enum.Font.GothamMedium; is.Text="GLITCH ORBIT PLAYER"; is.TextColor3=Color3.fromRGB(100,220,255); is.TextScaled=true
-local ib=Instance.new("TextLabel",card)
-ib.BackgroundTransparency=1; ib.Position=UDim2.fromScale(.1,.68); ib.Size=UDim2.fromScale(.8,.12)
-ib.Font=Enum.Font.Gotham; ib.Text="by CHALLO_BOY"; ib.TextColor3=Color3.fromRGB(145,155,170); ib.TextScaled=true
+--========================================================
+
+local intro = New("Frame", {
+	Name = "INTRO",
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(4, 5, 10),
+	BorderSizePixel = 0,
+	ClipsDescendants = true
+}, gui)
+
+-- Background
+local introImage = New("ImageLabel", {
+	Name = "Background",
+	Size = UDim2.fromScale(1.12, 1.12),
+	Position = UDim2.fromScale(-0.06, -0.06),
+	BackgroundTransparency = 1,
+	Image = INTRO_BG_ID,
+	ImageTransparency = 0,
+	ScaleType = Enum.ScaleType.Crop,
+	ZIndex = 1
+}, intro)
+
+-- fallback glow supaya tidak blank
+local introGlow = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(20, 35, 50),
+	BackgroundTransparency = 0.28,
+	BorderSizePixel = 0,
+	ZIndex = 2
+}, intro)
+
+local introOverlay = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+	BackgroundTransparency = 0.48,
+	BorderSizePixel = 0,
+	ZIndex = 3
+}, intro)
+
+-- Scanline
+local scan = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	ZIndex = 4
+}, intro)
+
+for i = 1, 35 do
+	New("Frame", {
+		Size = UDim2.new(1, 0, 0, 1),
+		Position = UDim2.new(0, 0, i / 35, 0),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.94,
+		BorderSizePixel = 0
+	}, scan)
+end
+
+-- Main intro container
+local introBox = New("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.56),
+	Size = UDim2.fromScale(0.42, 0.7),
+	BackgroundTransparency = 1,
+	ZIndex = 5
+}, intro)
+
+-- Avatar
+local avatarFrame = New("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.03),
+	Size = UDim2.fromOffset(135, 135),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 18),
+	BackgroundTransparency = 0.1,
+	ZIndex = 6
+}, introBox)
+
+Corner(avatarFrame, 100)
+Stroke(avatarFrame, 3, 0.15)
+
+local avatar = New("ImageLabel", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromScale(0.88, 0.88),
+	BackgroundTransparency = 1,
+	ZIndex = 7
+}, avatarFrame)
+
+Corner(avatar, 100)
 
 task.spawn(function()
-    T(cs,.55,{Scale=1}); task.wait(1.55)
-    T(intro,.4,{BackgroundTransparency=1}); T(card,.4,{BackgroundTransparency=1})
-    T(it,.4,{TextTransparency=1}); T(is,.4,{TextTransparency=1}); T(ib,.4,{TextTransparency=1})
-    task.wait(.45); intro:Destroy()
+	local ok, image = pcall(function()
+		return Players:GetUserThumbnailAsync(
+			LocalPlayer.UserId,
+			Enum.ThumbnailType.HeadShot,
+			Enum.ThumbnailSize.Size420x420
+		)
+	end)
+
+	if ok then
+		avatar.Image = image
+	end
 end)
 
--- MAIN
-local main=Instance.new("Frame",gui)
-main.AnchorPoint=Vector2.new(.5,.5); main.Position=UDim2.fromScale(.5,.52)
-main.Size=UDim2.fromScale(.58,.70); main.BackgroundColor3=Color3.fromRGB(10,13,20)
-main.BorderSizePixel=0; main.ClipsDescendants=true
-C(main,24); S(main,1.5,.1)
+-- Title
+local introTitle = New("TextLabel", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.31),
+	Size = UDim2.fromScale(1.3, 0.13),
+	BackgroundTransparency = 1,
+	Text = "GLITCH ORBIT",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+	TextTransparency = 1,
+	ZIndex = 7
+}, introBox)
 
-local mg=Instance.new("UIGradient",main)
-mg.Rotation=120
-mg.Color=ColorSequence.new{
-    ColorSequenceKeypoint.new(0,Color3.fromRGB(15,17,27)),
-    ColorSequenceKeypoint.new(.5,Color3.fromRGB(10,19,28)),
-    ColorSequenceKeypoint.new(1,Color3.fromRGB(21,12,29))
-}
+-- Glitch copy
+local glitchCopy = New("TextLabel", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.31),
+	Size = UDim2.fromScale(1.3, 0.13),
+	BackgroundTransparency = 1,
+	Text = "GLITCH ORBIT",
+	TextColor3 = Color3.fromRGB(80, 240, 255),
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+	TextTransparency = 1,
+	ZIndex = 6
+}, introBox)
 
-local header=Instance.new("Frame",main)
-header.Size=UDim2.fromScale(1,.15); header.BackgroundTransparency=1; header.Active=true
+local welcome = New("TextLabel", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.46),
+	Size = UDim2.fromScale(1, 0.07),
+	BackgroundTransparency = 1,
+	Text = "WELCOME",
+	TextColor3 = Color3.fromRGB(150, 245, 255),
+	TextScaled = true,
+	Font = Enum.Font.GothamBold,
+	TextTransparency = 1,
+	ZIndex = 7
+}, introBox)
 
-local title=Instance.new("TextLabel",header)
-title.BackgroundTransparency=1; title.Position=UDim2.fromScale(.045,.16); title.Size=UDim2.fromScale(.58,.35)
-title.Font=Enum.Font.GothamBlack; title.Text="👾 GLITCH ORBIT"; title.TextColor3=Color3.fromRGB(238,245,255)
-title.TextScaled=true; title.TextXAlignment=Enum.TextXAlignment.Left
+local userName = New("TextLabel", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.54),
+	Size = UDim2.fromScale(1, 0.06),
+	BackgroundTransparency = 1,
+	Text = "@" .. LocalPlayer.Name,
+	TextColor3 = Color3.fromRGB(230, 230, 240),
+	TextScaled = true,
+	Font = Enum.Font.Gotham,
+	TextTransparency = 1,
+	ZIndex = 7
+}, introBox)
 
-local sub=Instance.new("TextLabel",header)
-sub.BackgroundTransparency=1; sub.Position=UDim2.fromScale(.048,.56); sub.Size=UDim2.fromScale(.55,.18)
-sub.Font=Enum.Font.GothamMedium; sub.Text="PLAYER CONTROL PANEL"; sub.TextColor3=Color3.fromRGB(105,170,190)
-sub.TextScaled=true; sub.TextXAlignment=Enum.TextXAlignment.Left
+-- Start
+local start = New("TextButton", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.66),
+	Size = UDim2.fromScale(0.48, 0.12),
+	BackgroundColor3 = Color3.fromRGB(10, 20, 27),
+	BackgroundTransparency = 0.08,
+	Text = "▶  START",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+	TextTransparency = 1,
+	AutoButtonColor = false,
+	ZIndex = 8
+}, introBox)
 
-local min=Instance.new("TextButton",header)
-min.AnchorPoint=Vector2.new(1,.5); min.Position=UDim2.fromScale(.88,.5); min.Size=UDim2.fromScale(.075,.58)
-min.BackgroundColor3=Color3.fromRGB(24,28,40); min.Text="−"; min.Font=Enum.Font.GothamBold
-min.TextColor3=Color3.fromRGB(230,235,245); min.TextScaled=true; min.AutoButtonColor=false; C(min,12); S(min,1,.3)
+Corner(start, 12)
+Stroke(start, 2, 0.2)
 
-local close=Instance.new("TextButton",header)
-close.AnchorPoint=Vector2.new(1,.5); close.Position=UDim2.fromScale(.965,.5); close.Size=UDim2.fromScale(.075,.58)
-close.BackgroundColor3=Color3.fromRGB(43,23,33); close.Text="×"; close.Font=Enum.Font.GothamBold
-close.TextColor3=Color3.fromRGB(255,125,150); close.TextScaled=true; close.AutoButtonColor=false; C(close,12); S(close,1,.3)
+-- Intro animation
+task.spawn(function()
 
--- TWO MENUS ONLY
-local nav=Instance.new("Frame",main)
-nav.Position=UDim2.fromScale(.035,.155); nav.Size=UDim2.fromScale(.93,.11)
-nav.BackgroundColor3=Color3.fromRGB(8,11,17); nav.BorderSizePixel=0; C(nav,15); S(nav,1,.3)
+	-- mulai sound
+	beginSound:Play()
 
-local targetTab=Instance.new("TextButton",nav)
-targetTab.Position=UDim2.fromScale(.015,.12); targetTab.Size=UDim2.fromScale(.47,.76)
-targetTab.BackgroundColor3=Color3.fromRGB(29,76,97); targetTab.Text="TARGET"
-targetTab.Font=Enum.Font.GothamBold; targetTab.TextColor3=Color3.fromRGB(235,250,255); targetTab.TextScaled=true
-targetTab.AutoButtonColor=false; C(targetTab,12)
+	Tween(introImage, 1.3, {
+		Position = UDim2.fromScale(-0.01, -0.01),
+		Size = UDim2.fromScale(1.02, 1.02)
+	})
 
-local orbitTab=Instance.new("TextButton",nav)
-orbitTab.Position=UDim2.fromScale(.515,.12); orbitTab.Size=UDim2.fromScale(.47,.76)
-orbitTab.BackgroundColor3=Color3.fromRGB(17,20,29); orbitTab.Text="ORBIT"
-orbitTab.Font=Enum.Font.GothamBold; orbitTab.TextColor3=Color3.fromRGB(135,145,160); orbitTab.TextScaled=true
-orbitTab.AutoButtonColor=false; C(orbitTab,12)
+	task.wait(0.15)
 
-local content=Instance.new("Frame",main)
-content.Position=UDim2.fromScale(.035,.285); content.Size=UDim2.fromScale(.93,.67); content.BackgroundTransparency=1
+	Tween(introBox, 0.8, {
+		Position = UDim2.fromScale(0.5, 0.5)
+	}, Enum.EasingStyle.Back)
 
--- TARGET
-local targetPanel=Instance.new("Frame",content)
-targetPanel.Size=UDim2.fromScale(1,1); targetPanel.BackgroundColor3=Color3.fromRGB(9,12,19); targetPanel.BorderSizePixel=0
-C(targetPanel,18); S(targetPanel,1,.28)
+	task.wait(0.15)
 
-local th=Instance.new("TextLabel",targetPanel)
-th.BackgroundTransparency=1; th.Position=UDim2.fromScale(.04,.04); th.Size=UDim2.fromScale(.92,.09)
-th.Font=Enum.Font.GothamBold; th.Text="TARGET PLAYER"; th.TextColor3=Color3.fromRGB(230,240,250); th.TextScaled=true
-th.TextXAlignment=Enum.TextXAlignment.Left
+	Tween(avatarFrame, 0.65, {
+		Size = UDim2.fromOffset(135, 135)
+	}, Enum.EasingStyle.Back)
 
-local search=Instance.new("TextBox",targetPanel)
-search.Position=UDim2.fromScale(.04,.15); search.Size=UDim2.fromScale(.92,.12)
-search.BackgroundColor3=Color3.fromRGB(18,22,32); search.BorderSizePixel=0
-search.PlaceholderText="Search player..."; search.PlaceholderColor3=Color3.fromRGB(105,115,130)
-search.Text=""; search.TextColor3=Color3.fromRGB(235,240,248); search.Font=Enum.Font.Gotham; search.TextScaled=true
-search.ClearTextOnFocus=false; C(search,13); S(search,1,.25)
-local pad=Instance.new("UIPadding",search); pad.PaddingLeft=UDim.new(0,14); pad.PaddingRight=UDim.new(0,14)
+	task.wait(0.2)
 
-local selected=Instance.new("TextLabel",targetPanel)
-selected.BackgroundTransparency=1; selected.Position=UDim2.fromScale(.04,.285); selected.Size=UDim2.fromScale(.92,.08)
-selected.Font=Enum.Font.GothamMedium; selected.Text="Target: None"; selected.TextColor3=Color3.fromRGB(105,210,235)
-selected.TextScaled=true; selected.TextXAlignment=Enum.TextXAlignment.Left
+	Tween(introTitle, 0.45, {
+		TextTransparency = 0
+	})
 
-local list=Instance.new("ScrollingFrame",targetPanel)
-list.Position=UDim2.fromScale(.04,.385); list.Size=UDim2.fromScale(.92,.56); list.BackgroundTransparency=1
-list.BorderSizePixel=0; list.ScrollBarThickness=3; list.AutomaticCanvasSize=Enum.AutomaticSize.Y; list.CanvasSize=UDim2.new()
-local layout=Instance.new("UIListLayout",list); layout.Padding=UDim.new(0,8); layout.SortOrder=Enum.SortOrder.Name
+	Tween(glitchCopy, 0.35, {
+		TextTransparency = 0.55
+	})
 
-local currentTarget=nil
+	task.wait(0.1)
 
-local function refresh()
-    for _,v in ipairs(list:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-    local q=string.lower(search.Text or "")
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=LP then
-            local f=string.lower(p.DisplayName.." "..p.Name)
-            if q=="" or string.find(f,q,1,true) then
-                local b=Instance.new("TextButton",list)
-                b.Size=UDim2.new(1,-4,0,44); b.BackgroundColor3=Color3.fromRGB(17,21,30)
-                b.BorderSizePixel=0; b.Text=p.DisplayName.."  @"..p.Name; b.Font=Enum.Font.GothamMedium
-                b.TextColor3=Color3.fromRGB(225,232,242); b.TextScaled=true; b.TextXAlignment=Enum.TextXAlignment.Left
-                b.AutoButtonColor=false; C(b,12); S(b,1,.34)
-                local bp=Instance.new("UIPadding",b); bp.PaddingLeft=UDim.new(0,14)
-                b.MouseButton1Click:Connect(function()
-                    currentTarget=p
-                    selected.Text="Target: "..p.DisplayName.."  @"..p.Name
-                    for _,x in ipairs(list:GetChildren()) do
-                        if x:IsA("TextButton") then T(x,.12,{BackgroundColor3=Color3.fromRGB(17,21,30)}) end
-                    end
-                    T(b,.12,{BackgroundColor3=Color3.fromRGB(29,76,97)})
-                end)
+	Tween(welcome, 0.4, {
+		TextTransparency = 0
+	})
+
+	Tween(userName, 0.4, {
+		TextTransparency = 0
+	})
+
+	task.wait(0.15)
+
+	Tween(start, 0.45, {
+		TextTransparency = 0,
+		BackgroundTransparency = 0.08
+	}, Enum.EasingStyle.Back)
+
+	-- glitch animation
+	task.spawn(function()
+		while intro.Visible do
+
+			task.wait(math.random(12, 25) / 10)
+
+			if not intro.Visible then
+				break
+			end
+
+			local oldPos = introTitle.Position
+
+			introTitle.Position =
+				oldPos + UDim2.fromOffset(math.random(-5, 5), 0)
+
+			glitchCopy.Position =
+				oldPos + UDim2.fromOffset(math.random(-8, 8), 0)
+
+			task.wait(0.045)
+
+			introTitle.Position = oldPos
+			glitchCopy.Position = oldPos
+		end
+	end)
+end)
+
+start.MouseEnter:Connect(function()
+	Tween(start, 0.15, {
+		Size = UDim2.fromScale(0.53, 0.13)
+	}):Play()
+end)
+
+start.MouseLeave:Connect(function()
+	Tween(start, 0.15, {
+		Size = UDim2.fromScale(0.48, 0.12)
+	}):Play()
+end)
+
+--========================================================
+-- MAIN UI
+--========================================================
+
+local main = New("Frame", {
+	Name = "Main",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+
+	-- LEBIH BESAR
+	Size = UDim2.fromScale(0.90, 0.78),
+
+	BackgroundColor3 = Color3.fromRGB(7, 8, 13),
+	BorderSizePixel = 0,
+	Visible = false,
+	ClipsDescendants = true,
+	ZIndex = 20
+}, gui)
+
+Corner(main, 16)
+Stroke(main, 2, 0.12)
+
+-- Background utama
+local mainImage = New("ImageLabel", {
+	Name = "Background",
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(18, 25, 34),
+	BackgroundTransparency = 0,
+	Image = MAIN_BG_ID,
+	ImageTransparency = 0,
+	ScaleType = Enum.ScaleType.Crop,
+	ZIndex = 20
+}, main)
+
+Corner(mainImage, 16)
+
+-- Overlay tipis
+local mainOverlay = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+	BackgroundTransparency = 0.68,
+	BorderSizePixel = 0,
+	ZIndex = 21
+}, main)
+
+Corner(mainOverlay, 16)
+
+--========================================================
+-- HEADER
+--========================================================
+
+local header = New("Frame", {
+	Size = UDim2.new(1, 0, 0, 70),
+	BackgroundColor3 = Color3.fromRGB(4, 5, 9),
+	BackgroundTransparency = 0.08,
+	BorderSizePixel = 0,
+	ZIndex = 30
+}, main)
+
+local title = New("TextLabel", {
+	Position = UDim2.fromOffset(20, 0),
+	Size = UDim2.new(0.65, 0, 1, 0),
+	BackgroundTransparency = 1,
+	Text = "👾  GLITCH ORBIT",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 31
+}, header)
+
+local minimize = New("TextButton", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -52, 0.5, 0),
+	Size = UDim2.fromOffset(40, 40),
+	BackgroundTransparency = 1,
+	Text = "−",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 31
+}, header)
+
+local close = New("TextButton", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -8, 0.5, 0),
+	Size = UDim2.fromOffset(40, 40),
+	BackgroundTransparency = 1,
+	Text = "×",
+	TextColor3 = Color3.fromRGB(255, 80, 100),
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 31
+}, header)
+
+--========================================================
+-- TAB BAR
+--========================================================
+
+local tabs = New("Frame", {
+	Position = UDim2.new(0, 12, 0, 78),
+	Size = UDim2.new(1, -24, 0, 48),
+	BackgroundTransparency = 1,
+	ZIndex = 32
+}, main)
+
+local playerTab = New("TextButton", {
+	Position = UDim2.fromScale(0, 0),
+	Size = UDim2.new(0.5, -5, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(25, 40, 48),
+	Text = "👤  PLAYER",
+	TextColor3 = Color3.fromRGB(120, 245, 255),
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 33
+}, tabs)
+
+Corner(playerTab, 10)
+Stroke(playerTab, 1, 0.25)
+
+local systemTab = New("TextButton", {
+	Position = UDim2.new(0.5, 5, 0, 0),
+	Size = UDim2.new(0.5, -5, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(12, 15, 20),
+	Text = "⚙  SYSTEM",
+	TextColor3 = Color3.fromRGB(180, 185, 195),
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 33
+}, tabs)
+
+Corner(systemTab, 10)
+Stroke(systemTab, 1, 0.45)
+
+--========================================================
+-- CONTENT CONTAINER
+--========================================================
+
+local content = New("Frame", {
+	Position = UDim2.new(0, 12, 0, 134),
+	Size = UDim2.new(1, -24, 1, -146),
+	BackgroundTransparency = 1,
+	ZIndex = 30
+}, main)
+
+--========================================================
+-- PLAYER PAGE
+--========================================================
+
+local playerPage = New("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Visible = true,
+	ZIndex = 30
+}, content)
+
+local playerScroll = New("ScrollingFrame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(5, 7, 11),
+	BackgroundTransparency = 0.28,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 5,
+	ScrollBarImageTransparency = 0.25,
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ZIndex = 31
+}, playerPage)
+
+Corner(playerScroll, 12)
+
+New("UIPadding", {
+	PaddingTop = UDim.new(0, 10),
+	PaddingBottom = UDim.new(0, 12),
+	PaddingLeft = UDim.new(0, 10),
+	PaddingRight = UDim.new(0, 10)
+}, playerScroll)
+
+New("UIListLayout", {
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder
+}, playerScroll)
+
+-- Search
+local search = New("TextBox", {
+	Size = UDim2.new(1, 0, 0, 48),
+	BackgroundColor3 = Color3.fromRGB(14, 18, 24),
+	Text = "",
+	PlaceholderText = "🔎  Search player...",
+	PlaceholderColor3 = Color3.fromRGB(145, 150, 160),
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextSize = 15,
+	Font = Enum.Font.Gotham,
+	ClearTextOnFocus = false,
+	LayoutOrder = 1,
+	ZIndex = 33
+}, playerScroll)
+
+Corner(search, 10)
+Stroke(search, 1, 0.4)
+
+-- Target
+local targetLabel = New("TextLabel", {
+	Size = UDim2.new(1, 0, 0, 48),
+	BackgroundColor3 = Color3.fromRGB(10, 18, 23),
+	BackgroundTransparency = 0.12,
+	Text = "🎯  TARGET: NONE",
+	TextColor3 = Color3.fromRGB(130, 245, 255),
+	TextSize = 14,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBlack,
+	LayoutOrder = 2,
+	ZIndex = 33
+}, playerScroll)
+
+Corner(targetLabel, 10)
+Stroke(targetLabel, 1, 0.35)
+
+New("UIPadding", {
+	PaddingLeft = UDim.new(0, 14)
+}, targetLabel)
+
+-- Player list
+local playerList = New("Frame", {
+	Size = UDim2.new(1, 0, 0, 0),
+	BackgroundTransparency = 1,
+	AutomaticSize = Enum.AutomaticSize.Y,
+	LayoutOrder = 3,
+	ZIndex = 33
+}, playerScroll)
+
+New("UIListLayout", {
+	Padding = UDim.new(0, 7),
+	SortOrder = Enum.SortOrder.LayoutOrder
+}, playerList)
+
+--========================================================
+-- TAB SYSTEM: TARGET / ORBIT ONLY
+--========================================================
+
+playerTab.Text = "👤  TARGET"
+systemTab.Text = "◎  ORBIT"
+
+-- Orbit page intentionally empty for now.
+local orbitPage = New("Frame", {
+    Size = UDim2.fromScale(1, 1),
+    BackgroundTransparency = 1,
+    Visible = false,
+    ZIndex = 30
+}, content)
+
+local orbitEmpty = New("TextLabel", {
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromScale(0.8, 0.12),
+    BackgroundTransparency = 1,
+    Text = "ORBIT",
+    TextColor3 = Color3.fromRGB(125, 235, 255),
+    TextScaled = true,
+    Font = Enum.Font.GothamBlack,
+    ZIndex = 31
+}, orbitPage)
+
+playerTab.MouseButton1Click:Connect(function()
+    Click()
+    playerPage.Visible = true
+    orbitPage.Visible = false
+
+    playerTab.BackgroundColor3 = Color3.fromRGB(25, 40, 48)
+    playerTab.TextColor3 = Color3.fromRGB(120, 245, 255)
+
+    systemTab.BackgroundColor3 = Color3.fromRGB(12, 15, 20)
+    systemTab.TextColor3 = Color3.fromRGB(180, 185, 195)
+end)
+
+systemTab.MouseButton1Click:Connect(function()
+    Click()
+    playerPage.Visible = false
+    orbitPage.Visible = true
+
+    playerTab.BackgroundColor3 = Color3.fromRGB(12, 15, 20)
+    playerTab.TextColor3 = Color3.fromRGB(180, 185, 195)
+
+    systemTab.BackgroundColor3 = Color3.fromRGB(25, 40, 48)
+    systemTab.TextColor3 = Color3.fromRGB(120, 245, 255)
+end)
+
+--========================================================
+-- PLAYER LIST
+--========================================================
+
+local function ClearPlayers()
+
+	for _, object in ipairs(playerList:GetChildren()) do
+		if object:IsA("GuiObject") then
+			object:Destroy()
+		end
+	end
+end
+
+local function SelectTarget(player)
+
+	targetPlayer = player
+
+	targetLabel.Text =
+		"🎯  TARGET: "
+		.. player.DisplayName
+		.. "  @"
+		.. player.Name
+end
+
+local function AddPlayer(player)
+
+    local button = New("TextButton", {
+        Size = UDim2.new(1, 0, 0, 58),
+        BackgroundColor3 = Color3.fromRGB(13, 17, 23),
+        BackgroundTransparency = 0.05,
+        Text = "@" .. player.Name,
+        TextColor3 = Color3.fromRGB(240, 248, 255),
+        TextSize = 15,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        ZIndex = 34
+    }, playerList)
+
+    Corner(button, 10)
+    Stroke(button, 1, 0.42)
+
+    New("UIPadding", {
+        PaddingLeft = UDim.new(0, 16),
+        PaddingRight = UDim.new(0, 12)
+    }, button)
+
+    button.MouseButton1Click:Connect(function()
+        Click()
+        SelectTarget(player)
+
+        for _, item in ipairs(playerList:GetChildren()) do
+            if item:IsA("TextButton") then
+                item.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
             end
         end
-    end
+        button.BackgroundColor3 = Color3.fromRGB(25, 40, 48)
+    end)
 end
 
-search:GetPropertyChangedSignal("Text"):Connect(refresh)
-Players.PlayerAdded:Connect(refresh)
-Players.PlayerRemoving:Connect(function(p)
-    if currentTarget==p then currentTarget=nil; selected.Text="Target: None" end
-    refresh()
+local function RefreshPlayers()
+
+	ClearPlayers()
+
+	local query = string.lower(search.Text)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+
+		if player ~= LocalPlayer then
+
+			local username =
+				string.lower(player.Name)
+
+			local display =
+				string.lower(player.DisplayName)
+
+			local matches =
+				query == ""
+				or string.find(username, query, 1, true)
+				or string.find(display, query, 1, true)
+
+			if matches then
+				AddPlayer(player)
+			end
+		end
+	end
+end
+
+search:GetPropertyChangedSignal("Text"):Connect(
+	RefreshPlayers
+)
+
+Players.PlayerAdded:Connect(
+	RefreshPlayers
+)
+
+Players.PlayerRemoving:Connect(function(player)
+
+	if targetPlayer == player then
+
+		targetPlayer = nil
+		targetLabel.Text =
+			"🎯  TARGET: NONE"
+	end
+
+	RefreshPlayers()
 end)
-refresh()
 
--- ORBIT EMPTY
-local orbitPanel=Instance.new("Frame",content)
-orbitPanel.Size=UDim2.fromScale(1,1); orbitPanel.BackgroundColor3=Color3.fromRGB(9,12,19)
-orbitPanel.BorderSizePixel=0; orbitPanel.Visible=false; C(orbitPanel,18); S(orbitPanel,1,.28)
+RefreshPlayers()
 
-local ot=Instance.new("TextLabel",orbitPanel)
-ot.BackgroundTransparency=1; ot.Position=UDim2.fromScale(.06,.15); ot.Size=UDim2.fromScale(.88,.16)
-ot.Font=Enum.Font.GothamBlack; ot.Text="ORBIT"; ot.TextColor3=Color3.fromRGB(230,240,250); ot.TextScaled=true
 
-local oe=Instance.new("TextLabel",orbitPanel)
-oe.BackgroundTransparency=1; oe.Position=UDim2.fromScale(.08,.42); oe.Size=UDim2.fromScale(.84,.18)
-oe.Font=Enum.Font.GothamMedium; oe.Text="Orbit menu is empty for now."; oe.TextColor3=Color3.fromRGB(115,125,140); oe.TextScaled=true
+--========================================================
+-- GOP MINIMIZED BUTTON
+--========================================================
 
-local function tab(target)
-    local a=target=="Target"; targetPanel.Visible=a; orbitPanel.Visible=not a
-    T(targetTab,.18,{BackgroundColor3=a and Color3.fromRGB(29,76,97) or Color3.fromRGB(17,20,29),
-        TextColor3=a and Color3.fromRGB(235,250,255) or Color3.fromRGB(135,145,160)})
-    T(orbitTab,.18,{BackgroundColor3=a and Color3.fromRGB(17,20,29) or Color3.fromRGB(29,76,97),
-        TextColor3=a and Color3.fromRGB(135,145,160) or Color3.fromRGB(235,250,255)})
-end
-targetTab.MouseButton1Click:Connect(function() tab("Target") end)
-orbitTab.MouseButton1Click:Connect(function() tab("Orbit") end)
+local gop = New("TextButton", {
+    Name = "GOP",
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.84, 0.78),
+    Size = UDim2.fromOffset(76, 76),
+    BackgroundColor3 = Color3.fromRGB(7, 10, 16),
+    BorderSizePixel = 0,
+    Text = "GOP",
+    TextColor3 = Color3.fromRGB(225, 250, 255),
+    TextScaled = true,
+    Font = Enum.Font.GothamBlack,
+    AutoButtonColor = false,
+    Visible = false,
+    Active = true,
+    ZIndex = 90
+}, gui)
 
--- DRAG ANYWHERE: MAIN
-local function drag(handle,obj)
-    local active=false; local start; local pos
-    handle.InputBegan:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-            active=true; start=i.Position; pos=obj.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(i)
-        if active and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
-            local d=i.Position-start
-            obj.Position=UDim2.new(pos.X.Scale,pos.X.Offset+d.X,pos.Y.Scale,pos.Y.Offset+d.Y)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then active=false end
-    end)
-end
-drag(header,main)
+Corner(gop, 21)
+Stroke(gop, 2, 0.08)
 
--- GOP: SMALL, POLISHED, FULLY MOVABLE
-local gop=Instance.new("TextButton",gui)
-gop.AnchorPoint=Vector2.new(.5,.5); gop.Position=UDim2.fromScale(.84,.78); gop.Size=UDim2.fromOffset(78,78)
-gop.BackgroundColor3=Color3.fromRGB(10,13,21); gop.BorderSizePixel=0; gop.Text="GOP"
-gop.Font=Enum.Font.GothamBlack; gop.TextColor3=Color3.fromRGB(220,248,255); gop.TextScaled=true
-gop.AutoButtonColor=false; gop.Visible=false; gop.Active=true
-C(gop,22); S(gop,2,.08)
-local gg=Instance.new("UIGradient",gop)
-gg.Rotation=45
-gg.Color=ColorSequence.new{
-    ColorSequenceKeypoint.new(0,Color3.fromRGB(19,55,70)),
-    ColorSequenceKeypoint.new(.5,Color3.fromRGB(19,21,38)),
-    ColorSequenceKeypoint.new(1,Color3.fromRGB(51,19,59))
-}
-local gs=Instance.new("UIScale",gop); gs.Scale=1
-drag(gop,gop)
+New("UIGradient", {
+    Rotation = 45,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 58, 75)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(12, 18, 30)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(47, 19, 58))
+    })
+}, gop)
 
-local mini=false
-min.MouseButton1Click:Connect(function()
-    mini=true; main.Visible=false; gop.Visible=true
+local gopInner = New("Frame", {
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromScale(0.78, 0.78),
+    BackgroundTransparency = 1,
+    ZIndex = 91
+}, gop)
+Corner(gopInner, 18)
+Stroke(gopInner, 1, 0.5)
+
+local gopLabel = New("TextLabel", {
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromScale(0.82, 0.35),
+    BackgroundTransparency = 1,
+    Text = "GOP",
+    TextColor3 = Color3.fromRGB(230, 250, 255),
+    TextScaled = true,
+    Font = Enum.Font.GothamBlack,
+    ZIndex = 92
+}, gop)
+
+--========================================================
+-- DRAG
+--========================================================
+
+local draggingUI = false
+local dragStart
+local startPos
+
+header.InputBegan:Connect(function(input)
+
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		draggingUI = true
+		dragStart = input.Position
+		startPos = main.Position
+	end
 end)
+
+UserInputService.InputChanged:Connect(function(input)
+
+	if draggingUI and (
+		input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch
+	) then
+
+		local delta =
+			input.Position - dragStart
+
+		main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		draggingUI = false
+	end
+end)
+
+--========================================================
+-- MINIMIZE
+--========================================================
+
+local normalSize = UDim2.fromScale(0.90, 0.78)
+local minimized = false
+
+minimize.MouseButton1Click:Connect(function()
+    Click()
+    minimized = true
+    tabs.Visible = false
+    content.Visible = false
+    header.Visible = false
+
+    main.Visible = false
+    gop.Visible = true
+end)
+
 gop.MouseButton1Click:Connect(function()
-    if mini then mini=false; gop.Visible=false; main.Visible=true end
+    Click()
+    minimized = false
+    gop.Visible = false
+    main.Visible = true
+    main.Size = normalSize
+    header.Visible = true
+    tabs.Visible = true
+    content.Visible = true
 end)
+
+-- Drag GOP independently on touch/mouse.
+local draggingGOP = false
+local gopDragStart
+local gopStartPos
+
+gop.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        draggingGOP = true
+        gopDragStart = input.Position
+        gopStartPos = gop.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingGOP and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - gopDragStart
+        gop.Position = UDim2.new(
+            gopStartPos.X.Scale,
+            gopStartPos.X.Offset + delta.X,
+            gopStartPos.Y.Scale,
+            gopStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        draggingGOP = false
+    end
+end)
+
+--========================================================
+-- CLOSE
+--========================================================
+
 close.MouseButton1Click:Connect(function()
-    main.Visible=false; gop.Visible=false
+
+	Click()
+
+	Tween(main, 0.25, {
+		Size = UDim2.fromScale(0.75, 0.02)
+	})
+
+	task.wait(0.25)
+
+	main.Visible = false
 end)
 
--- Nice press animation
-for _,b in ipairs({min,close,targetTab,orbitTab,gop}) do
-    b.MouseButton1Down:Connect(function() T(b,.08,{BackgroundTransparency=.12}) end)
-    b.MouseButton1Up:Connect(function() T(b,.12,{BackgroundTransparency=0}) end)
-end
+--========================================================
+-- START INTRO
+--========================================================
 
-tab("Target")
+start.MouseButton1Click:Connect(function()
+
+	start.Active = false
+
+	Click()
+	startSound:Play()
+
+	-- Zoom intro
+	Tween(introBox, 0.45, {
+		Size = UDim2.fromScale(0.5, 0.78)
+	}, Enum.EasingStyle.Back)
+
+	Tween(avatarFrame, 0.4, {
+		Size = UDim2.fromOffset(155, 155)
+	}, Enum.EasingStyle.Back)
+
+	task.wait(0.12)
+
+	-- fade
+	Tween(introImage, 0.55, {
+		ImageTransparency = 1
+	})
+
+	Tween(introOverlay, 0.55, {
+		BackgroundTransparency = 1
+	})
+
+	Tween(introGlow, 0.55, {
+		BackgroundTransparency = 1
+	})
+
+	Tween(introTitle, 0.3, {
+		TextTransparency = 1
+	})
+
+	Tween(glitchCopy, 0.3, {
+		TextTransparency = 1
+	})
+
+	Tween(welcome, 0.3, {
+		TextTransparency = 1
+	})
+
+	Tween(userName, 0.3, {
+		TextTransparency = 1
+	})
+
+	Tween(start, 0.3, {
+		TextTransparency = 1,
+		BackgroundTransparency = 1
+	})
+
+	task.wait(0.55)
+
+	intro.Visible = false
+
+	--====================================================
+	-- SHOW MAIN
+	--====================================================
+
+	main.Visible = true
+
+	main.Size =
+		UDim2.fromScale(0.08, 0.05)
+
+	beginSound:Play()
+
+	Tween(main, 0.65, {
+		Size = normalSize
+	}, Enum.EasingStyle.Back)
+end)
