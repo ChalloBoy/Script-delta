@@ -1,8 +1,10 @@
--- AUTO WALK 1-10
--- Kecepatan bisa diatur dengan tombol - dan +
--- Setelah posisi 10, kembali ke posisi awal
+-- AUTO FLY + NOCLIP
+-- ON/OFF + SPEED
+-- Titik 1 -> 10 -> kembali ke posisi saat ON
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
 local player = Players.LocalPlayer
 
 local positions = {
@@ -18,14 +20,21 @@ local positions = {
 	Vector3.new(125, 50, 421)
 }
 
-local walkSpeed = 16
-local minSpeed = 1
-local maxSpeed = 100
-local running = false
+local flySpeed = 50
+local minSpeed = 10
+local maxSpeed = 200
 
+local running = false
+local noclipConnection = nil
+local flyConnection = nil
+local originalCFrame = nil
+
+--==================================================
 -- UI
+--==================================================
+
 local gui = Instance.new("ScreenGui")
-gui.Name = "AutoWalkUI"
+gui.Name = "AutoFlyUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
@@ -42,18 +51,18 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = frame
 
--- Judul
+-- TITLE
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -20, 0, 25)
 title.Position = UDim2.new(0, 10, 0, 8)
 title.BackgroundTransparency = 1
-title.Text = "AUTO WALK"
+title.Text = "AUTO FLY"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextSize = 18
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
--- Tombol minus
+-- MINUS
 local minus = Instance.new("TextButton")
 minus.Size = UDim2.new(0, 45, 0, 38)
 minus.Position = UDim2.new(0, 10, 0, 40)
@@ -69,12 +78,12 @@ local minusCorner = Instance.new("UICorner")
 minusCorner.CornerRadius = UDim.new(0, 7)
 minusCorner.Parent = minus
 
--- Speed label
+-- SPEED
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(0, 120, 0, 38)
 speedLabel.Position = UDim2.new(0, 55, 0, 40)
 speedLabel.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-speedLabel.Text = "Speed: 16"
+speedLabel.Text = "Speed: 50"
 speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedLabel.TextSize = 16
 speedLabel.Font = Enum.Font.GothamBold
@@ -84,7 +93,7 @@ local speedCorner = Instance.new("UICorner")
 speedCorner.CornerRadius = UDim.new(0, 7)
 speedCorner.Parent = speedLabel
 
--- Tombol plus
+-- PLUS
 local plus = Instance.new("TextButton")
 plus.Size = UDim2.new(0, 45, 0, 38)
 plus.Position = UDim2.new(1, -55, 0, 40)
@@ -100,103 +109,225 @@ local plusCorner = Instance.new("UICorner")
 plusCorner.CornerRadius = UDim.new(0, 7)
 plusCorner.Parent = plus
 
--- Tombol mulai
-local startButton = Instance.new("TextButton")
-startButton.Size = UDim2.new(1, -20, 0, 40)
-startButton.Position = UDim2.new(0, 10, 0, 87)
-startButton.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
-startButton.Text = "START WALK"
-startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-startButton.TextSize = 17
-startButton.Font = Enum.Font.GothamBold
-startButton.BorderSizePixel = 0
-startButton.Parent = frame
+-- ON / OFF
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(1, -20, 0, 40)
+toggleButton.Position = UDim2.new(0, 10, 0, 87)
+toggleButton.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
+toggleButton.Text = "OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 17
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = frame
 
-local startCorner = Instance.new("UICorner")
-startCorner.CornerRadius = UDim.new(0, 8)
-startCorner.Parent = startButton
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
 
--- Update speed
+--==================================================
+-- SPEED
+--==================================================
+
 local function updateSpeed()
-	speedLabel.Text = "Speed: " .. walkSpeed
+	speedLabel.Text = "Speed: " .. flySpeed
 end
 
 minus.MouseButton1Click:Connect(function()
-	if running then return end
-
-	walkSpeed = math.max(minSpeed, walkSpeed - 1)
+	flySpeed = math.max(minSpeed, flySpeed - 10)
 	updateSpeed()
 end)
 
 plus.MouseButton1Click:Connect(function()
-	if running then return end
-
-	walkSpeed = math.min(maxSpeed, walkSpeed + 1)
+	flySpeed = math.min(maxSpeed, flySpeed + 10)
 	updateSpeed()
 end)
 
--- Auto walk
-local function walkTo(position)
-	local character = player.Character or player.CharacterAdded:Wait()
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+--==================================================
+-- NOCLIP
+--==================================================
 
-	if not humanoid then
-		return
+local function enableNoclip()
+	if noclipConnection then
+		noclipConnection:Disconnect()
 	end
 
-	humanoid.WalkSpeed = walkSpeed
-	humanoid:MoveTo(position)
+	noclipConnection = RunService.Stepped:Connect(function()
+		if not running then
+			return
+		end
 
-	local reached = false
-	local connection
+		local character = player.Character
 
-	connection = humanoid.MoveToFinished:Connect(function(success)
-		reached = true
-		connection:Disconnect()
+		if character then
+			for _, part in ipairs(character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
 	end)
+end
 
-	-- Tunggu sampai tujuan tercapai
-	while not reached and running do
-		humanoid.WalkSpeed = walkSpeed
-		task.wait(0.1)
+local function disableNoclip()
+	if noclipConnection then
+		noclipConnection:Disconnect()
+		noclipConnection = nil
+	end
+
+	local character = player.Character
+
+	if character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
 	end
 end
 
-startButton.MouseButton1Click:Connect(function()
-	if running then return end
+--==================================================
+-- FLY
+--==================================================
 
-	running = true
+local function stopFlying()
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
 
+	local character = player.Character
+	if character then
+		local root = character:FindFirstChild("HumanoidRootPart")
+
+		if root then
+			root.AssemblyLinearVelocity = Vector3.zero
+		end
+	end
+end
+
+local function flyTo(targetPosition)
 	local character = player.Character or player.CharacterAdded:Wait()
 	local root = character:FindFirstChild("HumanoidRootPart")
 
 	if not root then
-		running = false
+		return false
+	end
+
+	local reached = false
+
+	flyConnection = RunService.Heartbeat:Connect(function()
+		if not running then
+			reached = true
+			return
+		end
+
+		if not root.Parent then
+			reached = true
+			return
+		end
+
+		local offset = targetPosition - root.Position
+		local distance = offset.Magnitude
+
+		if distance <= 3 then
+			root.AssemblyLinearVelocity = Vector3.zero
+			reached = true
+			return
+		end
+
+		root.AssemblyLinearVelocity =
+			offset.Unit * flySpeed
+	end)
+
+	while running and not reached do
+		task.wait()
+	end
+
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+
+	if root and root.Parent then
+		root.AssemblyLinearVelocity = Vector3.zero
+	end
+
+	return running
+end
+
+--==================================================
+-- STOP / CLEANUP
+--==================================================
+
+local function finish()
+	running = false
+
+	stopFlying()
+	disableNoclip()
+
+	toggleButton.Text = "OFF"
+	toggleButton.BackgroundColor3 =
+		Color3.fromRGB(45, 150, 255)
+end
+
+--==================================================
+-- AUTO FLY
+--==================================================
+
+local function startAutoFly()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not root then
+		finish()
 		return
 	end
 
-	-- Simpan posisi awal
-	local originalPosition = root.Position
+	-- Simpan posisi saat ON ditekan
+	originalCFrame = root.CFrame
 
-	startButton.Text = "WALKING..."
-	startButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	running = true
 
-	-- Jalan ke posisi 1 sampai 10
-	for i, position in ipairs(positions) do
+	toggleButton.Text = "ON"
+	toggleButton.BackgroundColor3 =
+		Color3.fromRGB(45, 200, 100)
+
+	enableNoclip()
+
+	-- Posisi 1 sampai 10
+	for _, position in ipairs(positions) do
 		if not running then
-			break
+			return
 		end
 
-		walkTo(position)
+		if not flyTo(position) then
+			return
+		end
 	end
 
-	-- Kembali ke posisi awal dengan berjalan
+	-- Setelah posisi 10,
+	-- kembali ke posisi saat ON ditekan
+	if running and originalCFrame then
+		flyTo(originalCFrame.Position)
+	end
+
+	-- Selesai -> normal lagi
+	finish()
+end
+
+--==================================================
+-- ON / OFF
+--==================================================
+
+toggleButton.MouseButton1Click:Connect(function()
+
+	-- Kalau sedang ON -> OFF
 	if running then
-		walkTo(originalPosition)
+		finish()
+		return
 	end
 
-	running = false
-
-	startButton.Text = "START WALK"
-	startButton.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
+	-- Kalau OFF -> ON
+	task.spawn(startAutoFly)
 end)
