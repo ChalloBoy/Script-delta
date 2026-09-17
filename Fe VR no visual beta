@@ -1,6 +1,6 @@
--- AUTO FLY + NOCLIP
--- ON/OFF + SPEED
--- Titik 1 -> 10 -> kembali ke posisi saat ON
+-- AUTO FLY + FULL NOCLIP
+-- LocalScript
+-- Pasang di StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -20,14 +20,148 @@ local positions = {
 	Vector3.new(125, 50, 421)
 }
 
-local flySpeed = 50
-local minSpeed = 10
-local maxSpeed = 200
+local speed = 50
+local MIN_SPEED = 10
+local MAX_SPEED = 200
+local SPEED_STEP = 10
 
-local running = false
-local noclipConnection = nil
-local flyConnection = nil
-local originalCFrame = nil
+local enabled = false
+local flying = false
+
+local savedCFrame
+local noclipConnection
+local flyConnection
+
+--==================================================
+-- CHARACTER
+--==================================================
+
+local function getCharacter()
+	return player.Character or player.CharacterAdded:Wait()
+end
+
+local function getRoot()
+	local character = getCharacter()
+	return character:FindFirstChild("HumanoidRootPart")
+end
+
+--==================================================
+-- FULL NOCLIP
+--==================================================
+
+local function setNoclip(state)
+	local character = player.Character
+
+	if character then
+		for _, obj in ipairs(character:GetDescendants()) do
+			if obj:IsA("BasePart") then
+				obj.CanCollide = not state
+			end
+		end
+	end
+end
+
+local function startNoclip()
+	if noclipConnection then
+		noclipConnection:Disconnect()
+	end
+
+	noclipConnection = RunService.Stepped:Connect(function()
+		if enabled then
+			setNoclip(true)
+		end
+	end)
+
+	setNoclip(true)
+end
+
+local function stopNoclip()
+	if noclipConnection then
+		noclipConnection:Disconnect()
+		noclipConnection = nil
+	end
+
+	setNoclip(false)
+end
+
+--==================================================
+-- FLY
+--==================================================
+
+local function stopFly()
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+
+	local root = getRoot()
+
+	if root then
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.AssemblyAngularVelocity = Vector3.zero
+	end
+end
+
+local function flyTo(target)
+	local root = getRoot()
+
+	if not root then
+		return false
+	end
+
+	local reached = false
+
+	flyConnection = RunService.Heartbeat:Connect(function(dt)
+		if not enabled then
+			reached = true
+			return
+		end
+
+		if not root.Parent then
+			reached = true
+			return
+		end
+
+		-- Pastikan noclip tetap aktif
+		setNoclip(true)
+
+		local current = root.Position
+		local offset = target - current
+		local distance = offset.Magnitude
+
+		if distance <= 2.5 then
+			root.CFrame = CFrame.new(target)
+			root.AssemblyLinearVelocity = Vector3.zero
+			reached = true
+			return
+		end
+
+		local direction = offset.Unit
+
+		-- Gerakan 3D langsung:
+		-- bisa naik, turun, menembus lantai dan dinding
+		local moveDistance = math.min(speed * dt, distance)
+		local newPosition = current + direction * moveDistance
+
+		root.CFrame = CFrame.lookAt(
+			newPosition,
+			newPosition + direction
+		)
+
+		root.AssemblyLinearVelocity = Vector3.zero
+	end)
+
+	while enabled and not reached do
+		RunService.Heartbeat:Wait()
+	end
+
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+
+	return enabled
+end
 
 --==================================================
 -- UI
@@ -39,26 +173,26 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 230, 0, 135)
-frame.Position = UDim2.new(0.5, -115, 0.5, -67)
+frame.Size = UDim2.new(0, 230, 0, 140)
+frame.Position = UDim2.new(0.5, -115, 0.5, -70)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 frame.Parent = gui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = frame
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 10)
+frameCorner.Parent = frame
 
 -- TITLE
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -20, 0, 25)
-title.Position = UDim2.new(0, 10, 0, 8)
+title.Position = UDim2.new(0, 10, 0, 7)
 title.BackgroundTransparency = 1
-title.Text = "AUTO FLY"
+title.Text = "AUTO FLY + NOCLIP"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 18
+title.TextSize = 17
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
@@ -110,224 +244,126 @@ plusCorner.CornerRadius = UDim.new(0, 7)
 plusCorner.Parent = plus
 
 -- ON / OFF
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(1, -20, 0, 40)
-toggleButton.Position = UDim2.new(0, 10, 0, 87)
-toggleButton.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
-toggleButton.Text = "OFF"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextSize = 17
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.BorderSizePixel = 0
-toggleButton.Parent = frame
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1, -20, 0, 40)
+toggle.Position = UDim2.new(0, 10, 0, 88)
+toggle.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
+toggle.Text = "OFF"
+toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggle.TextSize = 17
+toggle.Font = Enum.Font.GothamBold
+toggle.BorderSizePixel = 0
+toggle.Parent = frame
 
 local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(0, 8)
-toggleCorner.Parent = toggleButton
+toggleCorner.Parent = toggle
 
 --==================================================
--- SPEED
+-- SPEED BUTTON
 --==================================================
-
-local function updateSpeed()
-	speedLabel.Text = "Speed: " .. flySpeed
-end
 
 minus.MouseButton1Click:Connect(function()
-	flySpeed = math.max(minSpeed, flySpeed - 10)
-	updateSpeed()
+	speed = math.max(MIN_SPEED, speed - SPEED_STEP)
+	speedLabel.Text = "Speed: " .. speed
 end)
 
 plus.MouseButton1Click:Connect(function()
-	flySpeed = math.min(maxSpeed, flySpeed + 10)
-	updateSpeed()
+	speed = math.min(MAX_SPEED, speed + SPEED_STEP)
+	speedLabel.Text = "Speed: " .. speed
 end)
 
 --==================================================
--- NOCLIP
+-- OFF / CLEANUP
 --==================================================
 
-local function enableNoclip()
-	if noclipConnection then
-		noclipConnection:Disconnect()
-	end
+local function turnOff()
+	enabled = false
+	flying = false
 
-	noclipConnection = RunService.Stepped:Connect(function()
-		if not running then
-			return
-		end
+	stopFly()
+	stopNoclip()
 
-		local character = player.Character
-
-		if character then
-			for _, part in ipairs(character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = false
-				end
-			end
-		end
-	end)
-end
-
-local function disableNoclip()
-	if noclipConnection then
-		noclipConnection:Disconnect()
-		noclipConnection = nil
-	end
-
-	local character = player.Character
-
-	if character then
-		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = true
-			end
-		end
-	end
+	toggle.Text = "OFF"
+	toggle.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
 end
 
 --==================================================
--- FLY
+-- AUTO ROUTE
 --==================================================
 
-local function stopFlying()
-	if flyConnection then
-		flyConnection:Disconnect()
-		flyConnection = nil
-	end
-
-	local character = player.Character
-	if character then
-		local root = character:FindFirstChild("HumanoidRootPart")
-
-		if root then
-			root.AssemblyLinearVelocity = Vector3.zero
-		end
-	end
-end
-
-local function flyTo(targetPosition)
-	local character = player.Character or player.CharacterAdded:Wait()
-	local root = character:FindFirstChild("HumanoidRootPart")
-
-	if not root then
-		return false
-	end
-
-	local reached = false
-
-	flyConnection = RunService.Heartbeat:Connect(function()
-		if not running then
-			reached = true
-			return
-		end
-
-		if not root.Parent then
-			reached = true
-			return
-		end
-
-		local offset = targetPosition - root.Position
-		local distance = offset.Magnitude
-
-		if distance <= 3 then
-			root.AssemblyLinearVelocity = Vector3.zero
-			reached = true
-			return
-		end
-
-		root.AssemblyLinearVelocity =
-			offset.Unit * flySpeed
-	end)
-
-	while running and not reached do
-		task.wait()
-	end
-
-	if flyConnection then
-		flyConnection:Disconnect()
-		flyConnection = nil
-	end
-
-	if root and root.Parent then
-		root.AssemblyLinearVelocity = Vector3.zero
-	end
-
-	return running
-end
-
---==================================================
--- STOP / CLEANUP
---==================================================
-
-local function finish()
-	running = false
-
-	stopFlying()
-	disableNoclip()
-
-	toggleButton.Text = "OFF"
-	toggleButton.BackgroundColor3 =
-		Color3.fromRGB(45, 150, 255)
-end
-
---==================================================
--- AUTO FLY
---==================================================
-
-local function startAutoFly()
-	local character = player.Character or player.CharacterAdded:Wait()
-	local root = character:FindFirstChild("HumanoidRootPart")
-
-	if not root then
-		finish()
+local function startRoute()
+	if flying then
 		return
 	end
 
-	-- Simpan posisi saat ON ditekan
-	originalCFrame = root.CFrame
+	local root = getRoot()
 
-	running = true
+	if not root then
+		turnOff()
+		return
+	end
 
-	toggleButton.Text = "ON"
-	toggleButton.BackgroundColor3 =
-		Color3.fromRGB(45, 200, 100)
+	-- Simpan posisi PERSIS ketika ON ditekan
+	savedCFrame = root.CFrame
 
-	enableNoclip()
+	flying = true
 
-	-- Posisi 1 sampai 10
+	startNoclip()
+
+	toggle.Text = "ON"
+	toggle.BackgroundColor3 = Color3.fromRGB(45, 200, 100)
+
+	-- Titik 1 sampai 10
 	for _, position in ipairs(positions) do
-		if not running then
-			return
+		if not enabled then
+			break
 		end
 
 		if not flyTo(position) then
-			return
+			break
 		end
 	end
 
-	-- Setelah posisi 10,
-	-- kembali ke posisi saat ON ditekan
-	if running and originalCFrame then
-		flyTo(originalCFrame.Position)
+	-- Setelah titik 10,
+	-- kembali ke posisi awal
+	if enabled and savedCFrame then
+		flyTo(savedCFrame.Position)
 	end
 
-	-- Selesai -> normal lagi
-	finish()
+	-- Selesai = OFF + noclip mati
+	if enabled then
+		turnOff()
+	end
+
+	flying = false
 end
 
 --==================================================
 -- ON / OFF
 --==================================================
 
-toggleButton.MouseButton1Click:Connect(function()
+toggle.MouseButton1Click:Connect(function()
 
-	-- Kalau sedang ON -> OFF
-	if running then
-		finish()
+	-- ON -> OFF
+	if enabled then
+		turnOff()
 		return
 	end
 
-	-- Kalau OFF -> ON
-	task.spawn(startAutoFly)
+	-- OFF -> ON
+	enabled = true
+
+	task.spawn(startRoute)
+end)
+
+--==================================================
+-- RESPAWN SAFETY
+--==================================================
+
+player.CharacterAdded:Connect(function()
+	if enabled then
+		task.wait(0.2)
+		setNoclip(true)
+	end
 end)
