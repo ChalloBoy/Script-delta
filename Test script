@@ -7061,6 +7061,66 @@ addcmd("inviteprompt", {}, function(args, speaker)
 	end
 end)
 
+addcmd("slap", {}, function(args, speaker)
+	local targetNames = getPlayer(args[1], speaker)
+	local duration = tonumber(args[2])
+
+	if not args[1] or args[1] == "" then
+		notify("Slap", "Usage: ;slap <player> <1-10>")
+		return
+	end
+
+	if not duration or duration < 1 or duration > 10 then
+		notify("Slap", "Duration must be between 1 and 10 seconds")
+		return
+	end
+
+	local target = nil
+	for _, name in ipairs(targetNames) do
+		local plr = Players:FindFirstChild(name)
+		if plr then
+			target = plr
+			break
+		end
+	end
+
+	local speakerCharacter = speaker.Character
+	local speakerRoot = speakerCharacter and getRoot(speakerCharacter)
+	local targetCharacter = target and target.Character
+	local targetRoot = targetCharacter and getRoot(targetCharacter)
+
+	if not speakerRoot then
+		notify("Slap", "Your character is not ready")
+		return
+	end
+
+	if not targetRoot then
+		notify("Slap", "Target character is not ready")
+		return
+	end
+
+	-- Save the exact position/orientation where the command was sent.
+	local returnCFrame = speakerRoot.CFrame
+
+	-- Go to the target, stay there for the requested duration,
+	-- then return to the exact original position.
+	pcall(function()
+		speakerRoot.CFrame = targetRoot.CFrame
+	end)
+
+	notify("Slap", "Teleported to "..target.Name.." for "..tostring(duration).."s")
+
+	task.wait(duration)
+
+	pcall(function()
+		local currentCharacter = speaker.Character
+		local currentRoot = currentCharacter and getRoot(currentCharacter)
+		if currentRoot then
+			currentRoot.CFrame = returnCFrame
+		end
+	end)
+end)
+
 addcmd("autorejoin", {"autorj"}, function(args, speaker)
 	GuiService.ErrorMessageChanged:Connect(function()
 		execCmd("rejoin")
