@@ -1,385 +1,106 @@
---[[
-🥽 ROBLOX MOBILE VR SYSTEM — GRATIS
+-- AUTO TELEPORT 1-10 + KEMBALI KE POSISI AWAL
+-- LocalScript
 
-Script VR-style untuk Roblox Mobile.
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 
-Fitur:
-- Head tracking dengan kontrol atas/bawah dan kiri/kanan
-- Kontrol tangan kiri dan kanan secara terpisah
-- Kontrol tangan atas/bawah
-- Kontrol jarak tangan (Z-axis)
-- Tangan mengikuti tubuh saat berjalan, melompat, dan jatuh
-- Kontrol touchscreen mobile
-- UI RGB dan animasi UI
-- Intro animasi dan tampilan profil pemain
+local positions = {
+	Vector3.new(-103, 46, 345),
+	Vector3.new(-69, 25, 307),
+	Vector3.new(-111, 33, 283),
+	Vector3.new(-117, 33, 182),
+	Vector3.new(-27, 39, 177),
+	Vector3.new(13, 5, 183),
+	Vector3.new(37, 20, 234),
+	Vector3.new(96, 4, 362),
+	Vector3.new(24, 40, 321),
+	Vector3.new(125, 50, 421)
+}
 
-🎁 SCRIPT INI DIBAGIKAN GRATIS.
-Gunakan, pelajari, modifikasi, dan kembangkan sesuai kebutuhan game kamu.
+-- UI
+local gui = Instance.new("ScreenGui")
+gui.Name = "AutoTeleportUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
-Catatan:
-Ini adalah sistem VR-style berbasis Roblox/mobile, bukan pengganti headset VR sungguhan.
-Performa dan hasil gerakan dapat berbeda tergantung perangkat, rig, dan sistem game.
-]]--
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 180, 0, 70)
+frame.Position = UDim2.new(0.5, -90, 0.5, -35)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
 
--- Protected/obfuscated source. The free description above is intentionally unchanged.
-local v000 = game:GetService(string.char(82,101,112,108,105,99,97,116,101,100,83,116,111,114,97,103,101)).NexusVRCharacterModel.UpdateInputs
-local v001 = game:GetService(string.char(80,108,97,121,101,114,115)).LocalPlayer
-local v002 = workspace.CurrentCamera
-local v003 = game:GetService(string.char(82,117,110,83,101,114,118,105,99,101))
-local v004 = game:GetService(string.char(85,115,101,114,73,110,112,117,116,83,101,114,118,105,99,101))
-local v005 = game:GetService(string.char(84,119,101,101,110,83,101,114,118,105,99,101))
-local v006 = game:GetService(string.char(80,108,97,121,101,114,115))
-game:GetService(string.char(82,101,112,108,105,99,97,116,101,100,83,116,111,114,97,103,101)).NexusVRCharacterModel.ReplicationReady:FireServer()
-local v007 = Vector2.new(0, 0)
-local v008 = Vector2.new(0, 0)
-local v009 = 0
-local v00a = 0
-local v00b = 0
-local v00c = 0
-local v00d = false
-local v00e = false
-local v00f = 0
-local v010 = 1 / 25 
-local v011 = CFrame.new()
-local v012 = CFrame.new()
-local v013 = CFrame.new()
-local v014 = 0
-local v015 = 0
-local v016
-local v017, coreGui = pcall(function() return game:GetService(string.char(67,111,114,101,71,117,105)) end)
-if gethui then
-    v016 = gethui()
-elseif v017 and coreGui and coreGui:FindFirstChild(string.char(82,111,98,108,111,120,71,117,105)) then
-    v016 = coreGui:FindFirstChild(string.char(82,111,98,108,111,120,71,117,105))
-else
-    v016 = v001:WaitForChild(string.char(80,108,97,121,101,114,71,117,105))
-end
-if v016:FindFirstChild(string.char(78,101,120,117,115,86,82,95,77,111,98,105,108,101,95,74,111,121,115,116,105,99,107,115)) then
-    v016[string.char(78,101,120,117,115,86,82,95,77,111,98,105,108,101,95,74,111,121,115,116,105,99,107,115)]:Destroy()
-end
-local v018 = Instance.new(string.char(83,99,114,101,101,110,71,117,105))
-v018.Name = string.char(78,101,120,117,115,86,82,95,77,111,98,105,108,101,95,74,111,121,115,116,105,99,107,115)
-v018.ResetOnSpawn = false
-v018.DisplayOrder = 99999
-v018.IgnoreGuiInset = true
-v018.Parent = v016
-local function v019(v068, v069, v06a)
-    local v01a = Instance.new(string.char(70,114,97,109,101))
-    local v01b = Instance.new(string.char(73,109,97,103,101,66,117,116,116,111,110))
-    v01a.Name = v068..string.char(95,80,97,100)
-    v01a.Size = UDim2.new(0, 125, 0, 125)
-    v01a.Position = v069
-    v01a.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    v01a.BackgroundTransparency = 0.6
-    v01a.BorderSizePixel = 0
-    v01a.Active = true
-    v01a.Visible = false 
-    v01a.Parent = v018
-    local v01c = Instance.new(string.char(85,73,67,111,114,110,101,114))
-    v01c.CornerRadius = UDim.new(1, 0)
-    v01c.Parent = v01a
-    v01b.Name = string.char(84,104,117,109,98)
-    v01b.Size = UDim2.new(0, 50, 0, 50)
-    v01b.Position = UDim2.new(0.5, -25, 0.5, -25)
-    v01b.BackgroundColor3 = v06a
-    v01b.BackgroundTransparency = 0.2
-    v01b.BorderSizePixel = 0
-    v01b.Parent = v01a
-    local v01d = Instance.new(string.char(85,73,67,111,114,110,101,114))
-    v01d.CornerRadius = UDim.new(1, 0)
-    v01d.Parent = v01b
-    local v01e = false
-    local v01f = Vector2.new()
-    local v020 = nil
-    v01b.InputBegan:Connect(function(v06b)
-        if (v06b.UserInputType == Enum.UserInputType.Touch or v06b.UserInputType == Enum.UserInputType.MouseButton1) and not v01e then
-            v01e = true
-            v01f = v06b.Position
-            v020 = v06b
-            if v068 == string.char(68,101,114,101,99,104,111) then v00e = true else v00d = true end
-        end
-    end)
-    v004.InputChanged:Connect(function(v06b)
-        if v01e and v06b == v020 then
-            local v021 = v06b.Position - v01f
-            local v022 = math.clamp(v021.Magnitude, 0, 45)
-            local v023 = v021.Magnitude > 0 and v021.Unit or Vector2.new(0, 0)
-            v01b.Position = UDim2.new(0.5, -25 + (v023.X * v022), 0.5, -25 + (v023.Y * v022))
-            local v024 = v022 / 45
-            if v068 == string.char(68,101,114,101,99,104,111) then
-                v008 = Vector2.new(v023.X * v024, -v023.Y * v024)
-            else
-                v007 = Vector2.new(v023.X * v024, -v023.Y * v024)
-            end
-        end
-    end)
-    local function v025(v06b)
-        if v01e and v06b == v020 then
-            v01e = false
-            v020 = nil
-            if v068 == string.char(68,101,114,101,99,104,111) then v00e = false else v00d = false end
-        end
-    end
-    v004.InputEnded:Connect(v025)
-end
-local function v026(v068, v069, v06a)
-    local v01a = Instance.new(string.char(70,114,97,109,101))
-    local v01b = Instance.new(string.char(73,109,97,103,101,66,117,116,116,111,110))
-    v01a.Name = v068..string.char(95,90,95,80,97,100)
-    v01a.Size = UDim2.new(0, 75, 0, 75)
-    v01a.Position = v069
-    v01a.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    v01a.BackgroundTransparency = 0.6
-    v01a.BorderSizePixel = 0
-    v01a.Active = true
-    v01a.Visible = false 
-    v01a.Parent = v018
-    local v01c = Instance.new(string.char(85,73,67,111,114,110,101,114))
-    v01c.CornerRadius = UDim.new(1, 0)
-    v01c.Parent = v01a
-    v01b.Name = string.char(84,104,117,109,98)
-    v01b.Size = UDim2.new(0, 30, 0, 30)
-    v01b.Position = UDim2.new(0.5, -15, 0.5, -15)
-    v01b.BackgroundColor3 = v06a
-    v01b.BackgroundTransparency = 0.2
-    v01b.BorderSizePixel = 0
-    v01b.Parent = v01a
-    local v01d = Instance.new(string.char(85,73,67,111,114,110,101,114))
-    v01d.CornerRadius = UDim.new(1, 0)
-    v01d.Parent = v01b
-    local v01e = false
-    local v020 = nil
-    local v027 = 25
-    local function v028(v06b)
-        local v029 = v01a.AbsolutePosition.Y + (v01a.AbsoluteSize.Y / 2)
-        local v02a = v06b.Position.Y - v029
-        local v02b = math.clamp(v02a, -v027, v027)
-        v01b.Position = UDim2.new(0.5, -15, 0.5, -15 + v02b)
-        local v024 = -v02b / v027
-        if v068 == string.char(68,101,114,101,99,104,111) then v00a = v024 else v009 = v024 end
-    end
-    v01b.InputBegan:Connect(function(v06b)
-        if (v06b.UserInputType == Enum.UserInputType.Touch or v06b.UserInputType == Enum.UserInputType.MouseButton1) and not v01e then
-            v01e = true
-            v020 = v06b
-            v028(v06b)
-        end
-    end)
-    v004.InputChanged:Connect(function(v06b)
-        if v01e and v06b == v020 then
-            v028(v06b)
-        end
-    end)
-    v004.InputEnded:Connect(function(v06b)
-        if v01e and v06b == v020 then
-            v01e = false
-            v020 = nil
-        end
-    end)
-end
-v019(string.char(73,122,113,117,105,101,114,100,111), UDim2.new(0, 40, 1, -170), Color3.fromRGB(255, 60, 60))
-v026(string.char(73,122,113,117,105,101,114,100,111), UDim2.new(0, 180, 1, -145), Color3.fromRGB(255, 140, 140))
-v019(string.char(68,101,114,101,99,104,111), UDim2.new(1, -165, 1, -170), Color3.fromRGB(60, 130, 255))
-v026(string.char(68,101,114,101,99,104,111), UDim2.new(1, -255, 1, -145), Color3.fromRGB(140, 190, 255))
-v02c(string.char(73,122,113,117,105,101,114,100,111), UDim2.new(0,265,1,-160), Color3.fromRGB(255,190,190))
-v02c(string.char(68,101,114,101,99,104,111), UDim2.new(1,-320,1,-160), Color3.fromRGB(190,215,255))
-local v035 = Instance.new(string.char(84,101,120,116,66,117,116,116,111,110))
-v035.Name = string.char(84,111,103,103,108,101,85,73)
-v035.Size = UDim2.new(0, 120, 0, 35)
-v035.Position = UDim2.new(0.5, -60, 0, 40)
-v035.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-v035.BackgroundTransparency = 0.4
-v035.Text = string.char(79,99,117,108,116,97,114,32,67,111,110,116,114,111,108,101,115)
-v035.TextColor3 = Color3.fromRGB(255, 255, 255)
-v035.TextSize = 13
-v035.Font = Enum.Font.SourceSansBold
-v035.Visible = false
-v035.Parent = v018
-local v036 = Instance.new(string.char(85,73,67,111,114,110,101,114))
-v036.CornerRadius = UDim.new(0, 8)
-v036.Parent = v035
-local function v037(v06c, v03d)
-    if not v06c or not v06c.Parent then return end
-    local v038 = Color3.fromHSV(v03d % 1, 0.9, 1)
-    local v039 = Color3.fromHSV(v03d % 1, 0.65, 1)
-    for v03a, v03b in ipairs(v06c:GetDescendants()) do
-        if v03b:IsA(string.char(70,114,97,109,101)) or v03b:IsA(string.char(84,101,120,116,66,117,116,116,111,110)) or v03b:IsA(string.char(73,109,97,103,101,66,117,116,116,111,110)) then
-            if v03b:GetAttribute(string.char(82,71,66,95,85,73)) then
-                v03b.BackgroundColor3 = v038
-            end
-        elseif v03b:IsA(string.char(84,101,120,116,76,97,98,101,108)) or v03b:IsA(string.char(84,101,120,116,66,117,116,116,111,110)) then
-            if v03b:GetAttribute(string.char(82,71,66,95,84,69,88,84)) then
-                v03b.TextColor3 = v038
-            end
-        elseif v03b:IsA(string.char(85,73,83,116,114,111,107,101)) then
-            if v03b:GetAttribute(string.char(82,71,66,95,83,84,82,79,75,69)) then
-                v03b.Color = v038
-            end
-        end
-    end
-end
-task.spawn(function()
-    local v03c = os.clock()
-    while v018.Parent do
-        local v03d = ((os.clock() - v03c) * 0.12) % 1
-        for v03a, v03b in ipairs(v018:GetDescendants()) do
-            if v03b:IsA(string.char(70,114,97,109,101)) or v03b:IsA(string.char(84,101,120,116,66,117,116,116,111,110)) or v03b:IsA(string.char(73,109,97,103,101,66,117,116,116,111,110)) then
-                if v03b.Name:find(string.char(80,97,100)) or v03b.Name == string.char(84,111,103,103,108,101,85,73) then
-                    v03b.BackgroundColor3 = Color3.fromHSV(v03d % 1, 0.78, 1)
-                end
-            elseif v03b:IsA(string.char(84,101,120,116,76,97,98,101,108)) then
-                if v03b.Name == string.char(87,101,108,99,111,109,101) or v03b.Name == string.char(86,101,114,115,105,111,110) then
-                    v03b.TextColor3 = Color3.fromHSV((v03d + 0.08) % 1, 0.65, 1)
-                end
-            elseif v03b:IsA(string.char(85,73,83,116,114,111,107,101)) then
-                v03b.Color = Color3.fromHSV((v03d + 0.15) % 1, 0.8, 1)
-            end
-        end
-        task.wait(0.03)
-    end
-end)
-local function v03e()
-    local v03f = {
-        v018:FindFirstChild(string.char(73,122,113,117,105,101,114,100,111,95,80,97,100)),
-        v018:FindFirstChild(string.char(73,122,113,117,105,101,114,100,111,95,90,95,80,97,100)),
-        v018:FindFirstChild(string.char(73,122,113,117,105,101,114,100,111,95,65,114,109,80,105,116,99,104,95,80,97,100)),
-        v018:FindFirstChild(string.char(68,101,114,101,99,104,111,95,80,97,100)),
-        v018:FindFirstChild(string.char(68,101,114,101,99,104,111,95,90,95,80,97,100)),
-        v018:FindFirstChild(string.char(68,101,114,101,99,104,111,95,65,114,109,80,105,116,99,104,95,80,97,100)),
-    }
-    for v03a, v040 in ipairs(v03f) do
-        if v040 then
-            local v041 = v040:FindFirstChild(string.char(85,73,65,110,105,109,83,99,97,108,101))
-            if not v041 then
-                v041 = Instance.new(string.char(85,73,83,99,97,108,101))
-                v041.Name = string.char(85,73,65,110,105,109,83,99,97,108,101)
-                v041.Scale = 1
-                v041.Parent = v040
-            end
-            task.spawn(function()
-                while v040.Parent do
-                    local v042 = v005:Create(v041, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Scale = 1.035})
-                    local v043 = v005:Create(v041, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Scale = 1})
-                    v042:Play()
-                    v042.Completed:Wait()
-                    if not v040.Parent then break end
-                    v043:Play()
-                    v043.Completed:Wait()
-                end
-            end)
-        end
-    end
-end
-local v04c = true
-v035.Visible = true
-for _, v04d in ipairs({
-    string.char(73,122,113,117,105,101,114,100,111,95,80,97,100),
-    string.char(73,122,113,117,105,101,114,100,111,95,90,95,80,97,100),
-    string.char(68,101,114,101,99,104,111,95,80,97,100),
-    string.char(68,101,114,101,99,104,111,95,90,95,80,97,100)
-}) do
-    local v040 = v018:FindFirstChild(v04d)
-    if v040 then v040.Visible = true end
-end
-v035.MouseButton1Click:Connect(function()
-    v04c = not v04c
-    v035.Text = v04c and string.char(79,99,117,108,116,97,114,32,67,111,110,116,114,111,108,101,115) or string.char(77,111,115,116,114,97,114,32,67,111,110,116,114,111,108,101,115)
-    local v03f = {string.char(73,122,113,117,105,101,114,100,111,95,80,97,100), string.char(73,122,113,117,105,101,114,100,111,95,90,95,80,97,100), string.char(73,122,113,117,105,101,114,100,111,95,65,114,109,80,105,116,99,104,95,80,97,100), string.char(68,101,114,101,99,104,111,95,80,97,100), string.char(68,101,114,101,99,104,111,95,90,95,80,97,100), string.char(68,101,114,101,99,104,111,95,65,114,109,80,105,116,99,104,95,80,97,100)}
-    for v03a, v04d in ipairs(v03f) do
-        local v040 = v018:FindFirstChild(v04d)
-        if v040 then v040.Visible = v04c end
-    end
-end)
-v003.RenderStepped:Connect(function()
-    
-    if not v00d then
-        v007 = v007:Lerp(Vector2.new(0, 0), 0.07)
-        local v040 = v018:FindFirstChild(string.char(73,122,113,117,105,101,114,100,111,95,80,97,100))
-        local v058 = v040 and v040:FindFirstChild(string.char(84,104,117,109,98))
-        if v058 then v058.Position = v058.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
-    end
-    if not v00e then
-        v008 = v008:Lerp(Vector2.new(0, 0), 0.07)
-        local v040 = v018:FindFirstChild(string.char(68,101,114,101,99,104,111,95,80,97,100))
-        local v058 = v040 and v040:FindFirstChild(string.char(84,104,117,109,98))
-        if v058 then v058.Position = v058.Position:Lerp(UDim2.new(0.5, -25, 0.5, -25), 0.07) end
-    end
-    local v059 = v001.Character
-    if v059 and v059:FindFirstChild(string.char(72,117,109,97,110,111,105,100,82,111,111,116,80,97,114,116)) then
-        local v05a = v059.HumanoidRootPart.CFrame
-        
-        
-        local v05b = v002.CFrame.LookVector
-        local v05c = v05a:VectorToObjectSpace(v05b)
-        local v05d = math.atan2(-v05c.X, -v05c.Z)
-        local v05e = math.rad(85)
-        
-        v015 = v05d
-        if math.abs(v05d) > v05e then
-            v015 = 0
-        end
-        
-        v014 = math.asin(math.clamp(v05c.Y, -1, 1))
-        local v05f = v059:FindFirstChild(string.char(78,101,99,107), true)
-        if v05f and v05f.Part0 and v05f.Part1 then
-            local v060 = v05f.Part0.CFrame * v05f.C0
-            v011 = v060 * CFrame.Angles(v014, v015, 0)
-        else
-            v011 = v05a * CFrame.new(0, 1.5, 0) * CFrame.Angles(v014, v015, 0)
-        end
-        local v061 = math.clamp(-1.2 - (v009 * 1.2), -2.2, -0.5)
-        local v062 = math.clamp(-1.2 - (v00a * 1.2), -2.2, -0.5)
-        v012 = v05a 
-            * CFrame.new(-1.2 + math.clamp(v007.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(v007.Y * 1.4, -1.4, 1.4), v061) 
-            * CFrame.Angles(math.rad(v007.Y * 45 + v00b * 70), math.rad(-v007.X * 30), math.rad(-v007.X * 20))
-        v013 = v05a 
-            * CFrame.new(1.2 + math.clamp(v008.X * 1.4, -1.4, 1.4), 0.5 + math.clamp(v008.Y * 1.4, -1.4, 1.4), v062) 
-            * CFrame.Angles(math.rad(v008.Y * 45 + v00c * 70), math.rad(-v008.X * 30), math.rad(v008.X * 20))
-        
-        
-        local v063 = v059:FindFirstChild(string.char(76,101,102,116,32,83,104,111,117,108,100,101,114), true) or v059:FindFirstChild(string.char(76,101,102,116,83,104,111,117,108,100,101,114), true)
-        local v064 = v059:FindFirstChild(string.char(82,105,103,104,116,32,83,104,111,117,108,100,101,114), true) or v059:FindFirstChild(string.char(82,105,103,104,116,83,104,111,117,108,100,101,114), true)
-        if v063 and v063.Part0 then
-            v063.Transform = v063.C0:Inverse() * v063.Part0.CFrame:Inverse() * v012 * v063.C1
-        end
-        if v064 and v064.Part0 then
-            v064.Transform = v064.C0:Inverse() * v064.Part0.CFrame:Inverse() * v013 * v064.C1
-        end
-        
-        local v065 = os.clock()
-        if v065 - v00f >= v010 then
-            v000:FireServer(v011, v012, v013)
-            v00f = v065
-        end
-    end
-end)
-v003.Stepped:Connect(function()
-    
-    for v03a, v066 in ipairs(v006:GetPlayers()) do
-        if v066 ~= v001 and v066.Character then
-            for v03a, v067 in ipairs(v066.Character:GetChildren()) do
-                if v067:IsA(string.char(66,97,115,101,80,97,114,116)) then
-                    v067.CanCollide = false
-                end
-            end
-        end
-    end
-    
-    local v059 = v001.Character
-    if v059 then
-        local v05f = v059:FindFirstChild(string.char(78,101,99,107), true)
-        local v063 = v059:FindFirstChild(string.char(76,101,102,116,32,83,104,111,117,108,100,101,114), true) or v059:FindFirstChild(string.char(76,101,102,116,83,104,111,117,108,100,101,114), true)
-        local v064 = v059:FindFirstChild(string.char(82,105,103,104,116,32,83,104,111,117,108,100,101,114), true) or v059:FindFirstChild(string.char(82,105,103,104,116,83,104,111,117,108,100,101,114), true)
-        
-        if v05f and v05f.Part0 and v05f.Part1 then
-            
-            v05f.Transform = CFrame.Angles(v014, v015, 0)
-        end
-        if v063 and v063.Part0 then
-            v063.Transform = v063.C0:Inverse() * v063.Part0.CFrame:Inverse() * v012 * v063.C1
-        end
-        if v064 and v064.Part0 then
-            v064.Transform = v064.C0:Inverse() * v064.Part0.CFrame:Inverse() * v013 * v064.C1
-        end
-    end
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1, -20, 1, -20)
+button.Position = UDim2.new(0, 10, 0, 10)
+button.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Text = "TELEPORT"
+button.TextSize = 20
+button.Font = Enum.Font.GothamBold
+button.BorderSizePixel = 0
+button.Parent = frame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 8)
+buttonCorner.Parent = button
+
+local running = false
+
+button.MouseButton1Click:Connect(function()
+	if running then return end
+	running = true
+
+	-- Simpan posisi saat tombol ditekan
+	local character = player.Character or player.CharacterAdded:Wait()
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not root then
+		running = false
+		return
+	end
+
+	local originalCFrame = root.CFrame
+
+	button.Text = "TELEPORTING..."
+	button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+
+	-- Teleport posisi 1 sampai 10
+	for i, position in ipairs(positions) do
+		character = player.Character or player.CharacterAdded:Wait()
+		root = character:FindFirstChild("HumanoidRootPart")
+
+		if root then
+			root.CFrame = CFrame.new(position)
+		end
+
+		if i < #positions then
+			task.wait(0.5)
+		end
+	end
+
+	-- Kembali ke posisi awal
+	task.wait(0.5)
+
+	character = player.Character or player.CharacterAdded:Wait()
+	root = character:FindFirstChild("HumanoidRootPart")
+
+	if root then
+		root.CFrame = originalCFrame
+	end
+
+	button.Text = "SELESAI"
+	button.BackgroundColor3 = Color3.fromRGB(45, 200, 100)
+
+	task.wait(1)
+
+	button.Text = "TELEPORT"
+	button.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
+	running = false
 end)
