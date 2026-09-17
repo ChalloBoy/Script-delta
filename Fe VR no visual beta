@@ -1,5 +1,6 @@
--- AUTO TELEPORT 1-10
--- Speed dapat diatur 0.1 - 10 detik
+-- AUTO WALK 1-10
+-- Kecepatan bisa diatur dengan tombol - dan +
+-- Setelah posisi 10, kembali ke posisi awal
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -17,15 +18,20 @@ local positions = {
 	Vector3.new(125, 50, 421)
 }
 
+local walkSpeed = 16
+local minSpeed = 1
+local maxSpeed = 100
+local running = false
+
 -- UI
 local gui = Instance.new("ScreenGui")
-gui.Name = "AutoTeleportUI"
+gui.Name = "AutoWalkUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 210, 0, 120)
-frame.Position = UDim2.new(0.5, -105, 0.5, -60)
+frame.Size = UDim2.new(0, 230, 0, 135)
+frame.Position = UDim2.new(0.5, -115, 0.5, -67)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -36,73 +42,131 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = frame
 
--- Label speed
+-- Judul
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -20, 0, 25)
+title.Position = UDim2.new(0, 10, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "AUTO WALK"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.Parent = frame
+
+-- Tombol minus
+local minus = Instance.new("TextButton")
+minus.Size = UDim2.new(0, 45, 0, 38)
+minus.Position = UDim2.new(0, 10, 0, 40)
+minus.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+minus.Text = "-"
+minus.TextColor3 = Color3.fromRGB(255, 255, 255)
+minus.TextSize = 25
+minus.Font = Enum.Font.GothamBold
+minus.BorderSizePixel = 0
+minus.Parent = frame
+
+local minusCorner = Instance.new("UICorner")
+minusCorner.CornerRadius = UDim.new(0, 7)
+minusCorner.Parent = minus
+
+-- Speed label
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, -20, 0, 25)
-speedLabel.Position = UDim2.new(0, 10, 0, 8)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Kecepatan: 0.5 detik"
+speedLabel.Size = UDim2.new(0, 120, 0, 38)
+speedLabel.Position = UDim2.new(0, 55, 0, 40)
+speedLabel.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+speedLabel.Text = "Speed: 16"
 speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedLabel.TextSize = 16
 speedLabel.Font = Enum.Font.GothamBold
 speedLabel.Parent = frame
 
--- Input speed
-local speedBox = Instance.new("TextBox")
-speedBox.Size = UDim2.new(1, -20, 0, 30)
-speedBox.Position = UDim2.new(0, 10, 0, 35)
-speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedBox.PlaceholderText = "0.1 - 10 detik"
-speedBox.Text = "0.5"
-speedBox.TextSize = 15
-speedBox.Font = Enum.Font.Gotham
-speedBox.ClearTextOnFocus = false
-speedBox.Parent = frame
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 7)
+speedCorner.Parent = speedLabel
 
-local inputCorner = Instance.new("UICorner")
-inputCorner.CornerRadius = UDim.new(0, 6)
-inputCorner.Parent = speedBox
+-- Tombol plus
+local plus = Instance.new("TextButton")
+plus.Size = UDim2.new(0, 45, 0, 38)
+plus.Position = UDim2.new(1, -55, 0, 40)
+plus.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+plus.Text = "+"
+plus.TextColor3 = Color3.fromRGB(255, 255, 255)
+plus.TextSize = 25
+plus.Font = Enum.Font.GothamBold
+plus.BorderSizePixel = 0
+plus.Parent = frame
 
--- Tombol teleport
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(1, -20, 0, 38)
-button.Position = UDim2.new(0, 10, 0, 75)
-button.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Text = "TELEPORT"
-button.TextSize = 17
-button.Font = Enum.Font.GothamBold
-button.BorderSizePixel = 0
-button.Parent = frame
+local plusCorner = Instance.new("UICorner")
+plusCorner.CornerRadius = UDim.new(0, 7)
+plusCorner.Parent = plus
 
-local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0, 8)
-buttonCorner.Parent = button
+-- Tombol mulai
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(1, -20, 0, 40)
+startButton.Position = UDim2.new(0, 10, 0, 87)
+startButton.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
+startButton.Text = "START WALK"
+startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+startButton.TextSize = 17
+startButton.Font = Enum.Font.GothamBold
+startButton.BorderSizePixel = 0
+startButton.Parent = frame
 
-local running = false
+local startCorner = Instance.new("UICorner")
+startCorner.CornerRadius = UDim.new(0, 8)
+startCorner.Parent = startButton
 
--- Update label
-speedBox.FocusLost:Connect(function()
-	local speed = tonumber(speedBox.Text)
+-- Update speed
+local function updateSpeed()
+	speedLabel.Text = "Speed: " .. walkSpeed
+end
 
-	if not speed then
-		speed = 0.5
-	end
+minus.MouseButton1Click:Connect(function()
+	if running then return end
 
-	speed = math.clamp(speed, 0.1, 10)
-	speedBox.Text = tostring(speed)
-	speedLabel.Text = "Kecepatan: " .. speed .. " detik"
+	walkSpeed = math.max(minSpeed, walkSpeed - 1)
+	updateSpeed()
 end)
 
-button.MouseButton1Click:Connect(function()
+plus.MouseButton1Click:Connect(function()
 	if running then return end
+
+	walkSpeed = math.min(maxSpeed, walkSpeed + 1)
+	updateSpeed()
+end)
+
+-- Auto walk
+local function walkTo(position)
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if not humanoid then
+		return
+	end
+
+	humanoid.WalkSpeed = walkSpeed
+	humanoid:MoveTo(position)
+
+	local reached = false
+	local connection
+
+	connection = humanoid.MoveToFinished:Connect(function(success)
+		reached = true
+		connection:Disconnect()
+	end)
+
+	-- Tunggu sampai tujuan tercapai
+	while not reached and running do
+		humanoid.WalkSpeed = walkSpeed
+		task.wait(0.1)
+	end
+end
+
+startButton.MouseButton1Click:Connect(function()
+	if running then return end
+
 	running = true
 
-	local speed = tonumber(speedBox.Text) or 0.5
-	speed = math.clamp(speed, 0.1, 10)
-
-	-- Simpan posisi awal
 	local character = player.Character or player.CharacterAdded:Wait()
 	local root = character:FindFirstChild("HumanoidRootPart")
 
@@ -111,41 +175,28 @@ button.MouseButton1Click:Connect(function()
 		return
 	end
 
-	local originalCFrame = root.CFrame
+	-- Simpan posisi awal
+	local originalPosition = root.Position
 
-	button.Text = "TELEPORTING..."
-	button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	startButton.Text = "WALKING..."
+	startButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 
-	-- Posisi 1 sampai 10
+	-- Jalan ke posisi 1 sampai 10
 	for i, position in ipairs(positions) do
-		character = player.Character or player.CharacterAdded:Wait()
-		root = character:FindFirstChild("HumanoidRootPart")
-
-		if root then
-			root.CFrame = CFrame.new(position)
+		if not running then
+			break
 		end
 
-		if i < #positions then
-			task.wait(speed)
-		end
+		walkTo(position)
 	end
 
-	-- Kembali ke posisi awal
-	task.wait(speed)
-
-	character = player.Character or player.CharacterAdded:Wait()
-	root = character:FindFirstChild("HumanoidRootPart")
-
-	if root then
-		root.CFrame = originalCFrame
+	-- Kembali ke posisi awal dengan berjalan
+	if running then
+		walkTo(originalPosition)
 	end
 
-	button.Text = "SELESAI"
-	button.BackgroundColor3 = Color3.fromRGB(45, 200, 100)
-
-	task.wait(1)
-
-	button.Text = "TELEPORT"
-	button.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
 	running = false
+
+	startButton.Text = "START WALK"
+	startButton.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
 end)
