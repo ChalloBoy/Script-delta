@@ -1,5 +1,5 @@
--- AUTO TELEPORT 1-10 + KEMBALI KE POSISI AWAL
--- LocalScript
+-- AUTO TELEPORT 1-10
+-- Speed dapat diatur 0.1 - 10 detik
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -24,8 +24,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 180, 0, 70)
-frame.Position = UDim2.new(0.5, -90, 0.5, -35)
+frame.Size = UDim2.new(0, 210, 0, 120)
+frame.Position = UDim2.new(0.5, -105, 0.5, -60)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -36,13 +36,42 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = frame
 
+-- Label speed
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -20, 0, 25)
+speedLabel.Position = UDim2.new(0, 10, 0, 8)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Kecepatan: 0.5 detik"
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.TextSize = 16
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.Parent = frame
+
+-- Input speed
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(1, -20, 0, 30)
+speedBox.Position = UDim2.new(0, 10, 0, 35)
+speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.PlaceholderText = "0.1 - 10 detik"
+speedBox.Text = "0.5"
+speedBox.TextSize = 15
+speedBox.Font = Enum.Font.Gotham
+speedBox.ClearTextOnFocus = false
+speedBox.Parent = frame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 6)
+inputCorner.Parent = speedBox
+
+-- Tombol teleport
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(1, -20, 1, -20)
-button.Position = UDim2.new(0, 10, 0, 10)
+button.Size = UDim2.new(1, -20, 0, 38)
+button.Position = UDim2.new(0, 10, 0, 75)
 button.BackgroundColor3 = Color3.fromRGB(45, 150, 255)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.Text = "TELEPORT"
-button.TextSize = 20
+button.TextSize = 17
 button.Font = Enum.Font.GothamBold
 button.BorderSizePixel = 0
 button.Parent = frame
@@ -53,11 +82,27 @@ buttonCorner.Parent = button
 
 local running = false
 
+-- Update label
+speedBox.FocusLost:Connect(function()
+	local speed = tonumber(speedBox.Text)
+
+	if not speed then
+		speed = 0.5
+	end
+
+	speed = math.clamp(speed, 0.1, 10)
+	speedBox.Text = tostring(speed)
+	speedLabel.Text = "Kecepatan: " .. speed .. " detik"
+end)
+
 button.MouseButton1Click:Connect(function()
 	if running then return end
 	running = true
 
-	-- Simpan posisi saat tombol ditekan
+	local speed = tonumber(speedBox.Text) or 0.5
+	speed = math.clamp(speed, 0.1, 10)
+
+	-- Simpan posisi awal
 	local character = player.Character or player.CharacterAdded:Wait()
 	local root = character:FindFirstChild("HumanoidRootPart")
 
@@ -71,7 +116,7 @@ button.MouseButton1Click:Connect(function()
 	button.Text = "TELEPORTING..."
 	button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 
-	-- Teleport posisi 1 sampai 10
+	-- Posisi 1 sampai 10
 	for i, position in ipairs(positions) do
 		character = player.Character or player.CharacterAdded:Wait()
 		root = character:FindFirstChild("HumanoidRootPart")
@@ -81,12 +126,12 @@ button.MouseButton1Click:Connect(function()
 		end
 
 		if i < #positions then
-			task.wait(0.5)
+			task.wait(speed)
 		end
 	end
 
 	-- Kembali ke posisi awal
-	task.wait(0.5)
+	task.wait(speed)
 
 	character = player.Character or player.CharacterAdded:Wait()
 	root = character:FindFirstChild("HumanoidRootPart")
