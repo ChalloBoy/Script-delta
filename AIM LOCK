@@ -125,9 +125,8 @@ local statusDot=new("Frame",{Position=UDim2.new(1,-167,0,19),Size=UDim2.fromOffs
 local statusStroke=new("UIStroke",{Color=Color3.fromRGB(255,85,85),Thickness=1,Transparency=.25},statusDot)
 local statusText=new("TextLabel",{Position=UDim2.new(1,-151,0,13),Size=UDim2.fromOffset(92,18),BackgroundTransparency=1,Text="SYSTEM READY",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamBold,TextSize=8,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},top)
 local minb=new("TextButton",{Position=UDim2.new(1,-86,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="−",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=19,AutoButtonColor=false,ZIndex=8},top);round(minb,9)
-local closeb=new("TextButton",{Position=UDim2.new(1,-47,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(55,24,28),Text="×",TextColor3=Color3.fromRGB(255,100,100),Font=Enum.Font.GothamBold,TextSize=19,AutoButtonColor=false,ZIndex=8},top);round(closeb,9)
+
 buttonFX(minb,Color3.fromRGB(27,29,37),Color3.fromRGB(45,48,59),Color3.fromRGB(70,24,28))
-buttonFX(closeb,Color3.fromRGB(55,24,28),Color3.fromRGB(85,30,35),Color3.fromRGB(120,35,42))
 dragWindow(main,glow,55)
 
 
@@ -165,13 +164,10 @@ end)
 local miniStroke=mini:FindFirstChildOfClass("UIStroke");if miniStroke then miniStroke.Thickness=1.5 end
 buttonFX(mini,Color3.fromRGB(10,11,15),Color3.fromRGB(30,14,18),Color3.fromRGB(58,18,23))
 minb.MouseButton1Click:Connect(function()
-	playSound(clickSound)
+	playSound(closeSound)
 	mini.Position=main.Position;main.Visible=false;glow.Visible=false;mini.Visible=true
 end)
-closeb.MouseButton1Click:Connect(function()
-	playSound(closeSound)
-	main.Visible=false;glow.Visible=false;mini.Visible=true
-end)
+
 UIS.InputBegan:Connect(function(i,p)
 	if not p and i.KeyCode==Enum.KeyCode.RightShift then
 		if not gui.Enabled then
@@ -318,20 +314,22 @@ local ps=new("UIStroke",{Thickness=2,Color=Color3.fromRGB(255,55,55),Transparenc
 
 local objects={}
 local function line(par)
-	return new("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=Color3.fromRGB(255,60,60),BorderSizePixel=0,ZIndex=3},par)
+	return new("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=Color3.fromRGB(255,60,60),BorderSizePixel=0,ZIndex=44},par)
 end
 local function setLine(f,a,b)
 	local d=b-a;f.Position=UDim2.fromOffset((a.X+b.X)/2,(a.Y+b.Y)/2);f.Size=UDim2.fromOffset(math.max(d.Magnitude,1),1);f.Rotation=math.deg(math.atan2(d.Y,d.X))
 end
 local function create(model)
-	if objects[model] or model==LP.Character then return end
+	if not model or objects[model] or model==LP.Character then return end
+	local owner=Players:GetPlayerFromCharacter(model)
+	if not owner or owner==LP then return end
 	local h=model:FindFirstChildOfClass("Humanoid");local head=model:FindFirstChild("Head")
 	if not h or not head or not head:IsA("BasePart") then return end
-	local c=new("Frame",{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,ZIndex=2},gui)
-	local box=new("Frame",{BackgroundTransparency=1,BorderSizePixel=2,BorderColor3=Color3.fromRGB(255,55,55),Visible=false,ZIndex=3},c)
-	local name=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.fromRGB(255,95,95),TextStrokeTransparency=0,Font=Enum.Font.GothamBold,TextSize=11,Visible=false,ZIndex=4},c)
-	local dist=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),TextStrokeTransparency=0,Font=Enum.Font.GothamMedium,TextSize=9,Visible=false,ZIndex=4},c)
-	local hb=new("Frame",{BackgroundColor3=Color3.fromRGB(30,30,35),BorderSizePixel=0,Visible=false,ZIndex=4},c);local hf=new("Frame",{BackgroundColor3=Color3.fromRGB(80,230,100),BorderSizePixel=0,Visible=false,ZIndex=5},hb)
+	local c=new("Frame",{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,ZIndex=40},gui)
+	local box=new("Frame",{BackgroundTransparency=1,BorderSizePixel=2,BorderColor3=Color3.fromRGB(255,55,55),Visible=false,ZIndex=41},c)
+	local name=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.fromRGB(255,95,95),TextStrokeTransparency=0,Font=Enum.Font.GothamBold,TextSize=11,Visible=false,ZIndex=42},c)
+	local dist=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),TextStrokeTransparency=0,Font=Enum.Font.GothamMedium,TextSize=9,Visible=false,ZIndex=42},c)
+	local hb=new("Frame",{BackgroundColor3=Color3.fromRGB(30,30,35),BorderSizePixel=0,Visible=false,ZIndex=42},c);local hf=new("Frame",{BackgroundColor3=Color3.fromRGB(80,230,100),BorderSizePixel=0,Visible=false,ZIndex=43},hb)
 	local tr=line(c);tr.Visible=false
 	local hl=Instance.new("Highlight");hl.Name="ESPHighlight";hl.Adornee=model;hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;hl.FillColor=Color3.fromRGB(255,40,40);hl.FillTransparency=.78;hl.OutlineColor=Color3.fromRGB(255,80,80);hl.Enabled=false;hl.Parent=model
 	local sk={};for i=1,10 do sk[i]=line(c);sk[i].Visible=false end
@@ -411,6 +409,22 @@ local function target()
 end
 
 select("AIM")
+
+-- Register player characters immediately so ESP tidak menunggu state lain.
+local function registerPlayer(pl)
+	if pl==LP then return end
+	if pl.Character then
+		task.defer(create,pl.Character)
+	end
+	pl.CharacterAdded:Connect(function(char)
+		local h=char:WaitForChild("Humanoid",5)
+		local head=char:WaitForChild("Head",5)
+		if h and head then task.defer(create,char) end
+	end)
+end
+for _,pl in ipairs(Players:GetPlayers()) do registerPlayer(pl) end
+Players.PlayerAdded:Connect(registerPlayer)
+
 local pulseClock=0
 RunService.RenderStepped:Connect(function(dt)
 	pulseClock+=dt
