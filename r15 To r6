@@ -1,0 +1,91 @@
+-- R6 STYLE ANIMATION PACK FOR R15
+-- Pasang ulang otomatis setiap respawn
+
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+-- Ganti ID di bawah dengan animation ID R6 yang kamu inginkan
+local ANIMATIONS = {
+	Idle = "rbxassetid://12521158637",
+	Walk = "rbxassetid://12518152696",
+	Run = "rbxassetid://12518152696",
+	Jump = "rbxassetid://12520880485",
+	Fall = "rbxassetid://12520972571",
+	Climb = "rbxassetid://12520982150",
+	Sit = "rbxassetid://12520993168",
+	Tool = "rbxassetid://12520996634",
+	ToolSlash = "rbxassetid://12520999032",
+	ToolLunge = "rbxassetid://12521002003",
+}
+
+local function setupAnimations(character)
+	-- Tunggu Animate
+	local animate = character:WaitForChild("Animate", 10)
+
+	if not animate then
+		warn("Animate tidak ditemukan!")
+		return
+	end
+
+	-- Helper untuk mengganti AnimationId
+	local function setAnimation(folderName, animationName, id)
+		local folder = animate:FindFirstChild(folderName)
+		if not folder then
+			return
+		end
+
+		local animation = folder:FindFirstChild(animationName)
+
+		if animation and animation:IsA("Animation") then
+			animation.AnimationId = id
+		end
+	end
+
+	-- IDLE
+	setAnimation("idle", "Animation1", ANIMATIONS.Idle)
+	setAnimation("idle", "Animation2", ANIMATIONS.Idle)
+
+	-- WALK
+	setAnimation("walk", "WalkAnim", ANIMATIONS.Walk)
+
+	-- RUN
+	setAnimation("run", "RunAnim", ANIMATIONS.Run)
+
+	-- JUMP
+	setAnimation("jump", "JumpAnim", ANIMATIONS.Jump)
+
+	-- FALL
+	setAnimation("fall", "FallAnim", ANIMATIONS.Fall)
+
+	-- CLIMB
+	setAnimation("climb", "ClimbAnim", ANIMATIONS.Climb)
+
+	-- SIT
+	setAnimation("sit", "SitAnim", ANIMATIONS.Sit)
+
+	-- TOOL
+	setAnimation("toolnone", "ToolNoneAnim", ANIMATIONS.Tool)
+	setAnimation("toolslash", "ToolSlashAnim", ANIMATIONS.ToolSlash)
+	setAnimation("toollunge", "ToolLungeAnim", ANIMATIONS.ToolLunge)
+
+	-- Restart Animate agar ID baru langsung terbaca
+	animate.Disabled = true
+	task.wait()
+	animate.Disabled = false
+
+	print("R6-style animations dipasang!")
+end
+
+-- Saat masuk dan setiap respawn
+player.CharacterAdded:Connect(function(character)
+	task.wait(0.5)
+	setupAnimations(character)
+end)
+
+-- Jika karakter sudah ada ketika script mulai
+if player.Character then
+	task.spawn(function()
+		setupAnimations(player.Character)
+	end)
+end
