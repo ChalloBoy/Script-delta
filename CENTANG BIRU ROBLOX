@@ -1,0 +1,34 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function createBadge(character)
+	local head = character:WaitForChild("Head")
+
+	local oldBadge = head:FindFirstChild("MyVerifiedBadge")
+	if oldBadge then
+		oldBadge:Destroy()
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "MyVerifiedBadge"
+	billboard.Adornee = head
+	billboard.Size = UDim2.fromOffset(300, 50)
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = head
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Text = player.Name .. " "
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBold
+	text.TextColor3 = Color3.new(1, 1, 1)
+	text.Parent = billboard
+end
+
+if player.Character then
+	createBadge(player.Character)
+end
+
+player.CharacterAdded:Connect(createBadge)
