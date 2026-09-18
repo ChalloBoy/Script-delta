@@ -1,0 +1,208 @@
+-- FPS TOOLKIT | LocalScript | For your own Roblox FPS experience
+-- Put in StarterPlayerScripts.
+-- Auto Fire sends ReplicatedStorage.FPSFireRequest:
+-- targetPlayer, targetPart, origin, direction
+-- Your weapon system should listen to that BindableEvent.
+
+local Players, UIS, Run, TS, RS, WS =
+	game:GetService("Players"), game:GetService("UserInputService"),
+	game:GetService("RunService"), game:GetService("TweenService"),
+	game:GetService("ReplicatedStorage"), game:GetService("Workspace")
+
+local LP, Cam = Players.LocalPlayer, WS.CurrentCamera
+local C = {
+	AimLock=false,AimAssist=false,AutoFire=false,WallCheck=true,TeamCheck=true,
+	NPCCheck=false,Prediction=false,AimStrength=75,Smoothness=60,FOV=120,
+	TargetPart="Head",Priority="Nearest",ESP=false,ESPNames=true,ESPHealth=true,
+	ESPDistance=true,WalkSpeed=16,JumpPower=50,Sprint=false,InfiniteJump=false,
+	Dash=false,DashDistance=45,DashCooldown=2,CameraFOV=70
+}
+
+local gui=Instance.new("ScreenGui");gui.Name="FPSToolkit";gui.ResetOnSpawn=false;gui.IgnoreGuiInset=true;gui.Parent=LP:WaitForChild("PlayerGui")
+local function cr(p,r)local x=Instance.new("UICorner",p);x.CornerRadius=UDim.new(0,r)end
+local function st(p,c,t)local x=Instance.new("UIStroke",p);x.Color=c;x.Thickness=t or 1;x.Transparency=.15 end
+local function tx(p,s,z,b)
+	local x=Instance.new("TextLabel",p);x.BackgroundTransparency=1;x.Text=s;x.TextColor3=Color3.fromRGB(235,242,255)
+	x.TextSize=z or 14;x.Font=b and Enum.Font.GothamBold or Enum.Font.Gotham;x.TextXAlignment=Enum.TextXAlignment.Left;return x
+end
+local function bt(p,s)
+	local x=Instance.new("TextButton",p);x.AutoButtonColor=false;x.Text=s;x.TextColor3=Color3.fromRGB(235,242,255)
+	x.TextSize=13;x.Font=Enum.Font.GothamSemibold;x.BackgroundColor3=Color3.fromRGB(9,18,32);cr(x,8);st(x,Color3.fromRGB(0,170,255))
+	return x
+end
+
+local main=Instance.new("Frame",gui);main.AnchorPoint=Vector2.new(.5,.5);main.Position=UDim2.fromScale(.5,.5)
+main.Size=UDim2.new(.78,0,.62,0);main.BackgroundColor3=Color3.fromRGB(4,9,18);cr(main,14);st(main,Color3.fromRGB(0,170,255),2)
+local head=Instance.new("Frame",main);head.Size=UDim2.new(1,0,0,52);head.BackgroundColor3=Color3.fromRGB(6,14,27);cr(head,14)
+local title=tx(head,"◈  FPS TOOLKIT",19,true);title.Position=UDim2.fromOffset(18,7)
+local sub=tx(head,"AIM • ESP • MOVEMENT • PLAYER • WORLD • HUD • SETTINGS",10);sub.Position=UDim2.fromOffset(20,31);sub.TextColor3=Color3.fromRGB(130,170,205)
+local min=bt(head,"—");min.Size=UDim2.fromOffset(38,32);min.Position=UDim2.new(1,-88,0,10)
+local close=bt(head,"×");close.Size=UDim2.fromOffset(38,32);close.Position=UDim2.new(1,-44,0,10)
+
+local side=Instance.new("Frame",main);side.Size=UDim2.new(0,150,1,-64);side.Position=UDim2.fromOffset(8,58)
+side.BackgroundColor3=Color3.fromRGB(6,13,25);cr(side,10);st(side,Color3.fromRGB(20,70,105))
+local content=Instance.new("ScrollingFrame",main);content.Size=UDim2.new(1,-174,1,-72);content.Position=UDim2.fromOffset(166,62)
+content.BackgroundTransparency=1;content.BorderSizePixel=0;content.ScrollBarThickness=4
+local lay=Instance.new("UIListLayout",content);lay.Padding=UDim.new(0,8)
+
+local tabs={"AIM","ESP","MOVEMENT","PLAYER","WORLD","HUD","SETTINGS"};local tb={}
+for i,n in ipairs(tabs)do local b=bt(side,"   "..n);b.Size=UDim2.new(1,-16,0,42);b.Position=UDim2.fromOffset(8,8+(i-1)*47);b.TextXAlignment=Enum.TextXAlignment.Left;tb[n]=b end
+
+local function clear()for _,v in ipairs(content:GetChildren())do if v:IsA("GuiObject") and v~=lay then v:Destroy()end end end
+local function page(name)
+	clear();local p=Instance.new("Frame",content);p.Size=UDim2.new(1,-8,0,0);p.AutomaticSize=Enum.AutomaticSize.Y;p.BackgroundTransparency=1
+	local l=Instance.new("UIListLayout",p);l.Padding=UDim.new(0,8);return p
+end
+local function card(p,t,d,h)
+	local f=Instance.new("Frame",p);f.Size=UDim2.new(1,0,0,h or 64);f.BackgroundColor3=Color3.fromRGB(7,16,29);cr(f,10);st(f,Color3.fromRGB(20,75,110))
+	local a=tx(f,t,14,true);a.Position=UDim2.fromOffset(14,8)
+	local q=tx(f,d or "",10);q.Position=UDim2.fromOffset(14,31);q.Size=UDim2.new(.6,0,0,25);q.TextColor3=Color3.fromRGB(135,165,195)
+	return f
+end
+local function toggle(p,t,d,k)
+	local f=card(p,t,d);local b=bt(f,C[k] and "ON" or "OFF");b.Size=UDim2.fromOffset(70,34);b.Position=UDim2.new(1,-84,.5,-17)
+	b.MouseButton1Click:Connect(function()C[k]=not C[k];b.Text=C[k] and "ON" or "OFF";b.BackgroundColor3=C[k] and Color3.fromRGB(0,105,170) or Color3.fromRGB(9,18,32)end)
+end
+local function slider(p,t,k,lo,hi)
+	local f=card(p,t,"Adjustable",78);local bar=Instance.new("Frame",f);bar.Position=UDim2.new(.45,0,.5,-3);bar.Size=UDim2.new(.43,0,0,6);bar.BackgroundColor3=Color3.fromRGB(18,45,70);cr(bar,4)
+	local fill=Instance.new("Frame",bar);fill.BackgroundColor3=Color3.fromRGB(0,180,255);cr(fill,4)
+	local val=tx(f,tostring(C[k]),12,true);val.Position=UDim2.new(.9,0,.5,-10);val.Size=UDim2.new(.1,0,0,20)
+	local drag=false
+	local function set(x)local z=math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1);C[k]=math.floor(lo+(hi-lo)*z+.5);fill.Size=UDim2.fromScale(z,1);val.Text=tostring(C[k])end
+	bar.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true;set(i.Position.X)end end)
+	UIS.InputChanged:Connect(function(i)if drag and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)then set(i.Position.X)end end)
+	UIS.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end)
+	fill.Size=UDim2.fromScale((C[k]-lo)/(hi-lo),1)
+end
+local function dropdown(p,t,k,vals)
+	local f=card(p,t,"Tap to cycle options");local b=bt(f,C[k]);b.Size=UDim2.fromOffset(150,34);b.Position=UDim2.new(1,-164,.5,-17)
+	b.MouseButton1Click:Connect(function()local i=table.find(vals,C[k])or 1;i=i%#vals+1;C[k]=vals[i];b.Text=C[k]end)
+end
+
+local function targetPicker(p)
+	local f=card(p,"Target Part","Tap the 2D Roblox-style character: Head or Body.",175)
+	local h=bt(f,"   ●\n  HEAD");h.Size=UDim2.new(.43,0,0,110);h.Position=UDim2.new(.04,0,0,55)
+	local body=bt(f,"  ▣\n BODY");body.Size=UDim2.new(.43,0,0,110);body.Position=UDim2.new(.53,0,0,55)
+	local function pick(k,a,b)
+		C.TargetPart=k;a.BackgroundColor3=Color3.fromRGB(0,105,170);b.BackgroundColor3=Color3.fromRGB(9,18,32)
+	end
+	h.MouseButton1Click:Connect(function()pick("Head",h,body)end);body.MouseButton1Click:Connect(function()pick("Body",body,h)end)
+end
+
+local function build(n)
+	local p=page(n);tx(p,n,22,true);tx(p,
+		({AIM="Targeting and visibility",ESP="Player visual information",MOVEMENT="Movement controls",
+		PLAYER="Player utilities",WORLD="World and match",HUD="Compact HUD",SETTINGS="Interface and camera"})[n],11).TextColor3=Color3.fromRGB(135,165,195)
+	if n=="AIM" then
+		toggle(p,"Aim Lock","Follow a valid visible target.","AimLock");toggle(p,"Aim Assist","Gentler camera assistance.","AimAssist")
+		targetPicker(p);dropdown(p,"Target Priority","Priority",{"Nearest","Crosshair"})
+		slider(p,"Aim Strength","AimStrength",0,100);slider(p,"Smoothness","Smoothness",0,100);slider(p,"FOV","FOV",20,360)
+		toggle(p,"Team Check","Ignore teammates.","TeamCheck");toggle(p,"NPC Check","Allow NPC targets.","NPCCheck")
+		toggle(p,"Wall Check","Ignore targets behind geometry.","WallCheck");toggle(p,"Prediction","Lead moving targets.","Prediction")
+		toggle(p,"Auto Fire","Request your own weapon system to fire.","AutoFire")
+	elseif n=="ESP" then
+		toggle(p,"ESP","Show player information.","ESP");toggle(p,"Names","Display names.","ESPNames")
+		toggle(p,"Health","Display health.","ESPHealth");toggle(p,"Distance","Display distance.","ESPDistance")
+	elseif n=="MOVEMENT" then
+		toggle(p,"Sprint","Hold LeftShift to sprint.","Sprint");toggle(p,"Infinite Jump","Repeated jumping.","InfiniteJump");toggle(p,"Dash","Adds an on-screen Dash button.","Dash")
+		slider(p,"WalkSpeed","WalkSpeed",8,100);slider(p,"JumpPower","JumpPower",20,120);slider(p,"Dash Distance","DashDistance",10,100)
+	elseif n=="PLAYER" then
+		card(p,"Player List","Use the buttons below to spectate players.",120)
+		for _,pl in ipairs(Players:GetPlayers())do local b=bt(p,pl.DisplayName.."  @"..pl.Name);b.Size=UDim2.new(1,0,0,36);b.MouseButton1Click:Connect(function()local c=pl.Character;local h=c and c:FindFirstChildOfClass("Humanoid");if h then Cam.CameraSubject=h end end)end
+	elseif n=="WORLD" then card(p,"Server","Players: "..#Players:GetPlayers(),"64")
+	elseif n=="HUD" then toggle(p,"FPS / Ping","HUD status display.","ESP")
+	elseif n=="SETTINGS" then slider(p,"Camera FOV","CameraFOV",50,120) end
+	return p
+end
+
+local current="AIM"
+local function show(n)
+	current=n;build(n)
+	for k,b in pairs(tb)do b.BackgroundColor3=(k==n)and Color3.fromRGB(0,80,135)or Color3.fromRGB(9,18,32)end
+end
+for _,n in ipairs(tabs)do tb[n].MouseButton1Click:Connect(function()show(n)end)end
+show("AIM")
+
+local mini=bt(gui,"◈");mini.Size=UDim2.fromOffset(54,54);mini.Position=UDim2.new(0,24,1,-78);mini.TextSize=24;mini.Visible=false;st(mini,Color3.fromRGB(0,190,255),2)
+local function open(v)main.Visible=v;mini.Visible=not v end
+min.MouseButton1Click:Connect(function()open(false)end);close.MouseButton1Click:Connect(function()open(false)end);mini.MouseButton1Click:Connect(function()open(true)end)
+
+do
+	local drag=false;local sp,si
+	head.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true;sp=main.Position;si=i.Position end end)
+	UIS.InputChanged:Connect(function(i)if drag and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)then local d=i.Position-si;main.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y)end end)
+	UIS.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end)
+end
+
+local fov=Instance.new("Frame",gui);fov.AnchorPoint=Vector2.new(.5,.5);fov.Position=UDim2.fromScale(.5,.5);fov.BackgroundTransparency=1;fov.Visible=false
+local fs=Instance.new("UIStroke",fov);fs.Color=Color3.fromRGB(0,190,255);fs.Thickness=1;cr(fov,999)
+local dash=bt(gui,"DASH");dash.Size=UDim2.fromOffset(90,48);dash.Position=UDim2.new(1,-112,1,-72);dash.Visible=false
+
+local ready=true
+local function doDash()
+	if not C.Dash or not ready then return end
+	local ch=LP.Character;local r=ch and ch:FindFirstChild("HumanoidRootPart");if not r then return end
+	ready=false;local v=Cam.CFrame.LookVector;local flat=Vector3.new(v.X,0,v.Z)
+	if flat.Magnitude<.01 then flat=r.CFrame.LookVector end
+	r.AssemblyLinearVelocity=flat.Unit*C.DashDistance+Vector3.new(0,r.AssemblyLinearVelocity.Y,0);dash.Text=".."
+	task.delay(C.DashCooldown,function()ready=true;dash.Text="DASH"end)
+end
+dash.MouseButton1Click:Connect(doDash)
+UIS.InputBegan:Connect(function(i,gp)
+	if gp then return end
+	if i.KeyCode==Enum.KeyCode.Q then doDash()end
+	if i.KeyCode==Enum.KeyCode.LeftShift then C.Sprint=true end
+end)
+UIS.InputEnded:Connect(function(i)if i.KeyCode==Enum.KeyCode.LeftShift then C.Sprint=false end end)
+UIS.JumpRequest:Connect(function()if C.InfiniteJump then local h=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid");if h then h:ChangeState(Enum.HumanoidStateType.Jumping)end end end)
+
+local esp={}
+local function remove(p)if esp[p]then esp[p]:Destroy();esp[p]=nil end end
+local function make(p)
+	if p==LP or not C.ESP then return end
+	local c=p.Character;local h=c and c:FindFirstChild("Head");if not h then return end
+	remove(p);local b=Instance.new("BillboardGui",h);b.Name="FPSESP";b.Adornee=h;b.Size=UDim2.fromOffset(180,55);b.StudsOffset=Vector3.new(0,2.5,0);b.AlwaysOnTop=true
+	local n=tx(b,p.DisplayName,12,true);n.Size=UDim2.new(1,0,0,18);n.TextXAlignment=Enum.TextXAlignment.Center
+	local info=tx(b,"",10);info.Position=UDim2.fromOffset(0,19);info.Size=UDim2.new(1,0,0,30);info.TextXAlignment=Enum.TextXAlignment.Center;info.TextColor3=Color3.fromRGB(135,200,235)
+	esp[p]=b
+	task.spawn(function()while b.Parent do local hum=c:FindFirstChildOfClass("Humanoid");local s="";if C.ESPHealth and hum then s=s.."HP "..math.floor(hum.Health) end;if C.ESPDistance and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")then s=s.."  "..math.floor((LP.Character.HumanoidRootPart.Position-h.Position).Magnitude).."m"end;info.Text=s;task.wait(.15)end end)
+end
+Players.PlayerAdded:Connect(function(p)p.CharacterAdded:Connect(function()task.wait(.5);make(p)end)end)
+Players.PlayerRemoving:Connect(remove)
+
+local fire=RS:FindFirstChild("FPSFireRequest")
+if not fire then fire=Instance.new("BindableEvent");fire.Name="FPSFireRequest";fire.Parent=RS end
+local lastFire=0
+local function target()
+	local best,bscore=nil,math.huge;local center=Cam.ViewportSize/2
+	for _,p in ipairs(Players:GetPlayers())do
+		if p~=LP and(not C.TeamCheck or p.Team~=LP.Team)then
+			local c=p.Character;local hum=c and c:FindFirstChildOfClass("Humanoid")
+			local part=c and c:FindFirstChild(C.TargetPart=="Body" and "HumanoidRootPart" or "Head")
+			if hum and hum.Health>0 and part then
+				local sp,on=Cam:WorldToViewportPoint(part.Position)
+				if on and sp.Z>0 then
+					local ok=true
+					if C.WallCheck then local rp=RaycastParams.new();rp.FilterType=Enum.RaycastFilterType.Exclude;rp.FilterDescendantsInstances={LP.Character}
+						local hit=WS:Raycast(Cam.CFrame.Position,part.Position-Cam.CFrame.Position,rp);if hit and not hit.Instance:IsDescendantOf(c)then ok=false end end
+					if ok then local score=(C.Priority=="Crosshair")and(Vector2.new(sp.X,sp.Y)-center).Magnitude or(Cam.CFrame.Position-part.Position).Magnitude
+						if C.Priority=="Crosshair" and score>C.FOV then score=math.huge end
+						if score<bscore then bscore=score;best={p,part}end end
+				end
+			end
+		end
+	end
+	return best
+end
+
+Run.RenderStepped:Connect(function(dt)
+	Cam.FieldOfView=C.CameraFOV;fov.Size=UDim2.fromOffset(C.FOV*2,C.FOV*2);fov.Visible=C.AimLock or C.AimAssist;dash.Visible=C.Dash
+	local c=LP.Character;local h=c and c:FindFirstChildOfClass("Humanoid")
+	if h then h.WalkSpeed=C.Sprint and C.WalkSpeed*1.5 or C.WalkSpeed;h.JumpPower=C.JumpPower end
+	if C.ESP then for _,p in ipairs(Players:GetPlayers())do make(p)end else for p in pairs(esp)do remove(p)end end
+	if C.AimLock or C.AimAssist then local t=target();if t then
+		local part=t[2];local goal=CFrame.lookAt(Cam.CFrame.Position,part.Position)
+		local a=math.clamp(C.AimStrength/100*(1-C.Smoothness/110)*dt*12,0,1);Cam.CFrame=Cam.CFrame:Lerp(goal,a)
+		if C.AutoFire and os.clock()-lastFire>.12 then lastFire=os.clock();fire:Fire(t[1],part,Cam.CFrame.Position,(part.Position-Cam.CFrame.Position).Unit)end
+	end end
+end)
