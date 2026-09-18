@@ -97,6 +97,7 @@ local function dragWindow(targetFrame, glowFrame, headerHeight)
 end
 
 local playerGui=LP:WaitForChild("PlayerGui")
+pcall(function() RunService:UnbindFromRenderStep("AimESPPovRender") end)
 local oldGui=playerGui:FindFirstChild("AimESPPOV")
 if oldGui then oldGui:Destroy() end
 local gui=new("ScreenGui",{Name="AimESPPOV",ResetOnSpawn=false,IgnoreGuiInset=true,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=100},playerGui)
@@ -136,6 +137,7 @@ dragWindow(main,glow,55)
 local mini=new("TextButton",{AnchorPoint=Vector2.new(.5,.5),Position=main.Position,Size=UDim2.fromOffset(145,42),BackgroundColor3=Color3.fromRGB(10,11,15),Text="⚡  FPS TOOL",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=13,AutoButtonColor=false,Visible=false,ZIndex=30},gui);round(mini,12);outline(mini)
 local miniDragging=false
 local miniMoved=false
+local miniHasCustomPosition=false
 local miniDragStart=Vector2.zero
 local miniStartPos=mini.Position
 local miniActiveInput=nil
@@ -151,7 +153,10 @@ end)
 UIS.InputChanged:Connect(function(i)
 	if miniDragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
 		local d=i.Position-miniDragStart
-		if d.Magnitude>5 then miniMoved=true end
+		if d.Magnitude>5 then
+			miniMoved=true
+			miniHasCustomPosition=true
+		end
 		mini.Position=UDim2.new(miniStartPos.X.Scale,miniStartPos.X.Offset+d.X,miniStartPos.Y.Scale,miniStartPos.Y.Offset+d.Y)
 	end
 end)
@@ -168,15 +173,29 @@ local miniStroke=mini:FindFirstChildOfClass("UIStroke");if miniStroke then miniS
 buttonFX(mini,Color3.fromRGB(10,11,15),Color3.fromRGB(30,14,18),Color3.fromRGB(58,18,23))
 minb.MouseButton1Click:Connect(function()
 	playSound(closeSound)
-	mini.Position=main.Position;main.Visible=false;glow.Visible=false;mini.Visible=true
+	if not miniHasCustomPosition then
+		mini.Position=main.Position
+	end
+	main.Visible=false
+	glow.Visible=false
+	mini.Visible=true
 end)
 
 UIS.InputBegan:Connect(function(i,p)
 	if not p and i.KeyCode==Enum.KeyCode.RightShift then
 		if main.Visible then
-			main.Visible=false;glow.Visible=false;mini.Position=main.Position;mini.Visible=true;playSound(closeSound)
+			main.Visible=false
+			glow.Visible=false
+			if not miniHasCustomPosition then
+				mini.Position=main.Position
+			end
+			mini.Visible=true
+			playSound(closeSound)
 		else
-			main.Visible=true;glow.Visible=true;mini.Visible=false;playSound(openSound)
+			main.Visible=true
+			glow.Visible=true
+			mini.Visible=false
+			playSound(openSound)
 		end
 	end
 end)
@@ -266,7 +285,7 @@ local function slider(par,t,y,min,max,get,set)
 	local r=new("Frame",{Position=UDim2.fromOffset(5,y),Size=UDim2.new(1,-10,0,62),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=12},par);round(r,9)
 	local txt=new("TextLabel",{Position=UDim2.fromOffset(12,5),Size=UDim2.new(1,-24,0,20),BackgroundTransparency=1,TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=13},r)
 	local bar=new("Frame",{Position=UDim2.fromOffset(12,35),Size=UDim2.new(1,-24,0,8),BackgroundColor3=Color3.fromRGB(44,46,54),BorderSizePixel=0,ZIndex=13},r);round(bar,5)
-	local fill=new("Frame",{Size=UDim2.new(),BackgroundColor3=Color3.fromRGB(230,42,48),BorderSizePixel=0,ZIndex=10},bar);round(fill,5)
+	local fill=new("Frame",{Size=UDim2.new(),BackgroundColor3=Color3.fromRGB(230,42,48),BorderSizePixel=0,ZIndex=14},bar);round(fill,5)
 	local moving=false
 	local function setx(x) local a=math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1);set(min+(max-min)*a) end
 	local function refresh() local v=get();local a=math.clamp((v-min)/(max-min),0,1);fill.Size=UDim2.new(a,0,1,0);txt.Text=t.."   "..math.round(v) end
@@ -288,7 +307,7 @@ for i,v in ipairs(types) do
 	local col=(i-1)%2;local row=math.floor((i-1)/2);local x=col==0 and 5 or 210;local y=34+row*51
 	local r=new("Frame",{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(195,43),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=12},E);round(r,9)
 	new("TextLabel",{Position=UDim2.fromOffset(10,0),Size=UDim2.new(1,-55,1,0),BackgroundTransparency=1,Text=v[1],TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=13},r)
-	local b=new("TextButton",{Position=UDim2.new(1,-45,.5,-12),Size=UDim2.fromOffset(36,24),BackgroundColor3=Color3.fromRGB(145,25,30),Text="ON",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=9,AutoButtonColor=false,ZIndex=13},r);round(b,8)
+	local b=new("TextButton",{Position=UDim2.new(1,-45,.5,-12),Size=UDim2.fromOffset(36,24),BackgroundColor3=Color3.fromRGB(48,50,59),Text="OFF",TextColor3=Color3.fromRGB(210,212,218),Font=Enum.Font.GothamBold,TextSize=9,AutoButtonColor=false,ZIndex=13},r);round(b,8)
 	local function espButtonRefresh()
 		local on=esp[v[2]]
 		b.Text=on and "ON" or "OFF"
@@ -309,8 +328,8 @@ A.CanvasSize=UDim2.fromOffset(0,280)
 E.CanvasSize=UDim2.fromOffset(0,235)
 P.CanvasSize=UDim2.fromOffset(0,190)
 
-local pov=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(povSize,povSize),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=20,Visible=false,Active=false},gui)
-local povCorner=new("UICorner",{CornerRadius=UDim.new(0,povSize/2)},pov)
+local pov=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(povSize,povSize),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=3,Visible=false,Active=false},gui)
+local povCorner=new("UICorner",{CornerRadius=UDim.new(.5,0)},pov)
 local ps=new("UIStroke",{Thickness=2,Color=Color3.fromRGB(255,55,55),Transparency=0,ApplyStrokeMode=Enum.ApplyStrokeMode.Border},pov)
 
 local objects={}
@@ -355,51 +374,119 @@ local function update(m,o)
 	local d=(Cam.CFrame.Position-root.Position).Magnitude;o.dist.Position=UDim2.fromOffset(minx,maxy+2);o.dist.Size=UDim2.fromOffset(w,14);o.dist.Text=math.floor(d).."m";o.dist.Visible=esp.Distance
 	o.hb.Position=UDim2.fromOffset(minx-7,miny);o.hb.Size=UDim2.fromOffset(4,ht);o.hb.Visible=esp.Health;o.hf.AnchorPoint=Vector2.new(0,1);o.hf.Position=UDim2.new(0,0,1,0);o.hf.Size=UDim2.new(1,0,math.clamp(h.Health/math.max(h.MaxHealth,1),0,1),0);o.hf.Visible=esp.Health
 	setLine(o.tr,Vector2.new(Cam.ViewportSize.X/2,Cam.ViewportSize.Y-20),center);o.tr.Visible=esp.Tracer;o.hl.Enabled=esp.Highlight
-	local pts={};for _,n in ipairs({"Head","UpperTorso","LowerTorso","LeftUpperArm","LeftLowerArm","RightUpperArm","RightLowerArm","LeftUpperLeg","LeftLowerLeg","RightUpperLeg","RightLowerLeg"}) do local p=m:FindFirstChild(n);if p and p:IsA("BasePart") then local q,on=Cam:WorldToViewportPoint(p.Position);if on and q.Z>0 then pts[n]=Vector2.new(q.X,q.Y) end end end
-	local con={{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"}}
-	for i,cx in ipairs(con) do local a,b=pts[cx[1]],pts[cx[2]];if a and b then setLine(o.sk[i],a,b);o.sk[i].Visible=esp.Skeleton else o.sk[i].Visible=false end end
+	local pts={}
+	for _,part in ipairs(m:GetChildren()) do
+		if part:IsA("BasePart") then
+			local q,on=Cam:WorldToViewportPoint(part.Position)
+			if on and q.Z>0 then
+				pts[part.Name]=Vector2.new(q.X,q.Y)
+			end
+		end
+	end
+
+	local con
+	if pts.UpperTorso and pts.LowerTorso then
+		-- R15
+		con={
+			{"Head","UpperTorso"},
+			{"UpperTorso","LowerTorso"},
+			{"UpperTorso","LeftUpperArm"},
+			{"LeftUpperArm","LeftLowerArm"},
+			{"UpperTorso","RightUpperArm"},
+			{"RightUpperArm","RightLowerArm"},
+			{"LowerTorso","LeftUpperLeg"},
+			{"LeftUpperLeg","LeftLowerLeg"},
+			{"LowerTorso","RightUpperLeg"},
+			{"RightUpperLeg","RightLowerLeg"},
+		}
+	else
+		-- R6 fallback
+		con={
+			{"Head","Torso"},
+			{"Torso","Left Arm"},
+			{"Torso","Right Arm"},
+			{"Torso","Left Leg"},
+			{"Torso","Right Leg"},
+		}
+	end
+
+	for i=1,#o.sk do
+		local cx=con[i]
+		if cx then
+			local a,b=pts[cx[1]],pts[cx[2]]
+			if a and b then
+				setLine(o.sk[i],a,b)
+				o.sk[i].Visible=esp.Skeleton
+			else
+				o.sk[i].Visible=false
+			end
+		else
+			o.sk[i].Visible=false
+		end
+	end
+end
+
+local function hasLineOfSight(character, part)
+	local origin=Cam.CFrame.Position
+	local direction=part.Position-origin
+	local rp=RaycastParams.new()
+	rp.FilterType=Enum.RaycastFilterType.Exclude
+	rp.FilterDescendantsInstances={LP.Character}
+	rp.IgnoreWater=true
+
+	-- Raycast may hit an accessory/tool belonging to the target first.
+	-- Keep stepping through target-owned descendants until a real obstruction is found.
+	local ignore={LP.Character}
+	local safety=0
+	while safety<12 do
+		safety+=1
+		rp.FilterDescendantsInstances=ignore
+		local hit=workspace:Raycast(origin,direction,rp)
+		if not hit then
+			return true
+		end
+		if hit.Instance:IsDescendantOf(character) then
+			return true
+		end
+
+		local parent=hit.Instance.Parent
+		if parent and (parent:IsA("Accessory") or parent:IsA("Tool")) then
+			table.insert(ignore,parent)
+			continue
+		end
+		return false
+	end
+	return false
 end
 
 local function target()
-	-- Hanya Player, bukan NPC.
-	local ch=LP.Character
-	local rr=ch and ch:FindFirstChild("HumanoidRootPart")
-	if not rr or not rr:IsA("BasePart") then return nil end
-
+	-- Player-only target selection. No NPCs.
 	local center=Vector2.new(Cam.ViewportSize.X/2,Cam.ViewportSize.Y/2)
-	local radius=povSize/2
+	local radius=math.max(povSize,1)/2
 	local best=nil
-	local score=math.huge
+	local bestScore=math.huge
 
 	for _,pl in ipairs(Players:GetPlayers()) do
-		if pl~=LP and (LP.Team==nil or pl.Team~=LP.Team) then
-			local x=pl.Character
-			local h=x and x:FindFirstChildOfClass("Humanoid")
-			local hd=x and x:FindFirstChild("Head")
-			local rt=x and x:FindFirstChild("HumanoidRootPart")
+		if pl~=LP then
+			local character=pl.Character
+			local h=character and character:FindFirstChildOfClass("Humanoid")
+			local head=character and character:FindFirstChild("Head")
+			local root=character and character:FindFirstChild("HumanoidRootPart")
 
-			if h and h.Health>0 and hd and hd:IsA("BasePart")
-				and rt and rt:IsA("BasePart")
-				and (rr.Position-rt.Position).Magnitude<=2000 then
+			if h and h.Health>0
+				and head and head:IsA("BasePart")
+				and root and root:IsA("BasePart") then
 
-				local p,on=Cam:WorldToViewportPoint(hd.Position)
-				if on and p.Z>0 then
-					local q=Vector2.new(p.X,p.Y)
-					local screenDistance=(q-center).Magnitude
+				local p,onScreen=Cam:WorldToViewportPoint(head.Position)
+				if onScreen and p.Z>0 then
+					local screenPos=Vector2.new(p.X,p.Y)
+					local screenDistance=(screenPos-center).Magnitude
 
-					if screenDistance<=radius and screenDistance<score then
-						-- Target hanya valid jika tidak ada tembok/objek
-						-- di antara kamera dan Head player.
-						local rp=RaycastParams.new()
-						rp.FilterType=Enum.RaycastFilterType.Exclude
-						rp.FilterDescendantsInstances={ch}
-
-						local direction=hd.Position-Cam.CFrame.Position
-						local hit=workspace:Raycast(Cam.CFrame.Position,direction,rp)
-
-						if hit and hit.Instance:IsDescendantOf(x) then
-							score=screenDistance
-							best=hd
+					if screenDistance<=radius and screenDistance<bestScore then
+						local distance3D=(Cam.CFrame.Position-head.Position).Magnitude
+						if distance3D<=2000 and hasLineOfSight(character,head) then
+							best=head
+							bestScore=screenDistance
 						end
 					end
 				end
@@ -428,7 +515,7 @@ for _,pl in ipairs(Players:GetPlayers()) do registerPlayer(pl) end
 Players.PlayerAdded:Connect(registerPlayer)
 
 local pulseClock=0
-RunService.RenderStepped:Connect(function(dt)
+RunService:BindToRenderStep("AimESPPovRender",Enum.RenderPriority.Camera.Value+1,function(dt)
 	pulseClock+=dt
 	local pulse=(math.sin(pulseClock*3.2)+1)/2
 	statusDot.BackgroundTransparency=.05+(pulse*.45)
@@ -436,17 +523,19 @@ RunService.RenderStepped:Connect(function(dt)
 	if mainStroke then mainStroke.Transparency=.12+(pulse*.28) end
 	Cam=workspace.CurrentCamera
 	local viewport=Cam.ViewportSize
-pov.Position=UDim2.fromOffset(viewport.X/2,viewport.Y/2)
-pov.Size=UDim2.fromOffset(povSize,povSize)
+pov.Position=UDim2.fromScale(.5,.5)
+pov.Size=UDim2.fromOffset(math.max(4,povSize),math.max(4,povSize))
 pov.Visible=povOn
 ps.Transparency=povOn and 0 or 1
-if povCorner then povCorner.CornerRadius=UDim.new(0,povSize/2) end
+if povCorner then povCorner.CornerRadius=UDim.new(.5,0) end
 	local lockedTarget=nil
 	if aim then
 		lockedTarget=target()
-		if lockedTarget then
-			local want=CFrame.lookAt(Cam.CFrame.Position,lockedTarget.Position)
-			Cam.CFrame=Cam.CFrame:Lerp(want,math.clamp(strength/100*12*dt,0,1))
+		if lockedTarget and lockedTarget.Parent then
+			local current=Cam.CFrame
+			local wanted=CFrame.lookAt(current.Position,lockedTarget.Position)
+			local alpha=math.clamp((strength/100)*18*dt,0,1)
+			Cam.CFrame=current:Lerp(wanted,alpha)
 		end
 	end
 
