@@ -1,14 +1,13 @@
 local TextChatService = game:GetService("TextChatService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
 
 TextChatService.OnIncomingMessage = function(message)
 	local properties = Instance.new("TextChatMessageProperties")
 
-	if message.TextSource then
-		local player = game.Players:GetPlayerByUserId(message.TextSource.UserId)
-
-		if player == game.Players.LocalPlayer then
-			properties.PrefixText = " " .. message.PrefixText
-		end
+	if message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
+		properties.PrefixText = message.PrefixText .. ": "
 	end
 
 	return properties
