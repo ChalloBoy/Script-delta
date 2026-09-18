@@ -52,34 +52,42 @@ local function buttonFX(btn,normal,hover,down)
 	end)
 end
 
-local function drag(frame)
-	-- Drag universal: mouse + touch, tanpa bergantung pada InputChanged milik Frame.
+local function dragWindow(targetFrame, glowFrame, headerHeight)
+	-- Drag global: bekerja meski input dimulai di TextLabel/child header.
 	local dragging=false
 	local dragStart=Vector2.zero
-	local startPos=frame.Position
+	local startPos=targetFrame.Position
 	local activeInput=nil
-
-	frame.InputBegan:Connect(function(input)
+	local function insideHeader(pos)
+		if not targetFrame.Visible then return false end
+		local a=targetFrame.AbsolutePosition
+		local s=targetFrame.AbsoluteSize
+		return pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+headerHeight
+	end
+	UIS.InputBegan:Connect(function(input,gameProcessed)
+		-- UI drag harus tetap menerima input meski Roblox menandainya processed.
 		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-			dragging=true
-			activeInput=input
-			dragStart=input.Position
-			startPos=frame.Position
+			if insideHeader(input.Position) then
+				-- Jangan mengambil tombol minimize/close.
+				local a=targetFrame.AbsolutePosition
+				local x=input.Position.X-a.X
+				if x<targetFrame.AbsoluteSize.X-95 then
+					dragging=true
+					activeInput=input
+					dragStart=input.Position
+					startPos=targetFrame.Position
+				end
+			end
 		end
 	end)
-
 	UIS.InputChanged:Connect(function(input)
 		if not dragging then return end
 		if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then
-			-- MouseMovement is used after MouseButton1; touch input itself moves.
-			local delta=input.Position-dragStart
-			frame.Position=UDim2.new(
-				startPos.X.Scale,startPos.X.Offset+delta.X,
-				startPos.Y.Scale,startPos.Y.Offset+delta.Y
-			)
+			local d=input.Position-dragStart
+			targetFrame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
+			if glowFrame then glowFrame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y) end
 		end
 	end)
-
 	UIS.InputEnded:Connect(function(input)
 		if input==activeInput or input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
 			dragging=false
@@ -120,19 +128,45 @@ local minb=new("TextButton",{Position=UDim2.new(1,-86,0,10),Size=UDim2.fromOffse
 local closeb=new("TextButton",{Position=UDim2.new(1,-47,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(55,24,28),Text="×",TextColor3=Color3.fromRGB(255,100,100),Font=Enum.Font.GothamBold,TextSize=19,AutoButtonColor=false,ZIndex=8},top);round(closeb,9)
 buttonFX(minb,Color3.fromRGB(27,29,37),Color3.fromRGB(45,48,59),Color3.fromRGB(70,24,28))
 buttonFX(closeb,Color3.fromRGB(55,24,28),Color3.fromRGB(85,30,35),Color3.fromRGB(120,35,42))
-drag(top)
+dragWindow(main,glow,55)
 
 
-local mini=new("TextButton",{AnchorPoint=Vector2.new(.5,.5),Position=main.Position,Size=UDim2.fromOffset(145,42),BackgroundColor3=Color3.fromRGB(10,11,15),Text="⚡  FPS TOOL",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=13,AutoButtonColor=false,Visible=false,ZIndex=30},gui);round(mini,12);outline(mini);drag(mini)
+local mini=new("TextButton",{AnchorPoint=Vector2.new(.5,.5),Position=main.Position,Size=UDim2.fromOffset(145,42),BackgroundColor3=Color3.fromRGB(10,11,15),Text="⚡  FPS TOOL",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=13,AutoButtonColor=false,Visible=false,ZIndex=30},gui);round(mini,12);outline(mini)
+local miniDragging=false
+local miniMoved=false
+local miniDragStart=Vector2.zero
+local miniStartPos=mini.Position
+local miniActiveInput=nil
+UIS.InputBegan:Connect(function(i)
+	if not mini.Visible then return end
+	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+		local a=mini.AbsolutePosition;local z=mini.AbsoluteSize
+		if i.Position.X>=a.X and i.Position.X<=a.X+z.X and i.Position.Y>=a.Y and i.Position.Y<=a.Y+z.Y then
+			miniDragging=true;miniMoved=false;miniActiveInput=i;miniDragStart=i.Position;miniStartPos=mini.Position
+		end
+	end
+end)
+UIS.InputChanged:Connect(function(i)
+	if miniDragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+		local d=i.Position-miniDragStart
+		if d.Magnitude>5 then miniMoved=true end
+		mini.Position=UDim2.new(miniStartPos.X.Scale,miniStartPos.X.Offset+d.X,miniStartPos.Y.Scale,miniStartPos.Y.Offset+d.Y)
+	end
+end)
+UIS.InputEnded:Connect(function(i)
+	if miniDragging and (i==miniActiveInput or i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch) then
+		local wasMoved=miniMoved
+		miniDragging=false;miniActiveInput=nil;miniMoved=false
+		if not wasMoved then
+			playSound(openSound);mini.Visible=false;main.Visible=true;glow.Visible=true
+		end
+	end
+end)
 local miniStroke=mini:FindFirstChildOfClass("UIStroke");if miniStroke then miniStroke.Thickness=1.5 end
 buttonFX(mini,Color3.fromRGB(10,11,15),Color3.fromRGB(30,14,18),Color3.fromRGB(58,18,23))
 minb.MouseButton1Click:Connect(function()
 	playSound(clickSound)
 	mini.Position=main.Position;main.Visible=false;glow.Visible=false;mini.Visible=true
-end)
-mini.MouseButton1Click:Connect(function()
-	playSound(openSound)
-	mini.Visible=false;main.Visible=true;glow.Visible=true
 end)
 closeb.MouseButton1Click:Connect(function()
 	playSound(closeSound)
@@ -153,16 +187,20 @@ end)
 
 local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BorderSizePixel=0,ZIndex=12},main);round(side,12)
 local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=0,BorderSizePixel=0,ZIndex=10},main);round(pages,12)
-local tabs={};local pg={}
+local tabs={}
+local pg={}
 local function page(n)
 	local x=new("ScrollingFrame",{Name=n,Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=Color3.fromRGB(120,25,30),CanvasSize=UDim2.fromOffset(0,0),ZIndex=11},pages)
 	pg[n]=x
 	return x
 end
-local function tab(n,y)
-	local b=new("TextButton",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,52),BackgroundColor3=Color3.fromRGB(18,20,27),Text=n,TextColor3=Color3.fromRGB(180,185,195),Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,ZIndex=13},side);round(b,10);tabs[n]=b
-	local ind=new("Frame",{Name="ActiveIndicator",Position=UDim2.fromOffset(4,9),Size=UDim2.fromOffset(3,34),BackgroundColor3=Color3.fromRGB(255,60,65),BorderSizePixel=0,Visible=false,ZIndex=14},b);round(ind,2)
-	b:SetAttribute("Active",false)
+local function tab(id,labelText,y)
+	local b=new("TextButton",{Name=id.."Tab",Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,52),BackgroundColor3=Color3.fromRGB(18,20,27),Text=labelText,TextColor3=Color3.fromRGB(180,185,195),Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,ZIndex=13})
+	b.Parent=side
+	round(b,10)
+	tabs[id]=b
+	local ind=new("Frame",{Name="ActiveIndicator",Position=UDim2.fromOffset(4,9),Size=UDim2.fromOffset(3,34),BackgroundColor3=Color3.fromRGB(255,60,65),BorderSizePixel=0,Visible=false,ZIndex=14},b)
+	round(ind,2)
 	b.MouseEnter:Connect(function()
 		tween(b,{BackgroundColor3=b:GetAttribute("Active") and Color3.fromRGB(82,25,30) or Color3.fromRGB(30,23,28)},.12)
 	end)
@@ -171,27 +209,23 @@ local function tab(n,y)
 	end)
 	b.MouseButton1Down:Connect(function() tween(b,{BackgroundColor3=Color3.fromRGB(50,24,30)},.07) end)
 	b.MouseButton1Up:Connect(function() tween(b,{BackgroundColor3=b:GetAttribute("Active") and Color3.fromRGB(82,25,30) or Color3.fromRGB(30,23,28)},.10) end)
+	b.MouseButton1Click:Connect(function() playSound(clickSound) end)
 end
-tab("🎯  AIM",10);tab("👁  ESP",67);tab("◉  POV",124)
+tab("AIM","🎯  AIM",10);tab("ESP","👁  ESP",67);tab("POV","◉  POV",124)
 local A=page("AIM");local E=page("ESP");local P=page("POV")
--- Click sound untuk seluruh tombol UI biasa. Tombol buka/tutup di atas memakai suara khusus.
-for _,obj in ipairs(gui:GetDescendants()) do
-	if obj:IsA("GuiButton") and obj~=minb and obj~=closeb and obj~=mini and not tabs[obj.Text] then
-		obj.MouseButton1Click:Connect(function() playSound(clickSound) end)
-	end
-end
-
 local function select(n)
-	for k,b in pairs(tabs) do
-		local active=(k==n)
+	local chosen=pg[n] and n or nil
+	if not chosen then return end
+	for id,b in pairs(tabs) do
+		local active=(id==chosen)
 		b:SetAttribute("Active",active)
 		local ind=b:FindFirstChild("ActiveIndicator")
 		b.BackgroundColor3=active and Color3.fromRGB(72,22,26) or Color3.fromRGB(18,20,27)
 		b.TextColor3=active and Color3.fromRGB(255,90,90) or Color3.fromRGB(180,185,195)
 		if ind then ind.Visible=active end
 	end
-	for k,x in pairs(pg) do
-		if k==n then
+	for id,x in pairs(pg) do
+		if id==chosen then
 			x.Visible=true
 			for _,child in ipairs(x:GetChildren()) do
 				if child:IsA("GuiObject") then
@@ -205,16 +239,18 @@ local function select(n)
 		end
 	end
 end
-for n,b in pairs(tabs) do b.MouseButton1Click:Connect(function() playSound(clickSound);select(n) end) end
+for id,b in pairs(tabs) do b.MouseButton1Click:Connect(function() select(id) end) end
+
+-- Click sound untuk tombol fitur dibuat langsung saat tombol dibuat.
 
 local function label(par,t,y)
-	new("TextLabel",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,22),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},par)
+	new("TextLabel",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,22),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=12},par)
 end
 local function toggle(par,t,y,get,set)
-	local r=new("Frame",{Position=UDim2.fromOffset(5,y),Size=UDim2.new(1,-10,0,43),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=8},par);round(r,9)
-	new("TextLabel",{Position=UDim2.fromOffset(12,0),Size=UDim2.new(1,-75,1,0),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=9},r)
-	local b=new("TextButton",{Position=UDim2.new(1,-61,.5,-13),Size=UDim2.fromOffset(49,26),BackgroundColor3=Color3.fromRGB(48,50,59),Text="",AutoButtonColor=false,ZIndex=9},r);round(b,13)
-	local k=new("Frame",{Position=UDim2.fromOffset(4,4),Size=UDim2.fromOffset(18,18),BackgroundColor3=Color3.fromRGB(230,230,235),BorderSizePixel=0,ZIndex=10},b);round(k,10)
+	local r=new("Frame",{Position=UDim2.fromOffset(5,y),Size=UDim2.new(1,-10,0,43),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=12},par);round(r,9)
+	new("TextLabel",{Position=UDim2.fromOffset(12,0),Size=UDim2.new(1,-75,1,0),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=13},r)
+	local b=new("TextButton",{Position=UDim2.new(1,-61,.5,-13),Size=UDim2.fromOffset(49,26),BackgroundColor3=Color3.fromRGB(48,50,59),Text="",AutoButtonColor=false,ZIndex=13},r);round(b,13)
+	local k=new("Frame",{Position=UDim2.fromOffset(4,4),Size=UDim2.fromOffset(18,18),BackgroundColor3=Color3.fromRGB(230,230,235),BorderSizePixel=0,ZIndex=14},b);round(k,10)
 	new("UIStroke",{Color=Color3.fromRGB(255,255,255),Thickness=1,Transparency=.55},k)
 	local function refresh()
 		local v=get()
@@ -222,7 +258,7 @@ local function toggle(par,t,y,get,set)
 		k.Position=v and UDim2.new(1,-22,0,4) or UDim2.fromOffset(4,4)
 		k.BackgroundColor3=v and Color3.fromRGB(255,245,245) or Color3.fromRGB(230,230,235)
 	end
-	b.MouseButton1Click:Connect(function() set(not get());refresh() end)
+	b.MouseButton1Click:Connect(function() playSound(clickSound);set(not get());refresh() end)
 	b.MouseEnter:Connect(function() tween(b,{BackgroundColor3=get() and Color3.fromRGB(175,35,42) or Color3.fromRGB(65,67,78)},.12) end)
 	b.MouseLeave:Connect(function() tween(b,{BackgroundColor3=get() and Color3.fromRGB(145,25,30) or Color3.fromRGB(48,50,59)},.16) end)
 	b.MouseButton1Down:Connect(function() tween(b,{BackgroundColor3=Color3.fromRGB(88,28,34)},.07) end)
@@ -230,9 +266,9 @@ local function toggle(par,t,y,get,set)
 	refresh()
 end
 local function slider(par,t,y,min,max,get,set)
-	local r=new("Frame",{Position=UDim2.fromOffset(5,y),Size=UDim2.new(1,-10,0,62),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=8},par);round(r,9)
-	local txt=new("TextLabel",{Position=UDim2.fromOffset(12,5),Size=UDim2.new(1,-24,0,20),BackgroundTransparency=1,TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=9},r)
-	local bar=new("Frame",{Position=UDim2.fromOffset(12,35),Size=UDim2.new(1,-24,0,8),BackgroundColor3=Color3.fromRGB(44,46,54),BorderSizePixel=0,ZIndex=9},r);round(bar,5)
+	local r=new("Frame",{Position=UDim2.fromOffset(5,y),Size=UDim2.new(1,-10,0,62),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=12},par);round(r,9)
+	local txt=new("TextLabel",{Position=UDim2.fromOffset(12,5),Size=UDim2.new(1,-24,0,20),BackgroundTransparency=1,TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=13},r)
+	local bar=new("Frame",{Position=UDim2.fromOffset(12,35),Size=UDim2.new(1,-24,0,8),BackgroundColor3=Color3.fromRGB(44,46,54),BorderSizePixel=0,ZIndex=13},r);round(bar,5)
 	local fill=new("Frame",{Size=UDim2.new(),BackgroundColor3=Color3.fromRGB(230,42,48),BorderSizePixel=0,ZIndex=10},bar);round(fill,5)
 	local moving=false
 	local function setx(x) local a=math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1);set(min+(max-min)*a) end
@@ -247,15 +283,15 @@ label(A,"AIM LOCK",5)
 toggle(A,"Aim Lock",34,function() return aim end,function(v) aim=v end)
 toggle(A,"Auto Fire",83,function() return autoFire end,function(v) autoFire=v end)
 slider(A,"Aim Strength",132,1,100,function() return strength end,function(v) strength=v end)
-new("TextLabel",{Position=UDim2.fromOffset(8,206),Size=UDim2.new(1,-16,0,55),BackgroundTransparency=1,Text="Locks only to visible players inside the POV circle. Walls/objects block the lock.",TextColor3=Color3.fromRGB(125,130,140),Font=Enum.Font.Gotham,TextSize=10,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},A)
+new("TextLabel",{Position=UDim2.fromOffset(8,206),Size=UDim2.new(1,-16,0,55),BackgroundTransparency=1,Text="Locks only to visible players inside the POV circle. Walls/objects block the lock.",TextColor3=Color3.fromRGB(125,130,140),Font=Enum.Font.Gotham,TextSize=10,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=12},A)
 
 label(E,"ESP TYPES",5)
 local types={{"Box ESP","Box"},{"Name ESP","Name"},{"Distance ESP","Distance"},{"Health ESP","Health"},{"Tracer ESP","Tracer"},{"Highlight ESP","Highlight"},{"Skeleton ESP","Skeleton"}}
 for i,v in ipairs(types) do
-	local col=(i-1)%2;local row=math.floor((i-1)/2);local x=col==0 and 5 or 210;y=34+row*51
-	local r=new("Frame",{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(195,43),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=8},E);round(r,9)
-	new("TextLabel",{Position=UDim2.fromOffset(10,0),Size=UDim2.new(1,-55,1,0),BackgroundTransparency=1,Text=v[1],TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=9},r)
-	local b=new("TextButton",{Position=UDim2.new(1,-45,.5,-12),Size=UDim2.fromOffset(36,24),BackgroundColor3=Color3.fromRGB(145,25,30),Text="ON",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=9,AutoButtonColor=false,ZIndex=9},r);round(b,8)
+	local col=(i-1)%2;local row=math.floor((i-1)/2);local x=col==0 and 5 or 210;local y=34+row*51
+	local r=new("Frame",{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(195,43),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=12},E);round(r,9)
+	new("TextLabel",{Position=UDim2.fromOffset(10,0),Size=UDim2.new(1,-55,1,0),BackgroundTransparency=1,Text=v[1],TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=13},r)
+	local b=new("TextButton",{Position=UDim2.new(1,-45,.5,-12),Size=UDim2.fromOffset(36,24),BackgroundColor3=Color3.fromRGB(145,25,30),Text="ON",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=9,AutoButtonColor=false,ZIndex=13},r);round(b,8)
 	local function espButtonRefresh()
 		local on=esp[v[2]]
 		b.Text=on and "ON" or "OFF"
@@ -265,7 +301,7 @@ for i,v in ipairs(types) do
 	b.MouseLeave:Connect(function() tween(b,{BackgroundColor3=esp[v[2]] and Color3.fromRGB(145,25,30) or Color3.fromRGB(48,50,59)},.16) end)
 	b.MouseButton1Down:Connect(function() tween(b,{BackgroundColor3=Color3.fromRGB(105,22,28)},.07) end)
 	b.MouseButton1Up:Connect(function() tween(b,{BackgroundColor3=esp[v[2]] and Color3.fromRGB(175,35,42) or Color3.fromRGB(65,67,78)},.10) end)
-	b.MouseButton1Click:Connect(function() local k=v[2];esp[k]=not esp[k];espButtonRefresh() end)
+	b.MouseButton1Click:Connect(function() playSound(clickSound);local k=v[2];esp[k]=not esp[k];espButtonRefresh() end)
 	espButtonRefresh()
 end
 
