@@ -10,8 +10,8 @@ local SoundService=game:GetService("SoundService")
 local LP=Players.LocalPlayer
 local Cam=workspace.CurrentCamera
 
-local aim=false
-local autoFire=false
+local aim=true
+local autoFire=true
 local strength=65
 local povOn=true
 local povSize=180
@@ -86,16 +86,36 @@ buttonFX(minb,Color3.fromRGB(27,29,37),Color3.fromRGB(45,48,59),Color3.fromRGB(7
 buttonFX(closeb,Color3.fromRGB(55,24,28),Color3.fromRGB(85,30,35),Color3.fromRGB(120,35,42))
 
 local function drag(frame)
-	local on=false;local start=Vector2.zero;local pos=UDim2.new()
-	frame.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then on=true;start=i.Position;pos=frame.Position end end)
-	UIS.InputChanged:Connect(function(i)
-		if not on or (i.UserInputType~=Enum.UserInputType.MouseMovement and i.UserInputType~=Enum.UserInputType.Touch) then return end
-		local d=i.Position-start
-		frame.Position=UDim2.new(pos.X.Scale,pos.X.Offset+d.X,pos.Y.Scale,pos.Y.Offset+d.Y)
+	local dragging=false
+	local dragStart=Vector2.zero
+	local startPos=frame.Position
+	local dragInput=nil
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			dragging=true
+			dragStart=input.Position
+			startPos=frame.Position
+			dragInput=input
+		end
 	end)
-	UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then on=false end end)
+	frame.InputChanged:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then
+			dragInput=input
+		end
+	end)
+	UIS.InputChanged:Connect(function(input)
+		if dragging and input==dragInput then
+			local delta=input.Position-dragStart
+			frame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+		end
+	end)
+	UIS.InputEnded:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			dragging=false
+			dragInput=nil
+		end
+	end)
 end
-drag(top)
 
 local mini=new("TextButton",{AnchorPoint=Vector2.new(.5,.5),Position=main.Position,Size=UDim2.fromOffset(145,42),BackgroundColor3=Color3.fromRGB(10,11,15),Text="⚡  FPS TOOL",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=13,AutoButtonColor=false,Visible=false,ZIndex=30},gui);round(mini,12);outline(mini);drag(mini)
 local miniStroke=mini:FindFirstChildOfClass("UIStroke");if miniStroke then miniStroke.Thickness=1.5 end
@@ -110,26 +130,30 @@ mini.MouseButton1Click:Connect(function()
 end)
 closeb.MouseButton1Click:Connect(function()
 	playSound(closeSound)
-	gui.Enabled=false
+	main.Visible=false;glow.Visible=false;mini.Visible=true
 end)
 UIS.InputBegan:Connect(function(i,p)
 	if not p and i.KeyCode==Enum.KeyCode.RightShift then
-		local wasEnabled=gui.Enabled
-		gui.Enabled=not wasEnabled
-		if not wasEnabled then playSound(openSound) end
+		if not gui.Enabled then
+			gui.Enabled=true;main.Visible=true;glow.Visible=true;mini.Visible=false;playSound(openSound)
+		elseif main.Visible then
+			main.Visible=false;glow.Visible=false;mini.Visible=true;playSound(closeSound)
+		else
+			main.Visible=true;glow.Visible=true;mini.Visible=false;playSound(openSound)
+		end
 	end
 end)
 
 
-local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BorderSizePixel=0,ZIndex=6},main);round(side,12)
-local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundTransparency=1,ZIndex=6},main)
+local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BorderSizePixel=0,ZIndex=12},main);round(side,12)
+local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundTransparency=1,ZIndex=10},main)
 local tabs={};local pg={}
 local function page(n)
-	local x=new("Frame",{Name=n,Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,ZIndex=7},pages);pg[n]=x;return x
+	local x=new("Frame",{Name=n,Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,ZIndex=11},pages);pg[n]=x;return x
 end
 local function tab(n,y)
-	local b=new("TextButton",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,52),BackgroundColor3=Color3.fromRGB(18,20,27),Text=n,TextColor3=Color3.fromRGB(180,185,195),Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,ZIndex=7},side);round(b,10);tabs[n]=b
-	local ind=new("Frame",{Position=UDim2.fromOffset(4,9),Size=UDim2.fromOffset(3,34),BackgroundColor3=Color3.fromRGB(255,60,65),BorderSizePixel=0,Visible=false,ZIndex=8},b);round(ind,2)
+	local b=new("TextButton",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,52),BackgroundColor3=Color3.fromRGB(18,20,27),Text=n,TextColor3=Color3.fromRGB(180,185,195),Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,ZIndex=13},side);round(b,10);tabs[n]=b
+	local ind=new("Frame",{Name="ActiveIndicator",Position=UDim2.fromOffset(4,9),Size=UDim2.fromOffset(3,34),BackgroundColor3=Color3.fromRGB(255,60,65),BorderSizePixel=0,Visible=false,ZIndex=14},b);round(ind,2)
 	b:SetAttribute("Active",false)
 	b.MouseEnter:Connect(function()
 		tween(b,{BackgroundColor3=b:GetAttribute("Active") and Color3.fromRGB(82,25,30) or Color3.fromRGB(30,23,28)},.12)
@@ -144,7 +168,7 @@ tab("🎯  AIM",10);tab("👁  ESP",67);tab("◉  POV",124)
 local A=page("AIM");local E=page("ESP");local P=page("POV")
 -- Click sound untuk seluruh tombol UI biasa. Tombol buka/tutup di atas memakai suara khusus.
 for _,obj in ipairs(gui:GetDescendants()) do
-	if obj:IsA("GuiButton") and obj~=minb and obj~=closeb and obj~=mini then
+	if obj:IsA("GuiButton") and obj~=minb and obj~=closeb and obj~=mini and not tabs[obj.Text] then
 		obj.MouseButton1Click:Connect(function() playSound(clickSound) end)
 	end
 end
@@ -153,7 +177,7 @@ local function select(n)
 	for k,b in pairs(tabs) do
 		local active=(k==n)
 		b:SetAttribute("Active",active)
-		local ind=b:FindFirstChildWhichIsA("Frame")
+		local ind=b:FindFirstChild("ActiveIndicator")
 		b.BackgroundColor3=active and Color3.fromRGB(72,22,26) or Color3.fromRGB(18,20,27)
 		b.TextColor3=active and Color3.fromRGB(255,90,90) or Color3.fromRGB(180,185,195)
 		if ind then ind.Visible=active end
@@ -173,7 +197,7 @@ local function select(n)
 		end
 	end
 end
-for n,b in pairs(tabs) do b.MouseButton1Click:Connect(function() select(n) end) end
+for n,b in pairs(tabs) do b.MouseButton1Click:Connect(function() playSound(clickSound);select(n) end) end
 
 local function label(par,t,y)
 	new("TextLabel",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,22),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},par)
