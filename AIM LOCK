@@ -18,6 +18,13 @@ local povSize=180
 local autoFireRate=0.10
 local fireClock=0
 local esp={Box=false,Name=false,Distance=false,Health=false,Tracer=false,Highlight=false,Skeleton=false}
+local espColor=Color3.fromRGB(255,55,55)
+local povColor=Color3.fromRGB(255,55,55)
+local espR,espG,espB=255,55,55
+local povR,povG,povB=255,55,55
+local espRGB=false
+local povRGB=false
+local rgbSpeed=0.35
 
 local function new(c,pr,par)
 	local x=Instance.new(c)
@@ -321,20 +328,31 @@ for i,v in ipairs(types) do
 	espButtonRefresh()
 end
 
+label(E,"ESP COLOR",189)
+toggle(E,"ESP RGB",218,function() return espRGB end,function(v) espRGB=v end)
+slider(E,"ESP Red",267,0,255,function() return espR end,function(v) espR=math.round(v) end)
+slider(E,"ESP Green",336,0,255,function() return espG end,function(v) espG=math.round(v) end)
+slider(E,"ESP Blue",405,0,255,function() return espB end,function(v) espB=math.round(v) end)
+
 label(P,"POV CIRCLE",5)
 toggle(P,"POV Circle",34,function() return povOn end,function(v) povOn=v end)
 slider(P,"POV Size",83,60,450,function() return povSize end,function(v) povSize=math.round(v) end)
+toggle(P,"POV RGB",152,function() return povRGB end,function(v) povRGB=v end)
+slider(P,"POV Red",201,0,255,function() return povR end,function(v) povR=math.round(v) end)
+slider(P,"POV Green",270,0,255,function() return povG end,function(v) povG=math.round(v) end)
+slider(P,"POV Blue",339,0,255,function() return povB end,function(v) povB=math.round(v) end)
+slider(P,"RGB Speed",408,5,100,function() return rgbSpeed*100 end,function(v) rgbSpeed=math.clamp(v/100,.05,1) end)
 A.CanvasSize=UDim2.fromOffset(0,280)
-E.CanvasSize=UDim2.fromOffset(0,235)
-P.CanvasSize=UDim2.fromOffset(0,190)
+E.CanvasSize=UDim2.fromOffset(0,485)
+P.CanvasSize=UDim2.fromOffset(0,480)
 
 local pov=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(povSize,povSize),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=3,Visible=false,Active=false},gui)
 local povCorner=new("UICorner",{CornerRadius=UDim.new(.5,0)},pov)
-local ps=new("UIStroke",{Thickness=2,Color=Color3.fromRGB(255,55,55),Transparency=0,ApplyStrokeMode=Enum.ApplyStrokeMode.Border},pov)
+local ps=new("UIStroke",{Thickness=2,Color=povColor,Transparency=0,ApplyStrokeMode=Enum.ApplyStrokeMode.Border},pov)
 
 local objects={}
 local function line(par)
-	return new("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=Color3.fromRGB(255,60,60),BorderSizePixel=0,ZIndex=44},par)
+	return new("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=espColor,BorderSizePixel=0,ZIndex=44},par)
 end
 local function setLine(f,a,b)
 	local d=b-a;f.Position=UDim2.fromOffset((a.X+b.X)/2,(a.Y+b.Y)/2);f.Size=UDim2.fromOffset(math.max(d.Magnitude,1),1);f.Rotation=math.deg(math.atan2(d.Y,d.X))
@@ -346,12 +364,12 @@ local function create(model)
 	local h=model:FindFirstChildOfClass("Humanoid");local head=model:FindFirstChild("Head")
 	if not h or not head or not head:IsA("BasePart") then return end
 	local c=new("Frame",{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,ZIndex=40},gui)
-	local box=new("Frame",{BackgroundTransparency=1,BorderSizePixel=2,BorderColor3=Color3.fromRGB(255,55,55),Visible=false,ZIndex=41},c)
-	local name=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.fromRGB(255,95,95),TextStrokeTransparency=0,Font=Enum.Font.GothamBold,TextSize=11,Visible=false,ZIndex=42},c)
+	local box=new("Frame",{BackgroundTransparency=1,BorderSizePixel=2,BorderColor3=espColor,Visible=false,ZIndex=41},c)
+	local name=new("TextLabel",{BackgroundTransparency=1,TextColor3=espColor,TextStrokeTransparency=0,Font=Enum.Font.GothamBold,TextSize=11,Visible=false,ZIndex=42},c)
 	local dist=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),TextStrokeTransparency=0,Font=Enum.Font.GothamMedium,TextSize=9,Visible=false,ZIndex=42},c)
 	local hb=new("Frame",{BackgroundColor3=Color3.fromRGB(30,30,35),BorderSizePixel=0,Visible=false,ZIndex=42},c);local hf=new("Frame",{BackgroundColor3=Color3.fromRGB(80,230,100),BorderSizePixel=0,Visible=false,ZIndex=43},hb)
 	local tr=line(c);tr.Visible=false
-	local hl=Instance.new("Highlight");hl.Name="ESPHighlight";hl.Adornee=model;hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;hl.FillColor=Color3.fromRGB(255,40,40);hl.FillTransparency=.78;hl.OutlineColor=Color3.fromRGB(255,80,80);hl.Enabled=false;hl.Parent=model
+	local hl=Instance.new("Highlight");hl.Name="ESPHighlight";hl.Adornee=model;hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;hl.FillColor=espColor;hl.FillTransparency=.78;hl.OutlineColor=espColor;hl.Enabled=false;hl.Parent=model
 	local sk={};for i=1,10 do sk[i]=line(c);sk[i].Visible=false end
 	objects[model]={c=c,box=box,name=name,dist=dist,hb=hb,hf=hf,tr=tr,hl=hl,sk=sk}
 end
@@ -368,6 +386,11 @@ local function update(m,o)
 	for sx=-1,1,2 do for sy=-1,1,2 do for szn=-1,1,2 do local w=cf.Position+cf.RightVector*(sz.X/2*sx)+cf.UpVector*(sz.Y/2*sy)+cf.LookVector*(sz.Z/2*szn);local p,on=Cam:WorldToViewportPoint(w);if on and p.Z>0 then minx=math.min(minx,p.X);miny=math.min(miny,p.Y);maxx=math.max(maxx,p.X);maxy=math.max(maxy,p.Y) end end end end
 	if minx==math.huge then o.c.Visible=false;o.hl.Enabled=false;return end
 	local anyESP=esp.Box or esp.Name or esp.Distance or esp.Health or esp.Tracer or esp.Highlight or esp.Skeleton
+	o.box.BorderColor3=espColor
+	o.name.TextColor3=espColor
+	o.tr.BackgroundColor3=espColor
+	o.hl.FillColor=espColor
+	o.hl.OutlineColor=espColor
 	o.c.Visible=anyESP;local w=math.max(maxx-minx,4);local ht=math.max(maxy-miny,4);local center=Vector2.new((minx+maxx)/2,(miny+maxy)/2)
 	o.box.Position=UDim2.fromOffset(minx,miny);o.box.Size=UDim2.fromOffset(w,ht);o.box.Visible=esp.Box
 	o.name.Position=UDim2.fromOffset(minx,miny-17);o.name.Size=UDim2.fromOffset(w,16);o.name.Text=m.Name;o.name.Visible=esp.Name
@@ -411,6 +434,7 @@ local function update(m,o)
 	end
 
 	for i=1,#o.sk do
+		o.sk[i].BackgroundColor3=espColor
 		local cx=con[i]
 		if cx then
 			local a,b=pts[cx[1]],pts[cx[2]]
@@ -528,6 +552,17 @@ pov.Size=UDim2.fromOffset(math.max(4,povSize),math.max(4,povSize))
 pov.Visible=povOn
 ps.Transparency=povOn and 0 or 1
 if povCorner then povCorner.CornerRadius=UDim.new(.5,0) end
+	if espRGB then
+		espColor=Color3.fromHSV((pulseClock*rgbSpeed)%1,0.92,1)
+	else
+		espColor=Color3.fromRGB(espR,espG,espB)
+	end
+	if povRGB then
+		povColor=Color3.fromHSV((pulseClock*rgbSpeed)%1,0.92,1)
+	else
+		povColor=Color3.fromRGB(povR,povG,povB)
+	end
+	ps.Color=povColor
 	local lockedTarget=nil
 	if aim then
 		lockedTarget=target()
