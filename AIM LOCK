@@ -10,14 +10,14 @@ local SoundService=game:GetService("SoundService")
 local LP=Players.LocalPlayer
 local Cam=workspace.CurrentCamera
 
-local aim=true
-local autoFire=true
+local aim=false
+local autoFire=false
 local strength=65
-local povOn=true
+local povOn=false
 local povSize=180
 local autoFireRate=0.10
 local fireClock=0
-local esp={Box=true,Name=true,Distance=true,Health=true,Tracer=true,Highlight=true,Skeleton=true}
+local esp={Box=false,Name=false,Distance=false,Health=false,Tracer=false,Highlight=false,Skeleton=false}
 
 local function new(c,pr,par)
 	local x=Instance.new(c)
@@ -96,7 +96,10 @@ local function dragWindow(targetFrame, glowFrame, headerHeight)
 	end)
 end
 
-local gui=new("ScreenGui",{Name="AimESPPOV",ResetOnSpawn=false,IgnoreGuiInset=true,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=100},LP:WaitForChild("PlayerGui"))
+local playerGui=LP:WaitForChild("PlayerGui")
+local oldGui=playerGui:FindFirstChild("AimESPPOV")
+if oldGui then oldGui:Destroy() end
+local gui=new("ScreenGui",{Name="AimESPPOV",ResetOnSpawn=false,IgnoreGuiInset=true,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=100},playerGui)
 
 -- UI sound effects
 local clickSound=new("Sound",{Name="UIClick",SoundId="rbxassetid://116394299154002",Volume=.45},SoundService)
@@ -170,10 +173,8 @@ end)
 
 UIS.InputBegan:Connect(function(i,p)
 	if not p and i.KeyCode==Enum.KeyCode.RightShift then
-		if not gui.Enabled then
-			gui.Enabled=true;main.Visible=true;glow.Visible=true;mini.Visible=false;playSound(openSound)
-		elseif main.Visible then
-			main.Visible=false;glow.Visible=false;mini.Visible=true;playSound(closeSound)
+		if main.Visible then
+			main.Visible=false;glow.Visible=false;mini.Position=main.Position;mini.Visible=true;playSound(closeSound)
 		else
 			main.Visible=true;glow.Visible=true;mini.Visible=false;playSound(openSound)
 		end
@@ -302,15 +303,15 @@ for i,v in ipairs(types) do
 end
 
 label(P,"POV CIRCLE",5)
-toggle(P,"Invisible POV",34,function() return not povOn end,function(v) povOn=not v end)
+toggle(P,"POV Circle",34,function() return povOn end,function(v) povOn=v end)
 slider(P,"POV Size",83,60,450,function() return povSize end,function(v) povSize=math.round(v) end)
 A.CanvasSize=UDim2.fromOffset(0,280)
 E.CanvasSize=UDim2.fromOffset(0,235)
 P.CanvasSize=UDim2.fromOffset(0,190)
 
-local pov=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(povSize,povSize),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=2},gui)
+local pov=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(povSize,povSize),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=20,Visible=false,Active=false},gui)
 local povCorner=new("UICorner",{CornerRadius=UDim.new(0,povSize/2)},pov)
-local ps=new("UIStroke",{Thickness=2,Color=Color3.fromRGB(255,55,55),Transparency=.15},pov)
+local ps=new("UIStroke",{Thickness=2,Color=Color3.fromRGB(255,55,55),Transparency=0,ApplyStrokeMode=Enum.ApplyStrokeMode.Border},pov)
 
 local objects={}
 local function line(par)
@@ -347,7 +348,8 @@ local function update(m,o)
 	local cf,sz=m:GetBoundingBox();local minx,miny=math.huge,math.huge;local maxx,maxy=-math.huge,-math.huge
 	for sx=-1,1,2 do for sy=-1,1,2 do for szn=-1,1,2 do local w=cf.Position+cf.RightVector*(sz.X/2*sx)+cf.UpVector*(sz.Y/2*sy)+cf.LookVector*(sz.Z/2*szn);local p,on=Cam:WorldToViewportPoint(w);if on and p.Z>0 then minx=math.min(minx,p.X);miny=math.min(miny,p.Y);maxx=math.max(maxx,p.X);maxy=math.max(maxy,p.Y) end end end end
 	if minx==math.huge then o.c.Visible=false;o.hl.Enabled=false;return end
-	o.c.Visible=true;local w=math.max(maxx-minx,4);local ht=math.max(maxy-miny,4);local center=Vector2.new((minx+maxx)/2,(miny+maxy)/2)
+	local anyESP=esp.Box or esp.Name or esp.Distance or esp.Health or esp.Tracer or esp.Highlight or esp.Skeleton
+	o.c.Visible=anyESP;local w=math.max(maxx-minx,4);local ht=math.max(maxy-miny,4);local center=Vector2.new((minx+maxx)/2,(miny+maxy)/2)
 	o.box.Position=UDim2.fromOffset(minx,miny);o.box.Size=UDim2.fromOffset(w,ht);o.box.Visible=esp.Box
 	o.name.Position=UDim2.fromOffset(minx,miny-17);o.name.Size=UDim2.fromOffset(w,16);o.name.Text=m.Name;o.name.Visible=esp.Name
 	local d=(Cam.CFrame.Position-root.Position).Magnitude;o.dist.Position=UDim2.fromOffset(minx,maxy+2);o.dist.Size=UDim2.fromOffset(w,14);o.dist.Text=math.floor(d).."m";o.dist.Visible=esp.Distance
@@ -433,7 +435,12 @@ RunService.RenderStepped:Connect(function(dt)
 	statusStroke.Transparency=.10+(pulse*.45)
 	if mainStroke then mainStroke.Transparency=.12+(pulse*.28) end
 	Cam=workspace.CurrentCamera
-	pov.Size=UDim2.fromOffset(povSize,povSize);pov.Visible=povOn;ps.Transparency=povOn and .15 or 1;if povCorner then povCorner.CornerRadius=UDim.new(0,povSize/2) end
+	local viewport=Cam.ViewportSize
+pov.Position=UDim2.fromOffset(viewport.X/2,viewport.Y/2)
+pov.Size=UDim2.fromOffset(povSize,povSize)
+pov.Visible=povOn
+ps.Transparency=povOn and 0 or 1
+if povCorner then povCorner.CornerRadius=UDim.new(0,povSize/2) end
 	local lockedTarget=nil
 	if aim then
 		lockedTarget=target()
