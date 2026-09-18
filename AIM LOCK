@@ -1,140 +1,386 @@
--- FPS TOOLKIT - compact futuristic UI for your own Roblox FPS experience
--- Put this LocalScript in StarterPlayerScripts.
--- AutoFire emits ReplicatedStorage.FPSFireRequest for your own weapon controller.
+--!strict
+-- LocalScript | StarterPlayer > StarterPlayerScripts
+-- Tool AIM / ESP / POV untuk map Roblox milik sendiri.
 
-local P=game:GetService('Players');local U=game:GetService('UserInputService');local R=game:GetService('RunService');local T=game:GetService('TweenService');local RS=game:GetService('ReplicatedStorage');local W=game:GetService('Workspace')
-local LP=P.LocalPlayer;local C=W.CurrentCamera
-local S={AimLock=false,AimAssist=false,AutoFire=false,TargetPart='Head',Priority='Nearest',Strength=75,Smooth=60,FOV=100,Team=true,Wall=true,NPC=false,Prediction=false,ESP=false,Names=true,Health=true,Distance=true,Speed=16,Jump=50,Sprint=false,InfJump=false,Dash=false,DashDistance=45,DashCooldown=1.5,CameraFOV=70}
-local col={bg=Color3.fromRGB(2,7,15),panel=Color3.fromRGB(4,12,25),card=Color3.fromRGB(5,17,32),cyan=Color3.fromRGB(0,190,255),bright=Color3.fromRGB(65,225,255),dark=Color3.fromRGB(0,75,125),red=Color3.fromRGB(255,45,65),white=Color3.fromRGB(235,247,255),muted=Color3.fromRGB(130,165,195),green=Color3.fromRGB(50,235,145)}
-local G=Instance.new('ScreenGui');G.Name='FPS_Toolkit';G.ResetOnSpawn=false;G.IgnoreGuiInset=true;G.DisplayOrder=100;G.Parent=LP:WaitForChild('PlayerGui')
-local function cr(p,r)local x=Instance.new('UICorner',p);x.CornerRadius=UDim.new(0,r or 8)end
-local function stroke(p,c,t,tr)local x=Instance.new('UIStroke',p);x.Color=c;x.Thickness=t or 1;x.Transparency=tr or .2;return x end
-local function tx(p,s,z,b,c)local x=Instance.new('TextLabel',p);x.BackgroundTransparency=1;x.Text=s;x.TextSize=z or 12;x.Font=b and Enum.Font.GothamBold or Enum.Font.Gotham;x.TextColor3=c or col.white;x.TextXAlignment=Enum.TextXAlignment.Left;x.TextYAlignment=Enum.TextYAlignment.Center;return x end
-local function bt(p,s)local x=Instance.new('TextButton',p);x.AutoButtonColor=false;x.Text=s;x.TextSize=12;x.Font=Enum.Font.GothamSemibold;x.TextColor3=col.white;x.BackgroundColor3=col.panel;x.BorderSizePixel=0;cr(x,7);stroke(x,col.dark,1,.2);x.MouseEnter:Connect(function()T:Create(x,TweenInfo.new(.1),{BackgroundColor3=col.card}):Play()end);x.MouseLeave:Connect(function()T:Create(x,TweenInfo.new(.1),{BackgroundColor3=col.panel}):Play()end);return x end
-local Main=Instance.new('Frame',G);Main.AnchorPoint=Vector2.new(.5,.5);Main.Position=UDim2.fromScale(.5,.5);Main.Size=UDim2.new(.82,0,.66,0);Main.BackgroundColor3=col.bg;Main.BorderSizePixel=0;Main.ClipsDescendants=true;cr(Main,15);stroke(Main,col.cyan,2,.03)
-local top=Instance.new('Frame',Main);top.Size=UDim2.new(1,0,0,58);top.BackgroundColor3=col.panel;top.BorderSizePixel=0;top.Parent=Main
-local logo=Instance.new('Frame',top);logo.Size=UDim2.fromOffset(42,42);logo.Position=UDim2.fromOffset(12,8);logo.BackgroundColor3=col.card;logo.Parent=top;cr(logo,10);stroke(logo,col.cyan,2,.05);local lt=tx(logo,'◈',25,true,col.bright);lt.Size=UDim2.fromScale(1,1);lt.TextXAlignment=Enum.TextXAlignment.Center
-local title=tx(top,'FPS TOOLKIT',19,true);title.Position=UDim2.fromOffset(66,6);title.Size=UDim2.fromOffset(180,25)
-local ver=tx(top,'V1.0.0',9,true,col.cyan);ver.Position=UDim2.fromOffset(190,10);ver.Size=UDim2.fromOffset(52,18);ver.TextXAlignment=Enum.TextXAlignment.Center;cr(ver,5);stroke(ver,col.dark,1,.1)
-local sub=tx(top,'AIM  •  ESP  •  MOVEMENT  •  PLAYER  •  WORLD',9,false,col.muted);sub.Position=UDim2.fromOffset(67,32);sub.Size=UDim2.new(.65,0,0,17)
-local min=bt(top,'—');min.Size=UDim2.fromOffset(36,32);min.Position=UDim2.new(1,-84,0,12);local close=bt(top,'×');close.Size=UDim2.fromOffset(36,32);close.Position=UDim2.new(1,-42,0,12)
-local Side=Instance.new('ScrollingFrame',Main);Side.Name='Menu';Side.Size=UDim2.new(0,154,1,-67);Side.Position=UDim2.fromOffset(7,62);Side.BackgroundColor3=col.panel;Side.BorderSizePixel=0;Side.ClipsDescendants=true;Side.ScrollBarThickness=3;Side.ScrollBarImageColor3=col.cyan;Side.AutomaticCanvasSize=Enum.AutomaticSize.Y;Side.CanvasSize=UDim2.new();cr(Side,11);stroke(Side,col.dark,1,.25)
-local sl=Instance.new('UIListLayout',Side);sl.Padding=UDim.new(0,5);sl.SortOrder=Enum.SortOrder.LayoutOrder
-local pad=Instance.new('UIPadding',Side);pad.PaddingTop=UDim.new(0,8);pad.PaddingLeft=UDim.new(0,8);pad.PaddingRight=UDim.new(0,8);pad.PaddingBottom=UDim.new(0,10)
-local Content=Instance.new('ScrollingFrame',Main);Content.Size=UDim2.new(1,-170,1,-68);Content.Position=UDim2.fromOffset(165,62);Content.BackgroundTransparency=1;Content.BorderSizePixel=0;Content.ScrollBarThickness=4;Content.ScrollBarImageColor3=col.cyan;Content.AutomaticCanvasSize=Enum.AutomaticSize.Y;Content.CanvasSize=UDim2.new();Content.ClipsDescendants=true
-local cp=Instance.new('UIPadding',Content);cp.PaddingLeft=UDim.new(0,5);cp.PaddingRight=UDim.new(0,8);cp.PaddingBottom=UDim.new(0,14);cp.PaddingTop=UDim.new(0,2)
-local menuTitle=tx(Side,'MENU',9,true,col.cyan);menuTitle.LayoutOrder=0;menuTitle.Size=UDim2.new(1,0,0,20);menuTitle.TextXAlignment=Enum.TextXAlignment.Left
-local tabs={'AIM','ESP','MOVEMENT','PLAYER','WORLD','HUD','SETTINGS'};local icons={'◎','◉','↯','●','◇','▣','⚙'};local TB={}
-for i,n in ipairs(tabs)do local b=bt(Side,'  '..icons[i]..'   '..n);b.LayoutOrder=i;b.Size=UDim2.new(1,0,0,40);b.TextXAlignment=Enum.TextXAlignment.Left;TB[n]=b end
-local foot=tx(Side,'PLAY SMART\nNOT HARD',9,true,col.cyan);foot.LayoutOrder=99;foot.Size=UDim2.new(1,0,0,55);foot.TextWrapped=true
-local function clear()for _,v in ipairs(Content:GetChildren())do if v:IsA('GuiObject')then v:Destroy()end end end
-local function page(n)local p=Instance.new('Frame',Content);p.Name=n;p.Size=UDim2.new(1,0,0,0);p.AutomaticSize=Enum.AutomaticSize.Y;p.BackgroundTransparency=1;local l=Instance.new('UIListLayout',p);l.Padding=UDim.new(0,9);return p end
-local function card(p,t,d,h)local f=Instance.new('Frame',p);f.Size=UDim2.new(1,0,0,h or 64);f.BackgroundColor3=col.card;f.BorderSizePixel=0;cr(f,9);stroke(f,Color3.fromRGB(14,66,103),1,.22);local a=tx(f,t,13,true);a.Position=UDim2.fromOffset(13,6);a.Size=UDim2.new(.56,0,0,21);if d then local b=tx(f,d,9,false,col.muted);b.Position=UDim2.fromOffset(13,28);b.Size=UDim2.new(.62,0,0,24)end;return f end
-local function tog(p,t,d,k)local f=card(p,t,d);local b=bt(f,S[k] and 'ON' or 'OFF');b.Size=UDim2.fromOffset(68,31);b.Position=UDim2.new(1,-81,.5,-15);local function q()b.Text=S[k] and 'ON' or 'OFF';b.BackgroundColor3=S[k] and Color3.fromRGB(0,105,170)or col.panel end;q();b.MouseButton1Click:Connect(function()S[k]=not S[k];q()end);return f end
-local function slider(p,t,d,k,lo,hi,dec)local f=card(p,t,d,78);local v=tx(f,tostring(S[k]),11,true,col.bright);v.Position=UDim2.new(.91,0,0,7);v.Size=UDim2.new(.08,0,0,20);v.TextXAlignment=Enum.TextXAlignment.Right;local tr=Instance.new('Frame',f);tr.Size=UDim2.new(.46,0,0,7);tr.Position=UDim2.new(.46,0,0,48);tr.BackgroundColor3=Color3.fromRGB(13,45,72);tr.BorderSizePixel=0;cr(tr,5);local fill=Instance.new('Frame',tr);fill.BackgroundColor3=col.cyan;fill.BorderSizePixel=0;cr(fill,5);local k=Instance.new('Frame',tr);k.Size=UDim2.fromOffset(13,13);k.AnchorPoint=Vector2.new(.5,.5);k.BackgroundColor3=col.bright;k.BorderSizePixel=0;cr(k,99);stroke(k,col.white,1,.2);local drag=false;local function set(x)local z=math.clamp((x-tr.AbsolutePosition.X)/tr.AbsoluteSize.X,0,1);local val=lo+(hi-lo)*z;if not dec then val=math.floor(val+.5)else local m=10^dec;val=math.floor(val*m+.5)/m end;S[k.Name]=val;fill.Size=UDim2.new(z,0,1,0);k.Position=UDim2.new(z,0,.5,0);v.Text=tostring(val)end;k.Name=k==nil and '' or k.Name;-- replaced below
-k.Name='Knob'
-local key=k
-local keyName=t
-local realKey=({})
--- infer actual config key from the control's value before this function returns
--- stored through closure variable CONFIG_KEY
-realKey.CONFIG=k
--- monkey patch using local argument
-local configKey=select(4,t,d,k,lo,hi,dec)
-local function set2(x)local z=math.clamp((x-tr.AbsolutePosition.X)/tr.AbsoluteSize.X,0,1);local val=lo+(hi-lo)*z;if not dec then val=math.floor(val+.5)else local m=10^dec;val=math.floor(val*m+.5)/m end;S[configKey]=val;fill.Size=UDim2.new(z,0,1,0);key.Position=UDim2.new(z,0,.5,0);v.Text=tostring(val)end
-tr.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true;set2(i.Position.X)end end);U.InputChanged:Connect(function(i)if drag and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)then set2(i.Position.X)end end);U.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end);local z=math.clamp((S[configKey]-lo)/(hi-lo),0,1);fill.Size=UDim2.new(z,0,1,0);key.Position=UDim2.new(z,0,.5,0);return f end
--- compact replacement for slider above: Lua cannot safely infer select() as intended, so use this clean version
-local function Slider(p,t,d,keyName,lo,hi,dec)local f=card(p,t,d,78);local v=tx(f,tostring(S[keyName]),11,true,col.bright);v.Position=UDim2.new(.91,0,0,7);v.Size=UDim2.new(.08,0,0,20);v.TextXAlignment=Enum.TextXAlignment.Right;local tr=Instance.new('Frame',f);tr.Size=UDim2.new(.46,0,0,7);tr.Position=UDim2.new(.46,0,0,48);tr.BackgroundColor3=Color3.fromRGB(13,45,72);tr.BorderSizePixel=0;cr(tr,5);local fill=Instance.new('Frame',tr);fill.BackgroundColor3=col.cyan;fill.BorderSizePixel=0;cr(fill,5);local knob=Instance.new('Frame',tr);knob.Size=UDim2.fromOffset(13,13);knob.AnchorPoint=Vector2.new(.5,.5);knob.BackgroundColor3=col.bright;knob.BorderSizePixel=0;cr(knob,99);stroke(knob,col.white,1,.2);local function set(x)local z=math.clamp((x-tr.AbsolutePosition.X)/tr.AbsoluteSize.X,0,1);local val=lo+(hi-lo)*z;if not dec then val=math.floor(val+.5)else local m=10^dec;val=math.floor(val*m+.5)/m end;S[keyName]=val;fill.Size=UDim2.new(z,0,1,0);knob.Position=UDim2.new(z,0,.5,0);v.Text=tostring(val)end;local drag=false;tr.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true;set(i.Position.X)end end);U.InputChanged:Connect(function(i)if drag and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)then set(i.Position.X)end end);U.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end);set(tr.AbsolutePosition.X+tr.AbsoluteSize.X*((S[keyName]-lo)/(hi-lo)));return f end
-local function Drop(p,t,d,key,vals)local f=card(p,t,d);local b=bt(f,tostring(S[key]));b.Size=UDim2.fromOffset(145,31);b.Position=UDim2.new(1,-158,.5,-15);b.MouseButton1Click:Connect(function()local i=table.find(vals,S[key])or 1;i=i%#vals+1;S[key]=vals[i];b.Text=tostring(S[key])end);return f end
-local function selector(p)local f=card(p,'TARGET PART','Click the 2D character zone: Head or Body.',213);local function figure(x,name,active)local b=Instance.new('TextButton',f);b.AutoButtonColor=false;b.Text='';b.Size=UDim2.new(.44,0,0,150);b.Position=UDim2.new(x,0,0,52);b.BackgroundColor3=active and Color3.fromRGB(0,68,115)or Color3.fromRGB(5,18,34);b.BorderSizePixel=0;cr(b,9);local st=os(b,active and col.bright or col.dark,active and 2 or 1,.05);local fig=Instance.new('Frame',b);fig.BackgroundTransparency=1;fig.Size=UDim2.fromOffset(92,112);fig.AnchorPoint=Vector2.new(.5,0);fig.Position=UDim2.new(.5,0,0,5);local function part(sz,pos,c)local q=Instance.new('Frame',fig);q.Size=UDim2.fromOffset(sz.X,sz.Y);q.Position=UDim2.fromOffset(pos.X,pos.Y);q.BackgroundColor3=c;q.BorderSizePixel=0;cr(q,3);stroke(q,active and col.bright or Color3.fromRGB(105,145,180),1,.12);return q end;local hd=part(Vector2.new(27,27),Vector2.new(33,2),Color3.fromRGB(205,225,242));local to=part(Vector2.new(40,39),Vector2.new(26,31),Color3.fromRGB(135,165,195));part(Vector2.new(18,37),Vector2.new(7,33),Color3.fromRGB(155,180,205));part(Vector2.new(18,37),Vector2.new(67,33),Color3.fromRGB(155,180,205));part(Vector2.new(18,34),Vector2.new(28,71),Color3.fromRGB(110,145,175));part(Vector2.new(18,34),Vector2.new(46,71),Color3.fromRGB(110,145,175));local mark=tx(name=='Head' and hd or to,'✦',18,true,name=='Head' and col.red or col.cyan);mark.Size=UDim2.fromScale(1,1);mark.TextXAlignment=Enum.TextXAlignment.Center;local cap=tx(b,name:upper(),10,true,active and col.bright or col.white);cap.Position=UDim2.new(0,0,1,-27);cap.Size=UDim2.new(1,0,0,24);cap.TextXAlignment=Enum.TextXAlignment.Center;b:SetAttribute('selector',true);b:SetAttribute('target',name);b.MouseButton1Click:Connect(function()S.TargetPart=name;for _,q in ipairs(f:GetChildren())do if q:IsA('TextButton')and q:GetAttribute('selector')then local a=q:GetAttribute('target')==name;q.BackgroundColor3=a and Color3.fromRGB(0,68,115)or Color3.fromRGB(5,18,34);local z=q:FindFirstChildOfClass('UIStroke');if z then z.Color=a and col.bright or col.dark;z.Thickness=a and 2 or 1 end end end end)end;figure(.04,'Head',S.TargetPart=='Head');figure(.52,'Body',S.TargetPart=='Body');return f end
-local function build(n)local p=page(n);local h=tx(p,n,23,true);h.Size=UDim2.new(1,0,0,30);local ss={AIM='Lock target, hit faster.',ESP='Player information and visibility.',MOVEMENT='Movement controls for your own experience.',PLAYER='Player utilities and spectating.',WORLD='Match and server information.',HUD='Compact information overlays.',SETTINGS='Interface, controls and camera.'};local s=tx(p,ss[n],10,false,col.muted);s.Size=UDim2.new(1,0,0,20)
-if n=='AIM'then tog(p,'Aim Lock','Automatically follow a valid visible target.','AimLock');selector(p);Drop(p,'Target Priority','Choose target priority.','Priority',{'Nearest','Crosshair'});Slider(p,'Aim Strength','How strongly aim follows target.','Strength',0,100);Slider(p,'Smoothness','How smoothly aim moves.','Smooth',0,100);Slider(p,'FOV','Target detection radius.','FOV',20,360);tog(p,'Team Check','Ignore teammates.','Team');tog(p,'NPC Check','Allow NPC targets.','NPC');tog(p,'Wall Check','Do not lock through solid geometry.','Wall');tog(p,'Prediction','Lead moving targets.','Prediction');tog(p,'Auto Fire','Request your own weapon controller to fire.','AutoFire')
-elseif n=='ESP'then tog(p,'ESP','Enable player ESP.','ESP');tog(p,'Names','Display player names.','Names');tog(p,'Health','Display health.','Health');tog(p,'Distance','Display distance.','Distance')
-elseif n=='MOVEMENT'then tog(p,'Sprint','Hold Left Shift on PC.','Sprint');Slider(p,'WalkSpeed','Player movement speed.','Speed',8,100);Slider(p,'JumpPower','Player jump power.','Jump',20,120);tog(p,'Infinite Jump','Repeated jump requests.','InfJump');tog(p,'Dash','Adds the on-screen Dash button.','Dash');Slider(p,'Dash Distance','Distance covered by Dash.','DashDistance',10,100)
-elseif n=='PLAYER'then local f=card(p,'PLAYER LIST','Tap a player to spectate.',0);f.AutomaticSize=Enum.AutomaticSize.Y;local l=Instance.new('UIListLayout',f);l.Padding=UDim.new(0,5);local pd=Instance.new('UIPadding',f);pd.PaddingTop=UDim.new(0,42);pd.PaddingBottom=UDim.new(0,8);pd.PaddingLeft=UDim.new(0,10);pd.PaddingRight=UDim.new(0,10);for _,pl in ipairs(P:GetPlayers())do local b=bt(f,pl.DisplayName..'   @'..pl.Name);b.Size=UDim2.new(1,0,0,34);b.MouseButton1Click:Connect(function()local ch=pl.Character;local hm=ch and ch:FindFirstChildOfClass('Humanoid');if hm then C.CameraSubject=hm end end)end
-elseif n=='WORLD'then local f=card(p,'SERVER','Current session.',90);local z=tx(f,'Players: '..#P:GetPlayers()..'\nPlaceId: '..game.PlaceId,10,true,col.cyan);z.Position=UDim2.fromOffset(13,45);z.Size=UDim2.new(1,-20,0,35);z.TextWrapped=true
-elseif n=='HUD'then Slider(p,'Camera FOV','Camera field of view.','CameraFOV',50,120);tog(p,'FPS','Show FPS counter.','ShowFPS');tog(p,'Ping','Show latency.','ShowPing')
-elseif n=='SETTINGS'then local f=card(p,'MOBILE SUPPORT','Touch-friendly controls and Dash button.',80);local z=tx(f,U.TouchEnabled and 'TOUCH DETECTED' or 'PC MODE',10,true,col.cyan);z.Position=UDim2.new(1,-145,0,8);z.Size=UDim2.fromOffset(135,20);z.TextXAlignment=Enum.TextXAlignment.Right end end
-for n,b in pairs(TB)do b.MouseButton1Click:Connect(function()build(n);for k,x in pairs(TB)do x.BackgroundColor3=k==n and Color3.fromRGB(0,82,142)or col.panel end end)end
-local Mini=bt(G,'◈');Mini.Name='MiniWidget';Mini.Size=UDim2.fromOffset(60,60);Mini.Position=UDim2.new(0,22,1,-22);Mini.TextSize=24;Mini.Visible=false;Mini.ZIndex=30;stroke(Mini,col.bright,2,.03)
+local Players=game:GetService("Players")
+local RunService=game:GetService("RunService")
+local UIS=game:GetService("UserInputService")
+local TS=game:GetService("TweenService")
+local SoundService=game:GetService("SoundService")
+local LP=Players.LocalPlayer
+local Cam=workspace.CurrentCamera
 
--- Mini widget is independently draggable on PC and mobile.
-do
-    local dragging=false
-    local dragStart=nil
-    local startPos=nil
+local aim=false
+local autoFire=false
+local strength=65
+local povOn=true
+local povSize=180
+local autoFireRate=0.10
+local fireClock=0
+local esp={Box=true,Name=true,Distance=true,Health=true,Tracer=true,Highlight=true,Skeleton=true}
 
-    Mini.InputBegan:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-            dragging=true
-            dragStart=input.Position
-            startPos=Mini.Position
-        end
-    end)
-
-    U.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
-            local delta=input.Position-dragStart
-            Mini.Position=UDim2.new(
-                startPos.X.Scale,startPos.X.Offset+delta.X,
-                startPos.Y.Scale,startPos.Y.Offset+delta.Y
-            )
-        end
-    end)
-
-    U.InputEnded:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-            dragging=false
-        end
-    end)
+local function new(c,pr,par)
+	local x=Instance.new(c)
+	for k,v in pairs(pr) do x[k]=v end
+	x.Parent=par
+	return x
+end
+local function round(x,r)
+	new("UICorner",{CornerRadius=UDim.new(0,r)},x)
+end
+local function outline(x)
+	new("UIStroke",{Color=Color3.fromRGB(255,45,45),Thickness=1},x)
 end
 
-local function open(v)
-    if v then
-        Mini.Visible=false
-        Main.Visible=true
-        Main.Size=UDim2.new(.72,0,.05,0)
-        T:Create(Main,TweenInfo.new(.24,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(.82,0,.66,0)}):Play()
-    else
-        T:Create(Main,TweenInfo.new(.18,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.new(.72,0,.05,0)}):Play()
-        task.delay(.18,function()
-            Main.Visible=false
-            Main.Size=UDim2.new(.82,0,.66,0)
-            Mini.Visible=true
-        end)
-    end
+local function tween(obj, props, duration, style, direction)
+	local info=TweenInfo.new(duration or .16,style or Enum.EasingStyle.Quad,direction or Enum.EasingDirection.Out)
+	TS:Create(obj,info,props):Play()
 end
 
-min.MouseButton1Click:Connect(function()open(false)end)
-close.MouseButton1Click:Connect(function()open(false)end)
+local function buttonFX(btn,normal,hover,down)
+	btn.MouseEnter:Connect(function()
+		tween(btn,{BackgroundColor3=hover},.12)
+	end)
+	btn.MouseLeave:Connect(function()
+		tween(btn,{BackgroundColor3=normal},.16)
+	end)
+	btn.MouseButton1Down:Connect(function()
+		tween(btn,{BackgroundColor3=down},.07,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+	end)
+	btn.MouseButton1Up:Connect(function()
+		tween(btn,{BackgroundColor3=hover},.10)
+	end)
+end
 
--- Single click opens; dragging keeps the mini widget movable.
-local miniDown=nil
-Mini.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-        miniDown=input.Position
-    end
+local gui=new("ScreenGui",{Name="AimESPPOV",ResetOnSpawn=false,IgnoreGuiInset=true,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=100},LP:WaitForChild("PlayerGui"))
+
+-- UI sound effects
+local clickSound=new("Sound",{Name="UIClick",SoundId="rbxassetid://116394299154002",Volume=.45},SoundService)
+local closeSound=new("Sound",{Name="UIClose",SoundId="rbxassetid://138567614125924",Volume=.55},SoundService)
+local openSound=new("Sound",{Name="UIOpen",SoundId="rbxassetid://86850632846358",Volume=.55},SoundService)
+local function playSound(snd)
+	if snd.IsPlaying then snd:Stop() end
+	snd:Play()
+end
+local glow=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(636,406),BackgroundColor3=Color3.fromRGB(255,20,20),BackgroundTransparency=.91,BorderSizePixel=0,ZIndex=1},gui);round(glow,18)
+local main=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(620,390),BackgroundColor3=Color3.fromRGB(8,9,13),BorderSizePixel=0,ClipsDescendants=true,ZIndex=5},gui);round(main,16);outline(main)
+local mainStroke=main:FindFirstChildOfClass("UIStroke")
+local top=new("Frame",{Size=UDim2.new(1,0,0,55),BackgroundColor3=Color3.fromRGB(14,16,22),BorderSizePixel=0,ZIndex=6},main);round(top,16)
+local topGlow=new("Frame",{Position=UDim2.fromOffset(14,51),Size=UDim2.new(1,-28,0,2),BackgroundColor3=Color3.fromRGB(255,40,45),BorderSizePixel=0,ZIndex=8},top);round(topGlow,2)
+local topGrad=new("UIGradient",{Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(85,15,20)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,70,70)),ColorSequenceKeypoint.new(1,Color3.fromRGB(85,15,20))}),Offset=Vector2.new(-1,0),Rotation=0},topGlow)
+tween(topGrad,{Offset=Vector2.new(1,0)},1.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
+topGrad:GetPropertyChangedSignal("Offset"):Connect(function()
+	if topGrad.Offset.X>=.95 then
+		topGrad.Offset=Vector2.new(-1,0)
+		tween(topGrad,{Offset=Vector2.new(1,0)},1.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
+	end
 end)
-Mini.InputEnded:Connect(function(input)
-    if (input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch) and miniDown then
-        if (input.Position-miniDown).Magnitude < 8 then
-            open(true)
-        end
-        miniDown=nil
-    end
+new("TextLabel",{Position=UDim2.fromOffset(18,7),Size=UDim2.fromOffset(330,24),BackgroundTransparency=1,Text="⚡ AIM  •  ESP  •  POV",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=17,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},top)
+new("TextLabel",{Position=UDim2.fromOffset(19,30),Size=UDim2.fromOffset(300,17),BackgroundTransparency=1,Text="PRIVATE MAP CONTROL",TextColor3=Color3.fromRGB(130,135,145),Font=Enum.Font.GothamMedium,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},top)
+local statusDot=new("Frame",{Position=UDim2.new(1,-167,0,19),Size=UDim2.fromOffset(8,8),BackgroundColor3=Color3.fromRGB(255,55,60),BorderSizePixel=0,ZIndex=8},top);round(statusDot,5)
+local statusStroke=new("UIStroke",{Color=Color3.fromRGB(255,85,85),Thickness=1,Transparency=.25},statusDot)
+local statusText=new("TextLabel",{Position=UDim2.new(1,-151,0,13),Size=UDim2.fromOffset(92,18),BackgroundTransparency=1,Text="SYSTEM READY",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamBold,TextSize=8,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},top)
+local minb=new("TextButton",{Position=UDim2.new(1,-86,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="−",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=19,AutoButtonColor=false,ZIndex=8},top);round(minb,9)
+local closeb=new("TextButton",{Position=UDim2.new(1,-47,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(55,24,28),Text="×",TextColor3=Color3.fromRGB(255,100,100),Font=Enum.Font.GothamBold,TextSize=19,AutoButtonColor=false,ZIndex=8},top);round(closeb,9)
+buttonFX(minb,Color3.fromRGB(27,29,37),Color3.fromRGB(45,48,59),Color3.fromRGB(70,24,28))
+buttonFX(closeb,Color3.fromRGB(55,24,28),Color3.fromRGB(85,30,35),Color3.fromRGB(120,35,42))
+
+local function drag(frame)
+	local on=false;local start=Vector2.zero;local pos=UDim2.new()
+	frame.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then on=true;start=i.Position;pos=frame.Position end end)
+	UIS.InputChanged:Connect(function(i)
+		if not on or (i.UserInputType~=Enum.UserInputType.MouseMovement and i.UserInputType~=Enum.UserInputType.Touch) then return end
+		local d=i.Position-start
+		frame.Position=UDim2.new(pos.X.Scale,pos.X.Offset+d.X,pos.Y.Scale,pos.Y.Offset+d.Y)
+	end)
+	UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then on=false end end)
+end
+drag(top)
+
+local mini=new("TextButton",{AnchorPoint=Vector2.new(.5,.5),Position=main.Position,Size=UDim2.fromOffset(145,42),BackgroundColor3=Color3.fromRGB(10,11,15),Text="⚡  FPS TOOL",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=13,AutoButtonColor=false,Visible=false,ZIndex=30},gui);round(mini,12);outline(mini);drag(mini)
+local miniStroke=mini:FindFirstChildOfClass("UIStroke");if miniStroke then miniStroke.Thickness=1.5 end
+buttonFX(mini,Color3.fromRGB(10,11,15),Color3.fromRGB(30,14,18),Color3.fromRGB(58,18,23))
+minb.MouseButton1Click:Connect(function()
+	playSound(clickSound)
+	mini.Position=main.Position;main.Visible=false;glow.Visible=false;mini.Visible=true
 end)
-local FOV=Instance.new('Frame',G);FOV.AnchorPoint=Vector2.new(.5,.5);FOV.Position=UDim2.fromScale(.5,.5);FOV.BackgroundTransparency=1;FOV.Visible=false;FOV.ZIndex=4;cr(FOV,999);stroke(FOV,col.cyan,1,.2)
-local Marker=Instance.new('Frame',G);Marker.AnchorPoint=Vector2.new(.5,.5);Marker.Size=UDim2.fromOffset(28,28);Marker.BackgroundTransparency=1;Marker.Visible=false;Marker.ZIndex=8;local mt=tx(Marker,'◎',28,true,col.red);mt.Size=UDim2.fromScale(1,1);mt.TextXAlignment=Enum.TextXAlignment.Center
-local Dash=bt(G,'DASH');Dash.Size=UDim2.fromOffset(92,48);Dash.Position=UDim2.new(1,-24,1,-24);Dash.AnchorPoint=Vector2.new(1,1);Dash.Visible=false;Dash.ZIndex=12;stroke(Dash,col.bright,2,.05)
-local canDash=true;local function dash()if not S.Dash or not canDash then return end;local ch=LP.Character;local r=ch and ch:FindFirstChild('HumanoidRootPart');if not r then return end;canDash=false;local h=ch:FindFirstChildOfClass('Humanoid');local d=h and h.MoveDirection or Vector3.zero;if d.Magnitude<.05 then local q=C.CFrame.LookVector;d=Vector3.new(q.X,0,q.Z)end;if d.Magnitude>0 then d=d.Unit end;r.AssemblyLinearVelocity=d*S.DashDistance+Vector3.new(0,r.AssemblyLinearVelocity.Y,0);Dash.Text='COOLDOWN';task.delay(S.DashCooldown,function()canDash=true;Dash.Text='DASH'end)end;Dash.MouseButton1Click:Connect(dash)
-local aimHeld=false;U.InputBegan:Connect(function(i,gp)if gp then return end;if i.UserInputType==Enum.UserInputType.MouseButton2 then aimHeld=true end;if i.KeyCode==Enum.KeyCode.Q then dash()end;if i.KeyCode==Enum.KeyCode.LeftShift then S.Sprint=true end end);U.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton2 then aimHeld=false end;if i.KeyCode==Enum.KeyCode.LeftShift then S.Sprint=false end end);U.JumpRequest:Connect(function()if S.InfJump then local h=LP.Character and LP.Character:FindFirstChildOfClass('Humanoid');if h then h:ChangeState(Enum.HumanoidStateType.Jumping)end end end)
-local fire=RS:FindFirstChild('FPSFireRequest')or Instance.new('BindableEvent');fire.Name='FPSFireRequest';fire.Parent=RS;local last=0
-local function part(ch)return S.TargetPart=='Body'and(ch:FindFirstChild('UpperTorso')or ch:FindFirstChild('Torso')or ch:FindFirstChild('HumanoidRootPart'))or ch:FindFirstChild('Head')end
-local function visible(ch,p)if not S.Wall then return true end;local rp=RaycastParams.new();rp.FilterType=Enum.RaycastFilterType.Exclude;rp.FilterDescendantsInstances={LP.Character};local hit=W:Raycast(C.CFrame.Position,p.Position-C.CFrame.Position,rp);return not hit or hit.Instance:IsDescendantOf(ch)end
-local function target()local best,score=nil,math.huge;local center=C.ViewportSize/2;for _,pl in ipairs(P:GetPlayers())do if pl~=LP and(not S.Team or pl.Team~=LP.Team)then local ch=pl.Character;local hm=ch and ch:FindFirstChildOfClass('Humanoid');local pt=ch and part(ch);if hm and hm.Health>0 and pt and visible(ch,pt)then local sp,on=C:WorldToViewportPoint(pt.Position);if on and sp.Z>0 then local dist=(C.CFrame.Position-pt.Position).Magnitude;local sc=S.Priority=='Crosshair'and(Vector2.new(sp.X,sp.Y)-center).Magnitude or dist;if S.Priority=='Crosshair'and sc>S.FOV then sc=math.huge end;if sc<score then score=sc;best={pl,pt,Vector2.new(sp.X,sp.Y)}end end end end end;return best end
-local fps=0;local frames=0;local timer=time();Run.RenderStepped:Connect(function(dt)C.FieldOfView=S.CameraFOV;FOV.Size=UDim2.fromOffset(S.FOV*2,S.FOV*2);FOV.Visible=S.AimLock or S.AimAssist;Dash.Visible=S.Dash;local ch=LP.Character;local hm=ch and ch:FindFirstChildOfClass('Humanoid');if hm then hm.WalkSpeed=S.Sprint and S.Speed*1.5 or S.Speed;hm.JumpPower=S.Jump end;if S.AimLock or S.AimAssist then local t=target();if t then Marker.Visible=true;Marker.Position=UDim2.fromOffset(t[3].X,t[3].Y);local pos=t[2].Position;if S.Prediction then pos+=t[2].AssemblyLinearVelocity*.12 end;local goal=CFrame.lookAt(C.CFrame.Position,pos);local a=math.clamp((S.Strength/100)*(1-S.Smooth/110)*dt*14,0,1);C.CFrame=C.CFrame:Lerp(goal,a);if S.AutoFire and time()-last>.12 then last=time();local o=C.CFrame.Position;fire:Fire(t[1],t[2],o,(t[2].Position-o).Unit)end end else Marker.Visible=false end;frames+=1;if time()-timer>=1 then fps=frames;frames=0;timer=time()end end)
--- Simple ESP highlights / labels
-local esp={};local function remove(p)if esp[p]then esp[p]:Destroy();esp[p]=nil end end;local function make(p)if p==LP or not S.ESP then return end;local ch=p.Character;local hd=ch and ch:FindFirstChild('Head');if not hd then return end;remove(p);local bb=Instance.new('BillboardGui',hd);bb.Adornee=hd;bb.Size=UDim2.fromOffset(180,55);bb.StudsOffset=Vector3.new(0,2.6,0);bb.AlwaysOnTop=true;local q=Instance.new('Frame',bb);q.Size=UDim2.fromScale(1,1);q.BackgroundColor3=col.bg;q.BackgroundTransparency=.2;cr(q,7);stroke(q,col.cyan,1,.25);local n=tx(q,S.Names and p.DisplayName or'',11,true);n.Size=UDim2.new(1,0,0,20);n.TextXAlignment=Enum.TextXAlignment.Center;local inf=tx(q,'',9,false,col.cyan);inf.Position=UDim2.fromOffset(0,22);inf.Size=UDim2.new(1,0,0,25);inf.TextXAlignment=Enum.TextXAlignment.Center;esp[p]=bb;task.spawn(function()while bb.Parent do local h=ch:FindFirstChildOfClass('Humanoid');local a={};if S.Health and h then table.insert(a,'HP '..math.floor(h.Health))end;if S.Distance and LP.Character and LP.Character:FindFirstChild('HumanoidRootPart')then table.insert(a,math.floor((LP.Character.HumanoidRootPart.Position-hd.Position).Magnitude)..'m')end;inf.Text=table.concat(a,'   ');task.wait(.15)end end)end
-P.PlayerAdded:Connect(function(p)p.CharacterAdded:Connect(function()task.wait(.5);make(p)end)end);P.PlayerRemoving:Connect(remove)
--- First page
-for k,b in pairs(TB)do if k~='AIM'then b.BackgroundColor3=col.panel end end;build('AIM');TB.AIM.BackgroundColor3=Color3.fromRGB(0,82,142)
+mini.MouseButton1Click:Connect(function()
+	playSound(openSound)
+	mini.Visible=false;main.Visible=true;glow.Visible=true
+end)
+closeb.MouseButton1Click:Connect(function()
+	playSound(closeSound)
+	gui.Enabled=false
+end)
+UIS.InputBegan:Connect(function(i,p)
+	if not p and i.KeyCode==Enum.KeyCode.RightShift then
+		local wasEnabled=gui.Enabled
+		gui.Enabled=not wasEnabled
+		if not wasEnabled then playSound(openSound) end
+	end
+end)
+
+
+local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BorderSizePixel=0,ZIndex=6},main);round(side,12)
+local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundTransparency=1,ZIndex=6},main)
+local tabs={};local pg={}
+local function page(n)
+	local x=new("Frame",{Name=n,Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,ZIndex=7},pages);pg[n]=x;return x
+end
+local function tab(n,y)
+	local b=new("TextButton",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,52),BackgroundColor3=Color3.fromRGB(18,20,27),Text=n,TextColor3=Color3.fromRGB(180,185,195),Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,ZIndex=7},side);round(b,10);tabs[n]=b
+	local ind=new("Frame",{Position=UDim2.fromOffset(4,9),Size=UDim2.fromOffset(3,34),BackgroundColor3=Color3.fromRGB(255,60,65),BorderSizePixel=0,Visible=false,ZIndex=8},b);round(ind,2)
+	b:SetAttribute("Active",false)
+	b.MouseEnter:Connect(function()
+		tween(b,{BackgroundColor3=b:GetAttribute("Active") and Color3.fromRGB(82,25,30) or Color3.fromRGB(30,23,28)},.12)
+	end)
+	b.MouseLeave:Connect(function()
+		tween(b,{BackgroundColor3=b:GetAttribute("Active") and Color3.fromRGB(72,22,26) or Color3.fromRGB(18,20,27)},.16)
+	end)
+	b.MouseButton1Down:Connect(function() tween(b,{BackgroundColor3=Color3.fromRGB(50,24,30)},.07) end)
+	b.MouseButton1Up:Connect(function() tween(b,{BackgroundColor3=b:GetAttribute("Active") and Color3.fromRGB(82,25,30) or Color3.fromRGB(30,23,28)},.10) end)
+end
+tab("🎯  AIM",10);tab("👁  ESP",67);tab("◉  POV",124)
+local A=page("AIM");local E=page("ESP");local P=page("POV")
+-- Click sound untuk seluruh tombol UI biasa. Tombol buka/tutup di atas memakai suara khusus.
+for _,obj in ipairs(gui:GetDescendants()) do
+	if obj:IsA("GuiButton") and obj~=minb and obj~=closeb and obj~=mini then
+		obj.MouseButton1Click:Connect(function() playSound(clickSound) end)
+	end
+end
+
+local function select(n)
+	for k,b in pairs(tabs) do
+		local active=(k==n)
+		b:SetAttribute("Active",active)
+		local ind=b:FindFirstChildWhichIsA("Frame")
+		b.BackgroundColor3=active and Color3.fromRGB(72,22,26) or Color3.fromRGB(18,20,27)
+		b.TextColor3=active and Color3.fromRGB(255,90,90) or Color3.fromRGB(180,185,195)
+		if ind then ind.Visible=active end
+	end
+	for k,x in pairs(pg) do
+		if k==n then
+			x.Visible=true
+			for _,child in ipairs(x:GetChildren()) do
+				if child:IsA("GuiObject") then
+					local oldPos=child.Position
+					child.Position=UDim2.new(oldPos.X.Scale,oldPos.X.Offset+6,oldPos.Y.Scale,oldPos.Y.Offset)
+					tween(child,{Position=oldPos},.18,Enum.EasingStyle.Quint,Enum.EasingDirection.Out)
+				end
+			end
+		else
+			x.Visible=false
+		end
+	end
+end
+for n,b in pairs(tabs) do b.MouseButton1Click:Connect(function() select(n) end) end
+
+local function label(par,t,y)
+	new("TextLabel",{Position=UDim2.fromOffset(8,y),Size=UDim2.new(1,-16,0,22),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},par)
+end
+local function toggle(par,t,y,get,set)
+	local r=new("Frame",{Position=UDim2.fromOffset(5,y),Size=UDim2.new(1,-10,0,43),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=8},par);round(r,9)
+	new("TextLabel",{Position=UDim2.fromOffset(12,0),Size=UDim2.new(1,-75,1,0),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=9},r)
+	local b=new("TextButton",{Position=UDim2.new(1,-61,.5,-13),Size=UDim2.fromOffset(49,26),BackgroundColor3=Color3.fromRGB(48,50,59),Text="",AutoButtonColor=false,ZIndex=9},r);round(b,13)
+	local k=new("Frame",{Position=UDim2.fromOffset(4,4),Size=UDim2.fromOffset(18,18),BackgroundColor3=Color3.fromRGB(230,230,235),BorderSizePixel=0,ZIndex=10},b);round(k,10)
+	new("UIStroke",{Color=Color3.fromRGB(255,255,255),Thickness=1,Transparency=.55},k)
+	local function refresh()
+		local v=get()
+		b.BackgroundColor3=v and Color3.fromRGB(145,25,30) or Color3.fromRGB(48,50,59)
+		k.Position=v and UDim2.new(1,-22,0,4) or UDim2.fromOffset(4,4)
+		k.BackgroundColor3=v and Color3.fromRGB(255,245,245) or Color3.fromRGB(230,230,235)
+	end
+	b.MouseButton1Click:Connect(function() set(not get());refresh() end)
+	b.MouseEnter:Connect(function() tween(b,{BackgroundColor3=get() and Color3.fromRGB(175,35,42) or Color3.fromRGB(65,67,78)},.12) end)
+	b.MouseLeave:Connect(function() tween(b,{BackgroundColor3=get() and Color3.fromRGB(145,25,30) or Color3.fromRGB(48,50,59)},.16) end)
+	b.MouseButton1Down:Connect(function() tween(b,{BackgroundColor3=Color3.fromRGB(88,28,34)},.07) end)
+	b.MouseButton1Up:Connect(function() tween(b,{BackgroundColor3=get() and Color3.fromRGB(175,35,42) or Color3.fromRGB(65,67,78)},.10) end)
+	refresh()
+end
+local function slider(par,t,y,min,max,get,set)
+	local r=new("Frame",{Position=UDim2.fromOffset(5,y),Size=UDim2.new(1,-10,0,62),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=8},par);round(r,9)
+	local txt=new("TextLabel",{Position=UDim2.fromOffset(12,5),Size=UDim2.new(1,-24,0,20),BackgroundTransparency=1,TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=9},r)
+	local bar=new("Frame",{Position=UDim2.fromOffset(12,35),Size=UDim2.new(1,-24,0,8),BackgroundColor3=Color3.fromRGB(44,46,54),BorderSizePixel=0,ZIndex=9},r);round(bar,5)
+	local fill=new("Frame",{Size=UDim2.new(),BackgroundColor3=Color3.fromRGB(230,42,48),BorderSizePixel=0,ZIndex=10},bar);round(fill,5)
+	local moving=false
+	local function setx(x) local a=math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1);set(min+(max-min)*a) end
+	local function refresh() local v=get();local a=math.clamp((v-min)/(max-min),0,1);fill.Size=UDim2.new(a,0,1,0);txt.Text=t.."   "..math.round(v) end
+	bar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then moving=true;setx(i.Position.X);refresh() end end)
+	UIS.InputChanged:Connect(function(i) if moving and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then setx(i.Position.X);refresh() end end)
+	UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then moving=false end end)
+	refresh()
+end
+
+label(A,"AIM LOCK",5)
+toggle(A,"Aim Lock",34,function() return aim end,function(v) aim=v end)
+toggle(A,"Auto Fire",83,function() return autoFire end,function(v) autoFire=v end)
+slider(A,"Aim Strength",132,1,100,function() return strength end,function(v) strength=v end)
+new("TextLabel",{Position=UDim2.fromOffset(8,206),Size=UDim2.new(1,-16,0,55),BackgroundTransparency=1,Text="Locks only to visible players inside the POV circle. Walls/objects block the lock.",TextColor3=Color3.fromRGB(125,130,140),Font=Enum.Font.Gotham,TextSize=10,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},A)
+
+label(E,"ESP TYPES",5)
+local types={{"Box ESP","Box"},{"Name ESP","Name"},{"Distance ESP","Distance"},{"Health ESP","Health"},{"Tracer ESP","Tracer"},{"Highlight ESP","Highlight"},{"Skeleton ESP","Skeleton"}}
+for i,v in ipairs(types) do
+	local col=(i-1)%2;local row=math.floor((i-1)/2);local x=col==0 and 5 or 210;y=34+row*51
+	local r=new("Frame",{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(195,43),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=8},E);round(r,9)
+	new("TextLabel",{Position=UDim2.fromOffset(10,0),Size=UDim2.new(1,-55,1,0),BackgroundTransparency=1,Text=v[1],TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=9},r)
+	local b=new("TextButton",{Position=UDim2.new(1,-45,.5,-12),Size=UDim2.fromOffset(36,24),BackgroundColor3=Color3.fromRGB(145,25,30),Text="ON",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=9,AutoButtonColor=false,ZIndex=9},r);round(b,8)
+	local function espButtonRefresh()
+		local on=esp[v[2]]
+		b.Text=on and "ON" or "OFF"
+		b.BackgroundColor3=on and Color3.fromRGB(145,25,30) or Color3.fromRGB(48,50,59)
+	end
+	b.MouseEnter:Connect(function() tween(b,{BackgroundColor3=esp[v[2]] and Color3.fromRGB(175,35,42) or Color3.fromRGB(65,67,78)},.12) end)
+	b.MouseLeave:Connect(function() tween(b,{BackgroundColor3=esp[v[2]] and Color3.fromRGB(145,25,30) or Color3.fromRGB(48,50,59)},.16) end)
+	b.MouseButton1Down:Connect(function() tween(b,{BackgroundColor3=Color3.fromRGB(105,22,28)},.07) end)
+	b.MouseButton1Up:Connect(function() tween(b,{BackgroundColor3=esp[v[2]] and Color3.fromRGB(175,35,42) or Color3.fromRGB(65,67,78)},.10) end)
+	b.MouseButton1Click:Connect(function() local k=v[2];esp[k]=not esp[k];espButtonRefresh() end)
+	espButtonRefresh()
+end
+
+label(P,"POV CIRCLE",5)
+toggle(P,"Invisible POV",34,function() return not povOn end,function(v) povOn=not v end)
+slider(P,"POV Size",83,60,450,function() return povSize end,function(v) povSize=math.round(v) end)
+
+local pov=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(povSize,povSize),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=2},gui)
+local povCorner=new("UICorner",{CornerRadius=UDim.new(0,povSize/2)},pov)
+local ps=new("UIStroke",{Thickness=2,Color=Color3.fromRGB(255,55,55),Transparency=.15},pov)
+
+local objects={}
+local function line(par)
+	return new("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=Color3.fromRGB(255,60,60),BorderSizePixel=0,ZIndex=3},par)
+end
+local function setLine(f,a,b)
+	local d=b-a;f.Position=UDim2.fromOffset((a.X+b.X)/2,(a.Y+b.Y)/2);f.Size=UDim2.fromOffset(math.max(d.Magnitude,1),1);f.Rotation=math.deg(math.atan2(d.Y,d.X))
+end
+local function create(model)
+	if objects[model] or model==LP.Character then return end
+	local h=model:FindFirstChildOfClass("Humanoid");local head=model:FindFirstChild("Head")
+	if not h or not head or not head:IsA("BasePart") then return end
+	local c=new("Frame",{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false,ZIndex=2},gui)
+	local box=new("Frame",{BackgroundTransparency=1,BorderSizePixel=2,BorderColor3=Color3.fromRGB(255,55,55),Visible=false,ZIndex=3},c)
+	local name=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.fromRGB(255,95,95),TextStrokeTransparency=0,Font=Enum.Font.GothamBold,TextSize=11,Visible=false,ZIndex=4},c)
+	local dist=new("TextLabel",{BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),TextStrokeTransparency=0,Font=Enum.Font.GothamMedium,TextSize=9,Visible=false,ZIndex=4},c)
+	local hb=new("Frame",{BackgroundColor3=Color3.fromRGB(30,30,35),BorderSizePixel=0,Visible=false,ZIndex=4},c);local hf=new("Frame",{BackgroundColor3=Color3.fromRGB(80,230,100),BorderSizePixel=0,Visible=false,ZIndex=5},hb)
+	local tr=line(c);tr.Visible=false
+	local hl=Instance.new("Highlight");hl.Name="ESPHighlight";hl.Adornee=model;hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;hl.FillColor=Color3.fromRGB(255,40,40);hl.FillTransparency=.78;hl.OutlineColor=Color3.fromRGB(255,80,80);hl.Enabled=false;hl.Parent=model
+	local sk={};for i=1,10 do sk[i]=line(c);sk[i].Visible=false end
+	objects[model]={c=c,box=box,name=name,dist=dist,hb=hb,hf=hf,tr=tr,hl=hl,sk=sk}
+end
+local function remove(m)
+	local o=objects[m];if not o then return end
+	if o.hl then o.hl:Destroy() end;o.c:Destroy();objects[m]=nil
+end
+
+local function update(m,o)
+	if not m.Parent or m==LP.Character or Players:GetPlayerFromCharacter(m)==nil then o.c.Visible=false;o.hl.Enabled=false;return end
+	local h=m:FindFirstChildOfClass("Humanoid");local root=m:FindFirstChild("HumanoidRootPart");local head=m:FindFirstChild("Head")
+	if not h or not root or not root:IsA("BasePart") or not head or not head:IsA("BasePart") or h.Health<=0 then o.c.Visible=false;o.hl.Enabled=false;return end
+	local cf,sz=m:GetBoundingBox();local minx,miny=math.huge,math.huge;local maxx,maxy=-math.huge,-math.huge
+	for sx=-1,1,2 do for sy=-1,1,2 do for szn=-1,1,2 do local w=cf.Position+cf.RightVector*(sz.X/2*sx)+cf.UpVector*(sz.Y/2*sy)+cf.LookVector*(sz.Z/2*szn);local p,on=Cam:WorldToViewportPoint(w);if on and p.Z>0 then minx=math.min(minx,p.X);miny=math.min(miny,p.Y);maxx=math.max(maxx,p.X);maxy=math.max(maxy,p.Y) end end end end
+	if minx==math.huge then o.c.Visible=false;o.hl.Enabled=false;return end
+	o.c.Visible=true;local w=math.max(maxx-minx,4);local ht=math.max(maxy-miny,4);local center=Vector2.new((minx+maxx)/2,(miny+maxy)/2)
+	o.box.Position=UDim2.fromOffset(minx,miny);o.box.Size=UDim2.fromOffset(w,ht);o.box.Visible=esp.Box
+	o.name.Position=UDim2.fromOffset(minx,miny-17);o.name.Size=UDim2.fromOffset(w,16);o.name.Text=m.Name;o.name.Visible=esp.Name
+	local d=(Cam.CFrame.Position-root.Position).Magnitude;o.dist.Position=UDim2.fromOffset(minx,maxy+2);o.dist.Size=UDim2.fromOffset(w,14);o.dist.Text=math.floor(d).."m";o.dist.Visible=esp.Distance
+	o.hb.Position=UDim2.fromOffset(minx-7,miny);o.hb.Size=UDim2.fromOffset(4,ht);o.hb.Visible=esp.Health;o.hf.AnchorPoint=Vector2.new(0,1);o.hf.Position=UDim2.new(0,0,1,0);o.hf.Size=UDim2.new(1,0,math.clamp(h.Health/math.max(h.MaxHealth,1),0,1),0);o.hf.Visible=esp.Health
+	setLine(o.tr,Vector2.new(Cam.ViewportSize.X/2,Cam.ViewportSize.Y-20),center);o.tr.Visible=esp.Tracer;o.hl.Enabled=esp.Highlight
+	local pts={};for _,n in ipairs({"Head","UpperTorso","LowerTorso","LeftUpperArm","LeftLowerArm","RightUpperArm","RightLowerArm","LeftUpperLeg","LeftLowerLeg","RightUpperLeg","RightLowerLeg"}) do local p=m:FindFirstChild(n);if p and p:IsA("BasePart") then local q,on=Cam:WorldToViewportPoint(p.Position);if on and q.Z>0 then pts[n]=Vector2.new(q.X,q.Y) end end end
+	local con={{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"}}
+	for i,cx in ipairs(con) do local a,b=pts[cx[1]],pts[cx[2]];if a and b then setLine(o.sk[i],a,b);o.sk[i].Visible=esp.Skeleton else o.sk[i].Visible=false end end
+end
+
+local function target()
+	-- Hanya Player, bukan NPC.
+	local ch=LP.Character
+	local rr=ch and ch:FindFirstChild("HumanoidRootPart")
+	if not rr or not rr:IsA("BasePart") then return nil end
+
+	local center=Vector2.new(Cam.ViewportSize.X/2,Cam.ViewportSize.Y/2)
+	local radius=povSize/2
+	local best=nil
+	local score=math.huge
+
+	for _,pl in ipairs(Players:GetPlayers()) do
+		if pl~=LP and (LP.Team==nil or pl.Team~=LP.Team) then
+			local x=pl.Character
+			local h=x and x:FindFirstChildOfClass("Humanoid")
+			local hd=x and x:FindFirstChild("Head")
+			local rt=x and x:FindFirstChild("HumanoidRootPart")
+
+			if h and h.Health>0 and hd and hd:IsA("BasePart")
+				and rt and rt:IsA("BasePart")
+				and (rr.Position-rt.Position).Magnitude<=2000 then
+
+				local p,on=Cam:WorldToViewportPoint(hd.Position)
+				if on and p.Z>0 then
+					local q=Vector2.new(p.X,p.Y)
+					local screenDistance=(q-center).Magnitude
+
+					if screenDistance<=radius and screenDistance<score then
+						-- Target hanya valid jika tidak ada tembok/objek
+						-- di antara kamera dan Head player.
+						local rp=RaycastParams.new()
+						rp.FilterType=Enum.RaycastFilterType.Exclude
+						rp.FilterDescendantsInstances={ch}
+
+						local direction=hd.Position-Cam.CFrame.Position
+						local hit=workspace:Raycast(Cam.CFrame.Position,direction,rp)
+
+						if hit and hit.Instance:IsDescendantOf(x) then
+							score=screenDistance
+							best=hd
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return best
+end
+
+select("AIM")
+local pulseClock=0
+RunService.RenderStepped:Connect(function(dt)
+	pulseClock+=dt
+	local pulse=(math.sin(pulseClock*3.2)+1)/2
+	statusDot.BackgroundTransparency=.05+(pulse*.45)
+	statusStroke.Transparency=.10+(pulse*.45)
+	if mainStroke then mainStroke.Transparency=.12+(pulse*.28) end
+	Cam=workspace.CurrentCamera
+	pov.Size=UDim2.fromOffset(povSize,povSize);pov.Visible=povOn;ps.Transparency=povOn and .15 or 1;if povCorner then povCorner.CornerRadius=UDim.new(0,povSize/2) end
+	local lockedTarget=nil
+	if aim then
+		lockedTarget=target()
+		if lockedTarget then
+			local want=CFrame.lookAt(Cam.CFrame.Position,lockedTarget.Position)
+			Cam.CFrame=Cam.CFrame:Lerp(want,math.clamp(strength/100*12*dt,0,1))
+		end
+	end
+
+	-- Auto Fire hanya aktif setelah Aim Lock benar-benar mendapatkan
+	-- target Player yang terlihat. Tidak menembak saat target terhalang.
+	if autoFire and aim and lockedTarget then
+		fireClock += dt
+		if fireClock >= autoFireRate then
+			fireClock = 0
+			local fireEvent=game:GetService("ReplicatedStorage"):FindFirstChild("FPSFireRequest")
+			if fireEvent and fireEvent:IsA("BindableEvent") then
+				fireEvent:Fire()
+			end
+		end
+	else
+		fireClock = 0
+	end
+	if lockedTarget then
+		statusText.Text="LOCKED  •  "..(lockedTarget.Parent and lockedTarget.Parent.Name or "TARGET")
+		statusText.TextColor3=Color3.fromRGB(255,105,110)
+	else
+		statusText.Text=aim and "SEARCHING..." or "SYSTEM READY"
+		statusText.TextColor3=Color3.fromRGB(190,195,205)
+	end
+	for m,o in pairs(objects) do if m.Parent then update(m,o) else remove(m) end end
+	for _,pl in ipairs(Players:GetPlayers()) do if pl.Character and pl.Character~=LP.Character then create(pl.Character) end end
+
+end)
+Players.PlayerRemoving:Connect(function(pl) if pl.Character then remove(pl.Character) end end)
