@@ -142,6 +142,92 @@ local oldGui=playerGui:FindFirstChild("AimESPPOV")
 if oldGui then oldGui:Destroy() end
 local gui=new("ScreenGui",{Name="AimESPPOV",ResetOnSpawn=false,IgnoreGuiInset=true,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=100},playerGui)
 
+-- Fullscreen background image. It stays behind the compact toolkit UI.
+local FULLSCREEN_BG_ID="rbxassetid://7112218128"
+local fullscreenBg=new("ImageLabel",{
+	Name="FullscreenBackground",
+	Size=UDim2.fromScale(1,1),
+	Position=UDim2.fromScale(0,0),
+	BackgroundColor3=Color3.fromRGB(4,5,8),
+	BackgroundTransparency=0,
+	BorderSizePixel=0,
+	Image=FULLSCREEN_BG_ID,
+	ImageTransparency=0,
+	ScaleType=Enum.ScaleType.Crop,
+	ZIndex=0
+},gui)
+
+-- Loading screen / intro video
+local LOADING_VIDEO_ID="rbxassetid://5608303923"
+local loading=new("Frame",{
+	Name="LoadingScreen",
+	Size=UDim2.fromScale(1,1),
+	Position=UDim2.fromScale(0,0),
+	BackgroundColor3=Color3.fromRGB(4,5,8),
+	BackgroundTransparency=0,
+	BorderSizePixel=0,
+	ZIndex=1000
+},gui)
+local loadingVideo=new("VideoFrame",{
+	Name="LoadingVideo",
+	AnchorPoint=Vector2.new(.5,.5),
+	Position=UDim2.fromScale(.5,.5),
+	Size=UDim2.fromScale(1,1),
+	BackgroundTransparency=1,
+	BorderSizePixel=0,
+	Video=LOADING_VIDEO_ID,
+	Looped=false,
+	Playing=false,
+	Volume=0,
+	ZIndex=1001
+},loading)
+local loadingShade=new("Frame",{
+	Size=UDim2.fromScale(1,1),
+	BackgroundColor3=Color3.fromRGB(0,0,0),
+	BackgroundTransparency=.38,
+	BorderSizePixel=0,
+	ZIndex=1002
+},loading)
+local loadingTitle=new("TextLabel",{
+	AnchorPoint=Vector2.new(.5,.5),
+	Position=UDim2.fromScale(.5,.84),
+	Size=UDim2.fromOffset(420,32),
+	BackgroundTransparency=1,
+	Text="AIM • ESP • POV",
+	TextColor3=Color3.fromRGB(255,70,70),
+	Font=Enum.Font.GothamBold,
+	TextSize=20,
+	TextXAlignment=Enum.TextXAlignment.Center,
+	ZIndex=1003
+},loading)
+local loadingStatus=new("TextLabel",{
+	AnchorPoint=Vector2.new(.5,.5),
+	Position=UDim2.fromScale(.5,.895),
+	Size=UDim2.fromOffset(420,22),
+	BackgroundTransparency=1,
+	Text="LOADING...",
+	TextColor3=Color3.fromRGB(205,210,220),
+	Font=Enum.Font.GothamMedium,
+	TextSize=10,
+	TextXAlignment=Enum.TextXAlignment.Center,
+	ZIndex=1003
+},loading)
+local loadingBarBG=new("Frame",{
+	AnchorPoint=Vector2.new(.5,.5),
+	Position=UDim2.fromScale(.5,.945),
+	Size=UDim2.fromOffset(300,4),
+	BackgroundColor3=Color3.fromRGB(35,37,45),
+	BorderSizePixel=0,
+	ZIndex=1003
+},loading);round(loadingBarBG,2)
+local loadingBar=new("Frame",{
+	Size=UDim2.new(0,0,1,0),
+	BackgroundColor3=Color3.fromRGB(255,55,60),
+	BorderSizePixel=0,
+	ZIndex=1004
+},loadingBarBG);round(loadingBar,2)
+
+
 -- UI sound effects
 for _,soundName in ipairs({"UIClick","UIClose","UIOpen"}) do
 	local oldSound=SoundService:FindFirstChild(soundName)
@@ -165,6 +251,7 @@ end
 applySoundVolume()
 local glow=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(636,406),BackgroundColor3=Color3.fromRGB(255,20,20),BackgroundTransparency=.91,BorderSizePixel=0,ZIndex=1},gui);round(glow,18)
 local main=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(620,390),BackgroundColor3=Color3.fromRGB(8,9,13),BorderSizePixel=0,ClipsDescendants=true,ZIndex=5},gui);round(main,16);outline(main)
+main.Visible=false
 local mainStroke=main:FindFirstChildOfClass("UIStroke")
 local top=new("Frame",{Size=UDim2.new(1,0,0,55),BackgroundColor3=Color3.fromRGB(14,16,22),BorderSizePixel=0,ZIndex=6},main);round(top,16)
 local topGlow=new("Frame",{Position=UDim2.fromOffset(14,51),Size=UDim2.new(1,-28,0,2),BackgroundColor3=Color3.fromRGB(255,40,45),BorderSizePixel=0,ZIndex=8},top);round(topGlow,2)
@@ -758,6 +845,52 @@ local fpsAccumulator=0
 local fpsFrames=0
 local fpsDisplay=0
 local statsClock=0
+
+-- Play the loading video once, then reveal the toolkit. A timeout prevents a failed/unavailable video asset from blocking the UI.
+task.spawn(function()
+	local started=os.clock()
+	loadingVideo.TimePosition=0
+	loadingVideo.Playing=true
+	local loaded=false
+	while os.clock()-started<10 do
+		local isLoaded=false
+		pcall(function() isLoaded=loadingVideo.IsLoaded end)
+		if isLoaded then loaded=true end
+		local length=0
+		pcall(function() length=loadingVideo.TimeLength end)
+		local position=0
+		pcall(function() position=loadingVideo.TimePosition end)
+		if length>0 then
+			local progress=math.clamp(position/math.max(length,.01),0,1)
+			loadingBar.Size=UDim2.new(progress,0,1,0)
+			if progress>=.985 then break end
+		elseif loaded then
+			loadingBar.Size=UDim2.new(math.clamp((os.clock()-started)/3,0,1),0,1,0)
+		else
+			loadingBar.Size=UDim2.new(math.clamp((os.clock()-started)/10,0,.85),0,1,0)
+		end
+		if not loadingVideo.Playing and loaded then
+			loadingVideo.Playing=true
+		end
+		task.wait(.05)
+	end
+	loadingBar.Size=UDim2.new(1,0,1,0)
+	loadingStatus.Text="READY"
+	task.wait(.12)
+	local fadeInfo=TweenInfo.new(.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+	pcall(function() TS:Create(loadingVideo,fadeInfo,{ImageTransparency=1}):Play() end)
+	local f1=TS:Create(loadingShade,fadeInfo,{BackgroundTransparency=1})
+	local f2=TS:Create(loadingTitle,fadeInfo,{TextTransparency=1})
+	local f3=TS:Create(loadingStatus,fadeInfo,{TextTransparency=1})
+	f1:Play();f2:Play();f3:Play()
+	TS:Create(loadingBarBG,fadeInfo,{BackgroundTransparency=1}):Play()
+	TS:Create(loadingBar,fadeInfo,{BackgroundTransparency=1}):Play()
+	task.wait(.4)
+	loadingVideo.Playing=false
+	loading.Visible=false
+	main.Visible=true
+	glow.Visible=uiGlow
+end)
 
 select("AIM")
 
