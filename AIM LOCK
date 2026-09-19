@@ -7,6 +7,8 @@ local RunService=game:GetService("RunService")
 local UIS=game:GetService("UserInputService")
 local TS=game:GetService("TweenService")
 local SoundService=game:GetService("SoundService")
+local Stats=game:GetService("Stats")
+local GuiService=game:GetService("GuiService")
 local LP=Players.LocalPlayer
 local Cam=workspace.CurrentCamera
 
@@ -26,6 +28,25 @@ local espRGB=false
 local povRGB=false
 local rgbSpeed=0.35
 
+-- Settings (new controls default OFF where applicable).
+local settingsOpen=false
+local uiAnimation=false
+local uiGlow=false
+local uiScale=1
+local uiTransparency=0
+local compactMode=false
+local themeRGB=false
+local themeR,themeG,themeB=255,55,55
+local themeSpeed=0.35
+local glowIntensity=0.91
+local uiSounds=false
+local clickSoundEnabled=false
+local openCloseSoundEnabled=false
+local rightShiftEnabled=false
+local touchDragEnabled=true
+local showMiniUI=true
+local performanceDevice=false
+
 local function new(c,pr,par)
 	local x=Instance.new(c)
 	for k,v in pairs(pr) do x[k]=v end
@@ -40,6 +61,10 @@ local function outline(x)
 end
 
 local function tween(obj, props, duration, style, direction)
+	if not uiAnimation then
+		for k,v in pairs(props) do obj[k]=v end
+		return
+	end
 	local info=TweenInfo.new(duration or .16,style or Enum.EasingStyle.Quad,direction or Enum.EasingDirection.Out)
 	TS:Create(obj,info,props):Play()
 end
@@ -74,11 +99,12 @@ local function dragWindow(targetFrame, glowFrame, headerHeight)
 	UIS.InputBegan:Connect(function(input,gameProcessed)
 		-- UI drag harus tetap menerima input meski Roblox menandainya processed.
 		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			if input.UserInputType==Enum.UserInputType.Touch and not touchDragEnabled then return end
 			if insideHeader(input.Position) then
 				-- Jangan mengambil tombol minimize/close.
 				local a=targetFrame.AbsolutePosition
 				local x=input.Position.X-a.X
-				if x<targetFrame.AbsoluteSize.X-95 then
+				if x<targetFrame.AbsoluteSize.X-140 then
 					dragging=true
 					activeInput=input
 					dragStart=input.Position
@@ -110,35 +136,44 @@ if oldGui then oldGui:Destroy() end
 local gui=new("ScreenGui",{Name="AimESPPOV",ResetOnSpawn=false,IgnoreGuiInset=true,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=100},playerGui)
 
 -- UI sound effects
+for _,soundName in ipairs({"UIClick","UIClose","UIOpen"}) do
+	local oldSound=SoundService:FindFirstChild(soundName)
+	if oldSound then oldSound:Destroy() end
+end
 local clickSound=new("Sound",{Name="UIClick",SoundId="rbxassetid://116394299154002",Volume=.45},SoundService)
 local closeSound=new("Sound",{Name="UIClose",SoundId="rbxassetid://138567614125924",Volume=.55},SoundService)
 local openSound=new("Sound",{Name="UIOpen",SoundId="rbxassetid://86850632846358",Volume=.55},SoundService)
 local function playSound(snd)
+	if not uiSounds then return end
+	if snd==clickSound and not clickSoundEnabled then return end
+	if snd~=clickSound and not openCloseSoundEnabled then return end
 	if snd.IsPlaying then snd:Stop() end
 	snd:Play()
 end
+local function applySoundVolume()
+	clickSound.Volume=.45
+	closeSound.Volume=.55
+	openSound.Volume=.55
+end
+applySoundVolume()
 local glow=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(636,406),BackgroundColor3=Color3.fromRGB(255,20,20),BackgroundTransparency=.91,BorderSizePixel=0,ZIndex=1},gui);round(glow,18)
 local main=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(620,390),BackgroundColor3=Color3.fromRGB(8,9,13),BorderSizePixel=0,ClipsDescendants=true,ZIndex=5},gui);round(main,16);outline(main)
 local mainStroke=main:FindFirstChildOfClass("UIStroke")
 local top=new("Frame",{Size=UDim2.new(1,0,0,55),BackgroundColor3=Color3.fromRGB(14,16,22),BorderSizePixel=0,ZIndex=6},main);round(top,16)
 local topGlow=new("Frame",{Position=UDim2.fromOffset(14,51),Size=UDim2.new(1,-28,0,2),BackgroundColor3=Color3.fromRGB(255,40,45),BorderSizePixel=0,ZIndex=8},top);round(topGlow,2)
-local topGrad=new("UIGradient",{Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(85,15,20)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,70,70)),ColorSequenceKeypoint.new(1,Color3.fromRGB(85,15,20))}),Offset=Vector2.new(-1,0),Rotation=0},topGlow)
-tween(topGrad,{Offset=Vector2.new(1,0)},1.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
-topGrad:GetPropertyChangedSignal("Offset"):Connect(function()
-	if topGrad.Offset.X>=.95 then
-		topGrad.Offset=Vector2.new(-1,0)
-		tween(topGrad,{Offset=Vector2.new(1,0)},1.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
-	end
-end)
+local topGrad=new("UIGradient",{Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(85,15,20)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,70,70)),ColorSequenceKeypoint.new(1,Color3.fromRGB(85,15,20))}),Offset=Vector2.new(0,0),Rotation=0},topGlow)
 new("TextLabel",{Position=UDim2.fromOffset(18,7),Size=UDim2.fromOffset(330,24),BackgroundTransparency=1,Text="⚡ AIM  •  ESP  •  POV",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=17,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},top)
 new("TextLabel",{Position=UDim2.fromOffset(19,30),Size=UDim2.fromOffset(300,17),BackgroundTransparency=1,Text="PRIVATE MAP CONTROL",TextColor3=Color3.fromRGB(130,135,145),Font=Enum.Font.GothamMedium,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},top)
 local statusDot=new("Frame",{Position=UDim2.new(1,-167,0,19),Size=UDim2.fromOffset(8,8),BackgroundColor3=Color3.fromRGB(255,55,60),BorderSizePixel=0,ZIndex=8},top);round(statusDot,5)
 local statusStroke=new("UIStroke",{Color=Color3.fromRGB(255,85,85),Thickness=1,Transparency=.25},statusDot)
 local statusText=new("TextLabel",{Position=UDim2.new(1,-151,0,13),Size=UDim2.fromOffset(92,18),BackgroundTransparency=1,Text="SYSTEM READY",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamBold,TextSize=8,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},top)
 local minb=new("TextButton",{Position=UDim2.new(1,-86,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="−",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=19,AutoButtonColor=false,ZIndex=8},top);round(minb,9)
+local settingsBtn=new("TextButton",{Position=UDim2.new(1,-128,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="⚙",TextColor3=Color3.fromRGB(225,225,230),Font=Enum.Font.GothamBold,TextSize=16,AutoButtonColor=false,ZIndex=8},top);round(settingsBtn,9)
 
 buttonFX(minb,Color3.fromRGB(27,29,37),Color3.fromRGB(45,48,59),Color3.fromRGB(70,24,28))
+buttonFX(settingsBtn,Color3.fromRGB(27,29,37),Color3.fromRGB(45,48,59),Color3.fromRGB(70,24,28))
 dragWindow(main,glow,55)
+local minimizeUI
 
 
 local mini=new("TextButton",{AnchorPoint=Vector2.new(.5,.5),Position=main.Position,Size=UDim2.fromOffset(145,42),BackgroundColor3=Color3.fromRGB(10,11,15),Text="⚡  FPS TOOL",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=13,AutoButtonColor=false,Visible=false,ZIndex=30},gui);round(mini,12);outline(mini)
@@ -151,6 +186,7 @@ local miniActiveInput=nil
 UIS.InputBegan:Connect(function(i)
 	if not mini.Visible then return end
 	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+		if i.UserInputType==Enum.UserInputType.Touch and not touchDragEnabled then return end
 		local a=mini.AbsolutePosition;local z=mini.AbsoluteSize
 		if i.Position.X>=a.X and i.Position.X<=a.X+z.X and i.Position.Y>=a.Y and i.Position.Y<=a.Y+z.Y then
 			miniDragging=true;miniMoved=false;miniActiveInput=i;miniDragStart=i.Position;miniStartPos=mini.Position
@@ -172,35 +208,22 @@ UIS.InputEnded:Connect(function(i)
 		local wasMoved=miniMoved
 		miniDragging=false;miniActiveInput=nil;miniMoved=false
 		if not wasMoved then
-			playSound(openSound);mini.Visible=false;main.Visible=true;glow.Visible=true
+			playSound(openSound);mini.Visible=false;main.Visible=true;glow.Visible=uiGlow
 		end
 	end
 end)
 local miniStroke=mini:FindFirstChildOfClass("UIStroke");if miniStroke then miniStroke.Thickness=1.5 end
 buttonFX(mini,Color3.fromRGB(10,11,15),Color3.fromRGB(30,14,18),Color3.fromRGB(58,18,23))
-minb.MouseButton1Click:Connect(function()
-	playSound(closeSound)
-	if not miniHasCustomPosition then
-		mini.Position=main.Position
-	end
-	main.Visible=false
-	glow.Visible=false
-	mini.Visible=true
-end)
+-- Minimize behavior is centralized in minimizeUI() below.
 
 UIS.InputBegan:Connect(function(i,p)
-	if not p and i.KeyCode==Enum.KeyCode.RightShift then
+	if rightShiftEnabled and not p and i.KeyCode==Enum.KeyCode.RightShift then
 		if main.Visible then
-			main.Visible=false
-			glow.Visible=false
-			if not miniHasCustomPosition then
-				mini.Position=main.Position
-			end
-			mini.Visible=true
 			playSound(closeSound)
+			minimizeUI()
 		else
 			main.Visible=true
-			glow.Visible=true
+			glow.Visible=uiGlow
 			mini.Visible=false
 			playSound(openSound)
 		end
@@ -521,6 +544,111 @@ local function target()
 	return best
 end
 
+-- ============================================================
+-- SETTINGS PANEL (separate from the 3 AIM / ESP / POV tabs)
+-- ============================================================
+local settingsPanel=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BorderSizePixel=0,Visible=false,ZIndex=20},main);round(settingsPanel,12)
+local settingsScroll=new("ScrollingFrame",{Position=UDim2.fromOffset(6,38),Size=UDim2.new(1,-12,1,-44),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=Color3.fromRGB(120,25,30),CanvasSize=UDim2.fromOffset(0,1000),ZIndex=21},settingsPanel)
+local settingsTitle=new("TextLabel",{Position=UDim2.fromOffset(12,7),Size=UDim2.new(1,-70,0,24),BackgroundTransparency=1,Text="⚙  SETTINGS",TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=22},settingsPanel)
+local settingsBack=new("TextButton",{Position=UDim2.new(1,-54,0,6),Size=UDim2.fromOffset(42,27),BackgroundColor3=Color3.fromRGB(27,29,37),Text="BACK",TextColor3=Color3.fromRGB(220,220,225),Font=Enum.Font.GothamBold,TextSize=8,AutoButtonColor=false,ZIndex=22},settingsPanel);round(settingsBack,8)
+buttonFX(settingsBack,Color3.fromRGB(27,29,37),Color3.fromRGB(45,48,59),Color3.fromRGB(70,24,28))
+local function settingLabel(t,y)
+	new("TextLabel",{Position=UDim2.fromOffset(7,y),Size=UDim2.new(1,-14,0,20),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=22},settingsScroll)
+end
+local function settingToggle(t,y,get,set)
+	toggle(settingsScroll,t,y,function() return get() end,function(v) set(v) end)
+end
+settingLabel("UI",5)
+settingToggle("UI Animation",28,function() return uiAnimation end,function(v) uiAnimation=v end)
+settingToggle("UI Glow",77,function() return uiGlow end,function(v) uiGlow=v end)
+settingToggle("Compact Mode",126,function() return compactMode end,function(v) compactMode=v end)
+slider(settingsScroll,"UI Scale",175,.70,1.30,function() return uiScale end,function(v) uiScale=v end)
+slider(settingsScroll,"UI Transparency",244,0,.55,function() return uiTransparency end,function(v) uiTransparency=v end)
+settingLabel("THEME",313)
+settingToggle("RGB Theme",336,function() return themeRGB end,function(v) themeRGB=v end)
+slider(settingsScroll,"Theme Red",385,0,255,function() return themeR end,function(v) themeR=math.round(v) end)
+slider(settingsScroll,"Theme Green",454,0,255,function() return themeG end,function(v) themeG=math.round(v) end)
+slider(settingsScroll,"Theme Blue",523,0,255,function() return themeB end,function(v) themeB=math.round(v) end)
+slider(settingsScroll,"RGB Speed",592,5,100,function() return themeSpeed*100 end,function(v) themeSpeed=math.clamp(v/100,.05,1) end)
+slider(settingsScroll,"Glow Intensity",661,0,.50,function() return glowIntensity*100 end,function(v) glowIntensity=math.clamp(v/100,0,.50) end)
+settingLabel("SOUND",730)
+settingToggle("UI Sounds",753,function() return uiSounds end,function(v) uiSounds=v end)
+settingToggle("Click Sound",802,function() return clickSoundEnabled end,function(v) clickSoundEnabled=v end)
+settingToggle("Open / Close Sound",851,function() return openCloseSoundEnabled end,function(v) openCloseSoundEnabled=v end)
+settingLabel("CONTROLS",900)
+settingToggle("RightShift Toggle",923,function() return rightShiftEnabled end,function(v) rightShiftEnabled=v end)
+settingToggle("Touch Drag",972,function() return touchDragEnabled end,function(v) touchDragEnabled=v end)
+settingToggle("Show Mini UI",1021,function() return showMiniUI end,function(v) showMiniUI=v end)
+settingLabel("PERFORMANCE / DEVICE",1070)
+settingToggle("Performance / Device",1093,function() return performanceDevice end,function(v) performanceDevice=v end)
+local perfCard=new("Frame",{Position=UDim2.fromOffset(5,1142),Size=UDim2.new(1,-10,0,165),BackgroundColor3=Color3.fromRGB(15,17,23),BorderSizePixel=0,ZIndex=22},settingsScroll);round(perfCard,9)
+local perfHeader=new("TextLabel",{Position=UDim2.fromOffset(12,8),Size=UDim2.new(1,-24,0,18),BackgroundTransparency=1,Text="📊 PERFORMANCE",TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamBold,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+local fpsValue=new("TextLabel",{Position=UDim2.fromOffset(15,31),Size=UDim2.new(1,-30,0,18),BackgroundTransparency=1,Text="FPS       ---",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+local pingValue=new("TextLabel",{Position=UDim2.fromOffset(15,51),Size=UDim2.new(1,-30,0,18),BackgroundTransparency=1,Text="Ping      --- ms",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+local signalValue=new("TextLabel",{Position=UDim2.fromOffset(15,71),Size=UDim2.new(1,-30,0,18),BackgroundTransparency=1,Text="Signal    ░░░░░░░░",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+local deviceHeader=new("TextLabel",{Position=UDim2.fromOffset(12,96),Size=UDim2.new(1,-24,0,18),BackgroundTransparency=1,Text="📱 DEVICE",TextColor3=Color3.fromRGB(220,222,228),Font=Enum.Font.GothamBold,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+local deviceValue=new("TextLabel",{Position=UDim2.fromOffset(15,116),Size=UDim2.new(1,-30,0,18),BackgroundTransparency=1,Text="Device    ---------",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+local platformValue=new("TextLabel",{Position=UDim2.fromOffset(15,136),Size=UDim2.new(1,-30,0,18),BackgroundTransparency=1,Text="Platform  --------",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+local playersValue=new("TextLabel",{Position=UDim2.fromOffset(15,156),Size=UDim2.new(1,-30,0,18),BackgroundTransparency=1,Text="Players   --",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamMedium,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=23},perfCard)
+settingsScroll.CanvasSize=UDim2.fromOffset(0,1320)
+
+local settingsUIScale=new("UIScale",{Scale=1},main)
+local miniUIScale=new("UIScale",{Scale=1},mini)
+local function applyVisualSettings()
+	local effectiveScale=uiScale*(compactMode and .86 or 1)
+	settingsUIScale.Scale=effectiveScale
+	miniUIScale.Scale=uiScale
+	glow.Visible=main.Visible and uiGlow
+	glow.BackgroundTransparency=1-math.clamp(glowIntensity,0,.50)
+	main.BackgroundTransparency=uiTransparency
+	pages.BackgroundTransparency=uiTransparency
+	settingsPanel.BackgroundTransparency=uiTransparency
+end
+settingsBack.MouseButton1Click:Connect(function() settingsOpen=false;settingsPanel.Visible=false;side.Visible=true;pages.Visible=true;select("AIM") end)
+settingsBtn.MouseButton1Click:Connect(function()
+	playSound(clickSound)
+	settingsOpen=not settingsOpen
+	settingsPanel.Visible=settingsOpen
+	side.Visible=not settingsOpen
+	pages.Visible=not settingsOpen
+end)
+
+-- Keep the mini button behavior consistent when Show Mini UI is disabled.
+minimizeUI=function()
+	if not miniHasCustomPosition then mini.Position=main.Position end
+	main.Visible=false
+	glow.Visible=false
+	mini.Visible=showMiniUI
+end
+
+-- Replace the existing minimize behavior with the centralized version.
+minb.MouseButton1Click:Connect(function() playSound(closeSound); minimizeUI() end)
+
+local renderTitle=top:FindFirstChildWhichIsA("TextLabel")
+
+local function getPingMs()
+	local ok,value=pcall(function()
+		return LP:GetNetworkPing()*1000
+	end)
+	return ok and value or nil
+end
+local function deviceText()
+	if UIS.TouchEnabled and not UIS.KeyboardEnabled and not UIS.MouseEnabled then return "Mobile" end
+	if UIS.GamepadEnabled and not UIS.KeyboardEnabled and not UIS.MouseEnabled then return "Console" end
+	if UIS.TouchEnabled and (UIS.KeyboardEnabled or UIS.MouseEnabled) then return "Hybrid" end
+	return "PC"
+end
+local function platformText()
+	if UIS.TouchEnabled and not UIS.KeyboardEnabled and not UIS.MouseEnabled then return "Touch" end
+	if UIS.GamepadEnabled and not UIS.KeyboardEnabled and not UIS.MouseEnabled then return "Gamepad" end
+	if UIS.KeyboardEnabled or UIS.MouseEnabled then return "Keyboard/Mouse" end
+	return "Unknown"
+end
+local fpsAccumulator=0
+local fpsFrames=0
+local fpsDisplay=0
+local statsClock=0
+
 select("AIM")
 
 -- Register player characters immediately so ESP tidak menunggu state lain.
@@ -542,9 +670,15 @@ local pulseClock=0
 RunService:BindToRenderStep("AimESPPovRender",Enum.RenderPriority.Camera.Value+1,function(dt)
 	pulseClock+=dt
 	local pulse=(math.sin(pulseClock*3.2)+1)/2
+	if uiAnimation then
+		topGrad.Offset=Vector2.new(((pulseClock*0.45)%2)-1,0)
+	else
+		topGrad.Offset=Vector2.new(0,0)
+	end
 	statusDot.BackgroundTransparency=.05+(pulse*.45)
 	statusStroke.Transparency=.10+(pulse*.45)
 	if mainStroke then mainStroke.Transparency=.12+(pulse*.28) end
+	applyVisualSettings()
 	Cam=workspace.CurrentCamera
 	local viewport=Cam.ViewportSize
 pov.Position=UDim2.fromScale(.5,.5)
@@ -562,6 +696,11 @@ if povCorner then povCorner.CornerRadius=UDim.new(.5,0) end
 	else
 		povColor=Color3.fromRGB(povR,povG,povB)
 	end
+	local themeColor=themeRGB and Color3.fromHSV((pulseClock*themeSpeed)%1,0.92,1) or Color3.fromRGB(themeR,themeG,themeB)
+	if renderTitle then renderTitle.TextColor3=themeColor end
+	settingsTitle.TextColor3=themeColor
+	topGlow.BackgroundColor3=themeColor
+	settingsPanel.BackgroundColor3=Color3.fromRGB(9,11,15)
 	ps.Color=povColor
 	local lockedTarget=nil
 	if aim then
@@ -590,10 +729,49 @@ if povCorner then povCorner.CornerRadius=UDim.new(.5,0) end
 	end
 	if lockedTarget then
 		statusText.Text="LOCKED  •  "..(lockedTarget.Parent and lockedTarget.Parent.Name or "TARGET")
-		statusText.TextColor3=Color3.fromRGB(255,105,110)
+		statusText.TextColor3=themeColor
 	else
 		statusText.Text=aim and "SEARCHING..." or "SYSTEM READY"
 		statusText.TextColor3=Color3.fromRGB(190,195,205)
+	end
+	fpsFrames+=1
+	fpsAccumulator+=dt
+	statsClock+=dt
+	if fpsAccumulator>=0.5 then
+		fpsDisplay=math.clamp(math.round(fpsFrames/math.max(fpsAccumulator,.001)),0,999)
+		fpsFrames=0
+		fpsAccumulator=0
+	end
+	if statsClock>=0.25 then
+		statsClock=0
+		if performanceDevice then
+			local ping=getPingMs()
+			local frameFps=nil
+			pcall(function()
+				local frameTime=Stats.FrameTime
+				if frameTime and frameTime>0 then frameFps=math.clamp(math.round(1/frameTime),0,999) end
+			end)
+			local shownFps=frameFps or fpsDisplay
+			fpsValue.Text=string.format("FPS       %d",shownFps)
+			if ping then
+				pingValue.Text=string.format("Ping      %d ms",math.round(ping))
+				local bars=(ping<=50 and 8) or (ping<=90 and 7) or (ping<=130 and 6) or (ping<=180 and 5) or (ping<=250 and 4) or (ping<=350 and 3) or (ping<=500 and 2) or 1
+				signalValue.Text="Signal    "..string.rep("█",bars)..string.rep("░",8-bars)
+			else
+				pingValue.Text="Ping      --- ms"
+				signalValue.Text="Signal    ░░░░░░░░"
+			end
+			deviceValue.Text="Device    "..deviceText()
+			platformValue.Text="Platform  "..platformText()
+			playersValue.Text="Players   "..tostring(#Players:GetPlayers())
+		else
+			fpsValue.Text="FPS       ---"
+			pingValue.Text="Ping      --- ms"
+			signalValue.Text="Signal    ░░░░░░░░"
+			deviceValue.Text="Device    ---------"
+			platformValue.Text="Platform  --------"
+			playersValue.Text="Players   --"
+		end
 	end
 	for m,o in pairs(objects) do if m.Parent then update(m,o) else remove(m) end end
 	for _,pl in ipairs(Players:GetPlayers()) do if pl.Character and pl.Character~=LP.Character then create(pl.Character) end end
