@@ -1,0 +1,172 @@
+--// FLY CP - SMOOTH & STABLE
+--// Standalone LocalScript
+--// Workspace > Checkpoints > CP1, CP2, CP3, ... > Finish
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Player = Players.LocalPlayer
+
+--// SETTINGS
+local Speed = 100
+local ArrivalDistance = 5
+local Enabled = true
+
+local CheckpointFolder = workspace:FindFirstChild("Checkpoints")
+
+local function getPart(object)
+	if not object then
+		return nil
+	end
+
+	if object:IsA("BasePart") then
+		return object
+	end
+
+	if object:IsA("Model") then
+		return object.PrimaryPart
+			or object:FindFirstChildWhichIsA("BasePart", true)
+	end
+
+	return nil
+end
+
+local function getCheckpoints()
+	local list = {}
+
+	if not CheckpointFolder then
+		warn("Fly CP: Folder 'Checkpoints' tidak ditemukan.")
+		return list
+	end
+
+	for _, object in ipairs(CheckpointFolder:GetChildren()) do
+		local number = tonumber(object.Name:match("^CP(%d+)$"))
+
+		if number then
+			local part = getPart(object)
+
+			if part then
+				table.insert(list, {
+					number = number,
+					part = part
+				})
+			end
+		end
+	end
+
+	table.sort(list, function(a, b)
+		return a.number < b.number
+	end)
+
+	local finish = CheckpointFolder:FindFirstChild("Finish")
+
+	if finish then
+		local part = getPart(finish)
+
+		if part then
+			table.insert(list, {
+				number = math.huge,
+				part = part
+			})
+		end
+	end
+
+	return list
+end
+
+local function setNoclip(character, state)
+	for _, object in ipairs(character:GetDescendants()) do
+		if object:IsA("BasePart") then
+			object.CanCollide = not state
+		end
+	end
+end
+
+local function flyTo(character, target)
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not root or not target then
+		return false
+	end
+
+	while Enabled and character.Parent and root.Parent do
+		local offset = target.Position - root.Position
+		local distance = offset.Magnitude
+
+		if distance <= ArrivalDistance then
+			return true
+		end
+
+		local dt = RunService.Heartbeat:Wait()
+
+		-- Clamp supaya gerakan tetap stabil saat FPS berubah.
+		local step = math.min(Speed * dt, distance)
+		local direction = offset.Unit
+		local nextPosition = root.Position + direction * step
+
+		-- Menghadap arah checkpoint tanpa memutar karakter secara kasar.
+		root.CFrame = CFrame.lookAt(nextPosition, target.Position)
+	end
+
+	return false
+end
+
+local function stopFly(character, noclipConnection)
+	Enabled = false
+
+	if noclipConnection then
+		noclipConnection:Disconnect()
+	end
+
+	if character and character.Parent then
+		setNoclip(character, false)
+	end
+end
+
+local function startFly()
+	local character = Player.Character or Player.CharacterAdded:Wait()
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not humanoid or not root then
+		Enabled = false
+		return
+	end
+
+	local checkpoints = getCheckpoints()
+
+	if #checkpoints == 0 then
+		Enabled = false
+		return
+	end
+
+	local noclipConnection = RunService.Stepped:Connect(function()
+		if Enabled and character.Parent then
+			setNoclip(character, true)
+		end
+	end)
+
+	for _, checkpoint in ipairs(checkpoints) do
+		if not Enabled or not character.Parent then
+			break
+		end
+
+		flyTo(character, checkpoint.part)
+	end
+
+	stopFly(character, noclipConnection)
+end
+
+--// Death / respawn = stop automatically
+Player.CharacterAdded:Connect(function()
+	Enabled = false
+end)
+
+--// START
+task.spawn(startFly)
+
+--// Untuk mengatur kecepatan:
+-- Speed = 50
+-- Speed = 100
+-- Speed = 150
+-- Speed = 300
