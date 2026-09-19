@@ -236,7 +236,7 @@ local function applySoundVolume()
 end
 applySoundVolume()
 local glow=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(636,406),BackgroundColor3=Color3.fromRGB(255,20,20),BackgroundTransparency=.91,BorderSizePixel=0,ZIndex=1},gui);round(glow,18)
-local main=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(620,390),BackgroundColor3=Color3.fromRGB(8,9,13),BackgroundTransparency=.48,BorderSizePixel=0,ClipsDescendants=true,ZIndex=5},gui);round(main,16);outline(main)
+local main=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(620,390),BackgroundColor3=Color3.fromRGB(8,9,13),BackgroundTransparency=.86,BorderSizePixel=0,ClipsDescendants=true,ZIndex=5},gui);round(main,16);outline(main)
 -- Gojo image is the background INSIDE the compact UI panel, not fullscreen.
 local UI_BG_ID="rbxassetid://7112218128"
 local uiBackground=new("ImageLabel",{
@@ -248,15 +248,15 @@ local uiBackground=new("ImageLabel",{
 	Image=UI_BG_ID,
 	ImageTransparency=0,
 	ScaleType=Enum.ScaleType.Crop,
-	ZIndex=4
+	ZIndex=6
 },main);round(uiBackground,16)
 local uiTint=new("Frame",{
 	Name="UIBackgroundTint",Size=UDim2.fromScale(1,1),Position=UDim2.fromScale(0,0),
-	BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=.58,BorderSizePixel=0,ZIndex=5
+	BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=.80,BorderSizePixel=0,ZIndex=7
 },main);round(uiTint,16)
 main.Visible=false
 local mainStroke=main:FindFirstChildOfClass("UIStroke")
-local top=new("Frame",{Size=UDim2.new(1,0,0,55),BackgroundColor3=Color3.fromRGB(14,16,22),BackgroundTransparency=.18,BorderSizePixel=0,ZIndex=6},main);round(top,16)
+local top=new("Frame",{Size=UDim2.new(1,0,0,55),BackgroundColor3=Color3.fromRGB(14,16,22),BackgroundTransparency=.28,BorderSizePixel=0,ZIndex=10},main);round(top,16)
 local topGlow=new("Frame",{Position=UDim2.fromOffset(14,51),Size=UDim2.new(1,-28,0,2),BackgroundColor3=Color3.fromRGB(255,40,45),BorderSizePixel=0,ZIndex=8},top);round(topGlow,2)
 local topGrad=new("UIGradient",{Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(85,15,20)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,70,70)),ColorSequenceKeypoint.new(1,Color3.fromRGB(85,15,20))}),Offset=Vector2.new(0,0),Rotation=0},topGlow)
 local headerTitle=new("TextLabel",{Position=UDim2.fromOffset(18,7),Size=UDim2.fromOffset(330,24),BackgroundTransparency=1,Text="⚡ AIM  •  ESP  •  POV",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=17,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},top)
@@ -266,8 +266,8 @@ local statusStroke=new("UIStroke",{Color=Color3.fromRGB(255,85,85),Thickness=1,T
 local statusText=new("TextLabel",{Position=UDim2.new(1,-151,0,13),Size=UDim2.fromOffset(92,18),BackgroundTransparency=1,Text="SYSTEM READY",TextColor3=Color3.fromRGB(190,195,205),Font=Enum.Font.GothamBold,TextSize=8,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},top)
 local minb=new("TextButton",{Position=UDim2.new(1,-86,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="−",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=19,AutoButtonColor=false,ZIndex=8},top);round(minb,9)
 local settingsBtn=new("TextButton",{Position=UDim2.new(1,-128,0,10),Size=UDim2.fromOffset(32,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="⚙",TextColor3=Color3.fromRGB(225,225,230),Font=Enum.Font.GothamBold,TextSize=16,AutoButtonColor=false,ZIndex=8},top);round(settingsBtn,9)
-local languageBtn=new("TextButton",{Position=UDim2.new(1,-299,0,10),Size=UDim2.fromOffset(86,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="🇮🇩 ID",TextColor3=Color3.fromRGB(225,225,230),Font=Enum.Font.GothamBold,TextSize=9,AutoButtonColor=false,ZIndex=8},top);round(languageBtn,9)
-local languageMenu=new("Frame",{Position=UDim2.new(1,-299,0,45),Size=UDim2.fromOffset(96,98),BackgroundColor3=Color3.fromRGB(15,17,23),BackgroundTransparency=.05,BorderSizePixel=0,Visible=false,ZIndex=100},top);round(languageMenu,8)
+local languageBtn=new("TextButton",{Position=UDim2.new(1,-299,0,10),Size=UDim2.fromOffset(86,32),BackgroundColor3=Color3.fromRGB(27,29,37),Text="🇬🇧 EN",TextColor3=Color3.fromRGB(225,225,230),Font=Enum.Font.GothamBold,TextSize=9,AutoButtonColor=false,ZIndex=8},top);round(languageBtn,9)
+local languageMenu=new("Frame",{Position=UDim2.new(1,-205,0,10),Size=UDim2.fromOffset(96,86),BackgroundColor3=Color3.fromRGB(15,17,23),BackgroundTransparency=.05,BorderSizePixel=0,Visible=false,ZIndex=100},main);round(languageMenu,8)
 local languageLayout=new("UIListLayout",{Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder},languageMenu)
 local languagePad=new("UIPadding",{PaddingTop=UDim.new(0,5),PaddingBottom=UDim.new(0,5),PaddingLeft=UDim.new(0,5),PaddingRight=UDim.new(0,5)},languageMenu)
 local languageCodes={{"ID","🇮🇩 ID"},{"EN","🇬🇧 EN"},{"RU","🇷🇺 RU"}}
@@ -338,8 +338,8 @@ UIS.InputBegan:Connect(function(i,p)
 end)
 
 
-local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BackgroundTransparency=.58,BorderSizePixel=0,ZIndex=12},main);round(side,12)
-local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=.60,BorderSizePixel=0,ZIndex=10},main);round(pages,12)
+local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BackgroundTransparency=.72,BorderSizePixel=0,ZIndex=12},main);round(side,12)
+local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=.74,BorderSizePixel=0,ZIndex=11},main);round(pages,12)
 local tabs={}
 local pg={}
 local function page(n)
@@ -458,7 +458,7 @@ RU={
 	["Aim Hint"]="Блокировка работает только по видимым игрокам внутри круга FOV. Стены и объекты блокируют прицел.",
 }
 }
-local currentLanguage="ID"
+local currentLanguage="EN"
 local function L(key)
 	local lang=languageText[currentLanguage] or languageText.ID
 	return lang[key] or languageText.EN[key] or key
@@ -860,7 +860,7 @@ end
 -- ============================================================
 -- SETTINGS PANEL (separate from the 3 AIM / ESP / POV tabs)
 -- ============================================================
-settingsPanel=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=.58,BorderSizePixel=0,Visible=false,ZIndex=20},main);round(settingsPanel,12)
+settingsPanel=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=.74,BorderSizePixel=0,Visible=false,ZIndex=20},main);round(settingsPanel,12)
 local settingsScroll=new("ScrollingFrame",{Position=UDim2.fromOffset(6,38),Size=UDim2.new(1,-12,1,-44),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=Color3.fromRGB(120,25,30),CanvasSize=UDim2.fromOffset(0,1000),ZIndex=21},settingsPanel)
 local settingsTitle=new("TextLabel",{Position=UDim2.fromOffset(12,7),Size=UDim2.new(1,-70,0,24),BackgroundTransparency=1,Text=L("SETTINGS"),TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=22},settingsPanel)
 markLocalized(settingsTitle,"SETTINGS")
@@ -1066,6 +1066,9 @@ for code,lb in pairs(languageButtons) do
 	end)
 end
 languageBtn.MouseButton1Click:Connect(function()
+	if not languageMenu.Visible then
+		languageMenu.Position=UDim2.new(1,-205,0,10)
+	end
 	languageMenu.Visible=not languageMenu.Visible
 	playSound(clickSound)
 end)
