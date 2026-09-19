@@ -142,21 +142,6 @@ local oldGui=playerGui:FindFirstChild("AimESPPOV")
 if oldGui then oldGui:Destroy() end
 local gui=new("ScreenGui",{Name="AimESPPOV",ResetOnSpawn=false,IgnoreGuiInset=true,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=100},playerGui)
 
--- Fullscreen background image. It stays behind the compact toolkit UI.
-local FULLSCREEN_BG_ID="rbxassetid://7112218128"
-local fullscreenBg=new("ImageLabel",{
-	Name="FullscreenBackground",
-	Size=UDim2.fromScale(1,1),
-	Position=UDim2.fromScale(0,0),
-	BackgroundColor3=Color3.fromRGB(4,5,8),
-	BackgroundTransparency=0,
-	BorderSizePixel=0,
-	Image=FULLSCREEN_BG_ID,
-	ImageTransparency=0,
-	ScaleType=Enum.ScaleType.Crop,
-	ZIndex=0
-},gui)
-
 -- Loading screen / intro video
 local LOADING_VIDEO_ID="rbxassetid://5608303923"
 local loading=new("Frame",{
@@ -250,10 +235,23 @@ local function applySoundVolume()
 end
 applySoundVolume()
 local glow=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(636,406),BackgroundColor3=Color3.fromRGB(255,20,20),BackgroundTransparency=.91,BorderSizePixel=0,ZIndex=1},gui);round(glow,18)
-local main=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(620,390),BackgroundColor3=Color3.fromRGB(8,9,13),BorderSizePixel=0,ClipsDescendants=true,ZIndex=5},gui);round(main,16);outline(main)
+local main=new("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(620,390),BackgroundColor3=Color3.fromRGB(8,9,13),BackgroundTransparency=.18,BorderSizePixel=0,ClipsDescendants=true,ZIndex=5},gui);round(main,16);outline(main)
+-- Gojo image is the background INSIDE the compact UI panel, not fullscreen.
+local UI_BG_ID="rbxassetid://7112218128"
+local uiBackground=new("ImageLabel",{
+	Name="UIBackground",
+	Size=UDim2.fromScale(1,1),
+	Position=UDim2.fromScale(0,0),
+	BackgroundTransparency=1,
+	BorderSizePixel=0,
+	Image=UI_BG_ID,
+	ImageTransparency=.22,
+	ScaleType=Enum.ScaleType.Crop,
+	ZIndex=5
+},main);round(uiBackground,16)
 main.Visible=false
 local mainStroke=main:FindFirstChildOfClass("UIStroke")
-local top=new("Frame",{Size=UDim2.new(1,0,0,55),BackgroundColor3=Color3.fromRGB(14,16,22),BorderSizePixel=0,ZIndex=6},main);round(top,16)
+local top=new("Frame",{Size=UDim2.new(1,0,0,55),BackgroundColor3=Color3.fromRGB(14,16,22),BackgroundTransparency=.18,BorderSizePixel=0,ZIndex=6},main);round(top,16)
 local topGlow=new("Frame",{Position=UDim2.fromOffset(14,51),Size=UDim2.new(1,-28,0,2),BackgroundColor3=Color3.fromRGB(255,40,45),BorderSizePixel=0,ZIndex=8},top);round(topGlow,2)
 local topGrad=new("UIGradient",{Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(85,15,20)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,70,70)),ColorSequenceKeypoint.new(1,Color3.fromRGB(85,15,20))}),Offset=Vector2.new(0,0),Rotation=0},topGlow)
 new("TextLabel",{Position=UDim2.fromOffset(18,7),Size=UDim2.fromOffset(330,24),BackgroundTransparency=1,Text="⚡ AIM  •  ESP  •  POV",TextColor3=Color3.fromRGB(255,70,70),Font=Enum.Font.GothamBold,TextSize=17,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},top)
@@ -325,8 +323,8 @@ UIS.InputBegan:Connect(function(i,p)
 end)
 
 
-local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BorderSizePixel=0,ZIndex=12},main);round(side,12)
-local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=0,BorderSizePixel=0,ZIndex=10},main);round(pages,12)
+local side=new("Frame",{Position=UDim2.fromOffset(10,65),Size=UDim2.fromOffset(145,315),BackgroundColor3=Color3.fromRGB(11,13,18),BackgroundTransparency=.22,BorderSizePixel=0,ZIndex=12},main);round(side,12)
+local pages=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=.20,BorderSizePixel=0,ZIndex=10},main);round(pages,12)
 local tabs={}
 local pg={}
 local function page(n)
@@ -744,7 +742,7 @@ end
 -- ============================================================
 -- SETTINGS PANEL (separate from the 3 AIM / ESP / POV tabs)
 -- ============================================================
-local settingsPanel=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BorderSizePixel=0,Visible=false,ZIndex=20},main);round(settingsPanel,12)
+local settingsPanel=new("Frame",{Position=UDim2.fromOffset(165,65),Size=UDim2.new(1,-175,1,-75),BackgroundColor3=Color3.fromRGB(9,11,15),BackgroundTransparency=.20,BorderSizePixel=0,Visible=false,ZIndex=20},main);round(settingsPanel,12)
 local settingsScroll=new("ScrollingFrame",{Position=UDim2.fromOffset(6,38),Size=UDim2.new(1,-12,1,-44),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=Color3.fromRGB(120,25,30),CanvasSize=UDim2.fromOffset(0,1000),ZIndex=21},settingsPanel)
 local settingsTitle=new("TextLabel",{Position=UDim2.fromOffset(12,7),Size=UDim2.new(1,-70,0,24),BackgroundTransparency=1,Text="⚙  SETTINGS",TextColor3=Color3.fromRGB(255,75,75),Font=Enum.Font.GothamBold,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=22},settingsPanel)
 local settingsBack=new("TextButton",{Position=UDim2.new(1,-54,0,6),Size=UDim2.fromOffset(42,27),BackgroundColor3=Color3.fromRGB(27,29,37),Text="BACK",TextColor3=Color3.fromRGB(220,220,225),Font=Enum.Font.GothamBold,TextSize=8,AutoButtonColor=false,ZIndex=22},settingsPanel);round(settingsBack,8)
@@ -890,6 +888,16 @@ task.spawn(function()
 	loading.Visible=false
 	main.Visible=true
 	glow.Visible=uiGlow
+end)
+
+-- Safety fallback: if the intro task is interrupted by an unavailable video asset,
+-- never leave the player stuck on a fullscreen black loading layer.
+task.delay(11,function()
+	if loading and loading.Parent and loading.Visible then
+		loading.Visible=false
+		main.Visible=true
+		glow.Visible=uiGlow
+	end
 end)
 
 select("AIM")
